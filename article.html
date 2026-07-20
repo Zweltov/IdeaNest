@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Чтение статьи — IdeaHub</title>
+<link rel="icon" href="favicon.ico" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="articles-data.js"></script>
+<meta name="description" id="articleMetaDesc" content="Статья на IdeaHub" />
+</head>
+<body class="bg-articles">
+
+<div id="toastContainer" class="toast-container"></div>
+
+<header class="navbar article-header">
+  <div class="navbar-container">
+    <div class="navbar-left">
+      <button class="article-back-btn" onclick="window.location.href='index.html'" title="К статьям" aria-label="Назад">
+        <i data-lucide="arrow-left"></i>
+      </button>
+    </div>
+    <div style="flex:1; font-weight:600; font-size:14px; color:var(--text-color); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" id="articleNavTitle">
+      Загрузка...
+    </div>
+    <div class="navbar-right">
+      <img src="https://ui-avatars.com/api/?name=User&background=2563eb&color=fff&bold=true" class="nav-avatar" alt="Профиль" onclick="window.location.href='index.html'" />
+    </div>
+  </div>
+</header>
+
+<main style="max-width: 760px; margin: 0 auto; padding: 48px 24px 100px;">
+  <article class="glass-card" style="cursor:default;" id="articleContentContainer"></article>
+  <section class="glass-card comments-section" style="cursor:default; margin-top: 20px; border-top:none; padding-top:20px;" id="commentsSection"></section>
+</main>
+
+<div class="fab-container">
+  <button class="fab-btn" id="fabToggleBtn"><i data-lucide="bookmark"></i></button>
+  <div class="fab-popup" id="fabPopup">
+    <div class="fab-tabs-wrapper">
+      <div class="navbar-tabs" id="fabTabs">
+        <div class="nav-indicator" id="fabIndicator"></div>
+        <button class="nav-tab active" data-fab-tab="fav-ideas" title="Избранные идеи"><i data-lucide="lightbulb"></i><span>Идеи</span></button>
+        <button class="nav-tab" data-fab-tab="up-ideas" title="Лайкнутые идеи"><i data-lucide="arrow-up"></i><span>Лайки</span></button>
+        <button class="nav-tab" data-fab-tab="fav-articles" title="Избранные статьи"><i data-lucide="book-open"></i><span>Статьи</span></button>
+      </div>
+    </div>
+    <div class="fab-content-list" id="fabContentList"></div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const articleId = parseInt(urlParams.get('id'), 10);
+  const container = document.getElementById('articleContentContainer');
+
+  if (!articleId) { container.innerHTML = '<p>Статья не найдена.</p>'; return; }
+
+  // ждём инициализацию пользователя/профиля из script.js, чтобы
+  // состояние апвоута/избранного было точным при первой отрисовке
+  if (typeof updateUserUI === 'function') await updateUserUI();
+  if (typeof loadUserData === 'function') await loadUserData();
+
+  const list = typeof IDEAHUB_ARTICLES !== 'undefined' ? IDEAHUB_ARTICLES : [];
+  const article = list.find(a => a.id === articleId);
+
+  if (!article) { container.innerHTML = '<p>Статья не найдена.</p>'; return; }
+
+  document.title = `${article.title} — IdeaHub`;
+  document.getElementById('articleMetaDesc').setAttribute('content', article.description || '');
+  document.getElementById('articleNavTitle').textContent = article.title;
+
+  const isLiked = typeof myUpvotedArticles !== 'undefined' && myUpvotedArticles.has(article.id);
+  const isFav = typeof favoriteArticles !== 'undefined' && favoriteArticles.includes(article.id);
+
+  container.innerHTML = `
+    <span class="card-badge">${article.category}</span>
+    <h1>${article.title}</h1>
+    <p style="color:var(--nav-text); font-size:13.5px; margin-bottom:28px;">${article.author} · ${article.readTime} мин чтения</p>
+    <div style="line-height:1.75; font-size:15px; color:var(--text-color);">${article.content}</div>
+    <div class="article-actions-row">
+      <button class="article-action-pill ${isLiked ? 'active' : ''}" id="articleUpvoteBtn"><i data-lucide="arrow-up"></i> Апвоут</button>
+      <button class="article-action-pill ${isFav ? 'active' : ''}" id="articleFavBtn"><i data-lucide="bookmark"></i> В избранное</button>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons();
+
+  document.getElementById('articleUpvoteBtn').addEventListener('click', async (e) => {
+    const success = await toggleLikeArticleSupabase(article.id);
+    if (success) e.currentTarget.classList.toggle('active', myUpvotedArticles.has(article.id));
+  });
+
+  document.getElementById('articleFavBtn').addEventListener('click', async (e) => {
+    const success = await toggleFavArticleSupabase(article.id);
+    if (success) e.currentTarget.classList.toggle('active', favoriteArticles.includes(article.id));
+  });
+
+  if (typeof recordView === 'function') recordView('articles', article.id);
+  if (typeof loadCommentsUI === 'function') loadCommentsUI(article.id, 'article');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+.profile-page {
+  padding-top: 8rem;
+  min-height: 100vh;
+}
+.profile-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+.profile-card {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(16px);
+  border-radius: 2rem;
+  padding: 2rem;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+/* ... остальные стили как в предыдущей версии */
