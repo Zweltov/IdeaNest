@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Статья — IdeaNest</title>
+  <link rel="icon" href="../favicon.ico" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!--
+    Общий шаблон для ВСЕХ статей (не отдельный файл на каждую): сама статья
+    хранится в таблице articles в Supabase, а нужный id передаётся через
+    ссылку, например articles/article.html?id=3. Подключены те же
+    style.css и script.js, что и на главной странице и у страниц идей.
+  -->
+
+  <header class="navbar">
+    <div class="navbar-container">
+      <a class="brand" href="../index.html">
+        <i data-lucide="layers"></i> IdeaNest
+      </a>
+
+      <nav class="nav-links">
+        <a href="../index.html#ideas" class="nav-link">Идеи</a>
+        <a href="../index.html#articles" class="nav-link">Статьи</a>
+      </nav>
+
+      <div class="navbar-actions">
+        <button class="btn btn-secondary" id="loginBtn" style="display:none;">Войти</button>
+        <div class="profile-wrapper" id="profileWrapper" style="display:none;">
+          <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="topAvatar" class="avatar-img" alt="Профиль">
+
+          <div class="profile-dropdown" id="profileDropdown">
+            <div class="dropdown-header">
+              <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="dropdownAvatar" class="dropdown-avatar" alt="Профиль">
+              <div class="user-info">
+                <span class="user-name" id="userName">Пользователь</span>
+                <span class="user-email" id="userEmail">user@ideanest.com</span>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item"><i data-lucide="user"></i> Профиль</a>
+            <a href="#" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
+            <a href="#" class="dropdown-item"><i data-lucide="lightbulb"></i> Мои идеи</a>
+            <a href="#" class="dropdown-item"><i data-lucide="book-open"></i> Мои статьи</a>
+            <a href="#" class="dropdown-item"><i data-lucide="bell"></i> Уведомления</a>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-section-title">Аккаунты</div>
+            <a href="#" class="dropdown-item active-account"><i data-lucide="check-circle-2"></i> Текущий аккаунт</a>
+            <a href="#" class="dropdown-item"><i data-lucide="plus"></i> Добавить аккаунт</a>
+            <a href="#" class="dropdown-item"><i data-lucide="refresh-cw"></i> Переключить аккаунт</a>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item danger" id="logoutBtn"><i data-lucide="log-out"></i> Выйти</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main style="max-width: 720px; margin: 0 auto; padding: 48px 24px 100px;">
+    <a href="../index.html#articles" class="btn-text" style="margin-bottom: 24px; display: inline-flex;">
+      <i data-lucide="arrow-left"></i> Ко всем статьям
+    </a>
+
+    <div class="card" style="cursor: default;" id="articleDetailContainer">
+      <p style="color: var(--text-muted);">Загрузка статьи...</p>
+    </div>
+  </main>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <div class="modal-backdrop" id="authBackdrop">
+    <div class="modal auth-modal">
+      <button class="modal-close" id="authCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth-tab="signin">Вход</button>
+        <button class="auth-tab" data-auth-tab="signup">Регистрация</button>
+      </div>
+      <form id="authForm">
+        <div class="form-group" id="usernameGroup" style="display:none;">
+          <label for="authUsername">Имя пользователя</label>
+          <input type="text" id="authUsername" placeholder="Александр" autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label for="authEmail">Email</label>
+          <input type="email" id="authEmail" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="authPassword">Пароль</label>
+          <input type="password" id="authPassword" placeholder="Минимум 6 символов" required autocomplete="current-password" />
+        </div>
+        <div class="auth-error" id="authError"></div>
+        <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">Войти</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="../script.js"></script>
+</body>
+</html>
