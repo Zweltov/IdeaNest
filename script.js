@@ -1,9 +1,8 @@
 // ==========================================================================
 //  IdeaNest — script.js (общий для index.html и всех страниц ideas/idea.html)
-//  Подключено: аутентификация (регистрация/вход/выход), каталог идей из
-//  таблицы ideas в Supabase, окно предпросмотра идеи со всеми её полями,
-//  отдельная страница идеи с избранным/апвоутом/учётом просмотра.
-//  Статьи пока остаются демо-данными — это следующий шаг.
+//  Подключено: аутентификация (регистрация/вход/выход), каталог идей и статей
+//  из таблиц ideas/articles в Supabase, окна предпросмотра со всеми полями,
+//  отдельные страницы идеи/статьи с избранным/апвоутом/учётом просмотра.
 // ==========================================================================
 
 const SUPABASE_URL = 'https://hhwndrynnozllrqtcdct.supabase.co';
@@ -492,15 +491,27 @@ document.addEventListener("DOMContentLoaded", () => {
     ratingSlider.addEventListener('input', () => applyIdeaFilters());
   }
 
+  const ideaSearchInput = document.getElementById('ideaSearchInput');
+  let searchDebounceTimer;
+  if (ideaSearchInput) {
+    ideaSearchInput.addEventListener('input', () => {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(applyIdeaFilters, 200);
+    });
+  }
+
   function applyIdeaFilters() {
     const activeBtn = document.querySelector('.filter-btn.active');
     const category = activeBtn ? activeBtn.dataset.filter : 'all';
     const minRating = ratingSlider ? parseFloat(ratingSlider.value) : 0;
+    const searchQuery = ideaSearchInput ? ideaSearchInput.value.trim().toLowerCase() : '';
 
     const filtered = ideasCache.filter(idea => {
       const matchesCategory = category === 'all' || idea.category === category;
       const matchesRating = idea.rating == null ? minRating === 0 : Number(idea.rating) >= minRating;
-      return matchesCategory && matchesRating;
+      const matchesSearch = !searchQuery || [idea.title, idea.pluses, idea.minuses, idea.risks, idea.potential]
+        .some(field => (field || '').toLowerCase().includes(searchQuery));
+      return matchesCategory && matchesRating && matchesSearch;
     });
 
     renderIdeasList(filtered);
