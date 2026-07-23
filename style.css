@@ -100,9 +100,9 @@ body {
   top: calc(100% + 12px);
   right: 0;
   width: 260px;
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(44px) saturate(180%);
+  -webkit-backdrop-filter: blur(44px) saturate(180%);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
@@ -268,6 +268,42 @@ body {
 .slider-group { display: flex; align-items: center; gap: 16px; }
 .slider-label { font-size: 0.9rem; font-weight: 500; color: var(--text-muted); }
 .slider-label span { color: var(--text-main); font-weight: 700; }
+
+/* ================= Страница "Все идеи": сетка + фильтры справа (DNS-стиль) ================= */
+.ideas-page-layout {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 32px;
+  align-items: start;
+}
+
+.ideas-filter-sidebar {
+  position: sticky;
+  top: 88px;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ideas-filter-title { font-size: 1.05rem; font-weight: 700; }
+
+.ideas-filter-block { display: flex; flex-direction: column; gap: 12px; }
+.ideas-filter-block-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+
+.ideas-filter-sidebar .filter-group { flex-direction: column; gap: 8px; }
+.ideas-filter-sidebar .filter-btn { width: 100%; text-align: left; }
+.ideas-filter-sidebar .custom-slider-container { width: 100%; }
+
+@media (max-width: 860px) {
+  .ideas-page-layout { grid-template-columns: 1fr; }
+  .ideas-filter-sidebar { position: static; order: -1; }
+  .ideas-filter-sidebar .filter-group { flex-direction: row; flex-wrap: wrap; }
+}
 
 .custom-slider-container {
   position: relative;
