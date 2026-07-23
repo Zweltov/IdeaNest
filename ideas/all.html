@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Все идеи — IdeaNest</title>
+  <link rel="icon" href="../favicon.ico" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!--
+    Каталог всех идей. Фильтры (категория/рейтинг) здесь пока не подключены —
+    страница показывает все идеи из Supabase как есть. script.js сам находит
+    #ideasGrid и рендерит карточки (та же логика, что и на главной).
+  -->
+
+  <div class="profile-blur-overlay" id="profileBlurOverlay"></div>
+
+  <header class="navbar">
+    <div class="navbar-container">
+      <a class="brand" href="../index.html">
+        <i data-lucide="layers"></i> IdeaNest
+      </a>
+
+      <nav class="nav-links">
+        <a href="../index.html#ideas" class="nav-link">Идеи</a>
+        <a href="../index.html#articles" class="nav-link">Статьи</a>
+      </nav>
+
+      <div class="navbar-actions">
+        <button class="btn btn-secondary" id="loginBtn" style="display:none;">Войти</button>
+        <div class="profile-wrapper" id="profileWrapper" style="display:none;">
+          <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="topAvatar" class="avatar-img" alt="Профиль">
+
+          <div class="profile-dropdown" id="profileDropdown">
+            <div class="dropdown-header">
+              <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="dropdownAvatar" class="dropdown-avatar" alt="Профиль">
+              <div class="user-info">
+                <span class="user-name" id="userName">Пользователь</span>
+                <span class="user-email" id="userEmail">user@ideanest.com</span>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item"><i data-lucide="user"></i> Профиль</a>
+            <a href="#" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
+            <a href="#" class="dropdown-item"><i data-lucide="lightbulb"></i> Мои идеи</a>
+            <a href="#" class="dropdown-item"><i data-lucide="book-open"></i> Мои статьи</a>
+            <a href="#" class="dropdown-item"><i data-lucide="bell"></i> Уведомления</a>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-section-title">Аккаунты</div>
+            <a href="#" class="dropdown-item active-account"><i data-lucide="check-circle-2"></i> Текущий аккаунт</a>
+            <a href="#" class="dropdown-item"><i data-lucide="plus"></i> Добавить аккаунт</a>
+            <a href="#" class="dropdown-item"><i data-lucide="refresh-cw"></i> Переключить аккаунт</a>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item danger" id="logoutBtn"><i data-lucide="log-out"></i> Выйти</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main style="max-width: 1200px; margin: 0 auto; padding: 48px 24px 100px;">
+    <a href="../index.html#ideas" class="btn-text" style="margin-bottom: 24px; display: inline-flex;">
+      <i data-lucide="arrow-left"></i> На главную
+    </a>
+    <h1 class="section-title" style="margin-bottom: 32px;">Все идеи</h1>
+
+    <div class="ideas-page-layout">
+      <div class="grid-cards" id="ideasGrid">
+        <p style="color: var(--text-muted);">Загрузка идей...</p>
+      </div>
+
+      <aside class="ideas-filter-sidebar">
+        <h3 class="ideas-filter-title">Фильтры</h3>
+
+        <div class="ideas-filter-block">
+          <span class="ideas-filter-block-label">Категория</span>
+          <div class="filter-group">
+            <button class="filter-btn active" data-filter="all">Все</button>
+            <button class="filter-btn" data-filter="it">IT & Tech</button>
+            <button class="filter-btn" data-filter="offline">Офлайн бизнес</button>
+            <button class="filter-btn" data-filter="crypto">Крипто</button>
+          </div>
+        </div>
+
+        <div class="ideas-filter-block">
+          <div class="slider-group">
+            <span class="slider-label">Рейтинг: <span id="ratingValue">4.0</span>+</span>
+          </div>
+          <div class="custom-slider-container">
+            <input type="range" id="ratingSlider" min="0" max="5" step="0.1" value="4.0" class="custom-slider">
+            <div class="slider-track-fill" id="sliderFill"></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <div class="modal-backdrop" id="ideaBackdrop">
+    <div class="modal idea-modal">
+      <button class="modal-close" id="ideaCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+      <div id="ideaModalBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="authBackdrop">
+    <div class="modal auth-modal">
+      <button class="modal-close" id="authCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+      <div class="auth-tabs" id="authTabs">
+        <button class="auth-tab active" data-auth-tab="signin">Вход</button>
+        <button class="auth-tab" data-auth-tab="signup">Регистрация</button>
+      </div>
+      <button type="button" class="auth-reset-back" id="authResetBack" style="display:none;">
+        <i data-lucide="arrow-left"></i> Назад ко входу
+      </button>
+      <form id="authForm">
+        <div class="form-group nickname-group" id="usernameGroup">
+          <label for="authFullName">Имя</label>
+          <input type="text" id="authFullName" placeholder="Александр" autocomplete="name" style="margin-bottom:14px;" />
+
+          <label for="authUsername">Никнейм</label>
+          <div class="nickname-input-wrapper">
+            <span class="nickname-at">@</span>
+            <input type="text" id="authUsername" placeholder="nickname" autocomplete="off" maxlength="15" />
+            <span class="nickname-status" id="nicknameStatus"></span>
+          </div>
+          <div class="nickname-hint" id="nicknameHint">От 5 до 15 символов: латиница в нижнем регистре, цифры, _</div>
+        </div>
+        <div class="form-group" id="identifierGroup">
+          <label for="authEmail" id="authEmailLabel">Email</label>
+          <input type="text" id="authEmail" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-group" id="passwordGroup">
+          <label for="authPassword">Пароль</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="authPassword" placeholder="Минимум 6 символов" required autocomplete="current-password" />
+            <button type="button" class="password-toggle-btn" id="passwordToggleBtn" aria-label="Показать пароль">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
+          <div class="auth-forgot-row" id="authForgotRow">
+            <a href="#" id="forgotPasswordLink" class="auth-forgot-link">Забыли пароль?</a>
+          </div>
+        </div>
+        <div class="form-group" id="recoveryPasswordGroup" style="display:none;">
+          <label for="recoveryPassword">Новый пароль</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="recoveryPassword" placeholder="Минимум 6 символов" autocomplete="new-password" />
+            <button type="button" class="password-toggle-btn" id="recoveryPasswordToggleBtn" aria-label="Показать пароль">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
+        </div>
+        <div class="auth-error" id="authError"></div>
+        <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">Войти</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="../script.js"></script>
+</body>
+</html>
