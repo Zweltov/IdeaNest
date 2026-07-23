@@ -235,32 +235,35 @@ body {
   flex-wrap: wrap;
   gap: 20px;
 }
-.filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-group {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  width: fit-content;
+}
 
 .filter-btn {
-  background: #fff;
-  border: 1px solid var(--border-color);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border-color);
   color: var(--text-muted);
   padding: 8px 16px;
-  border-radius: var(--radius-full);
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  border-radius: 0;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
-.filter-btn:hover {
-  color: var(--text-main);
-  box-shadow: var(--shadow-md);
-  transform: scale(1.03);
-}
+.filter-btn:last-child { border-right: none; }
+.filter-btn:hover { background: var(--accent-light); color: var(--text-main); }
 .filter-btn.active {
   background: var(--accent-primary);
-  border-color: var(--accent-primary);
   color: #fff;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
-.filter-btn.active:hover { transform: scale(1.03); }
+.filter-btn.active:hover { background: var(--accent-hover); }
 
 /* ================= Кастомный Ползунок Рейтинга (iOS / Android style) ================= */
 .slider-group { display: flex; align-items: center; gap: 16px; }
@@ -293,14 +296,17 @@ body {
 .ideas-filter-block { display: flex; flex-direction: column; gap: 12px; }
 .ideas-filter-block-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
 
-.ideas-filter-sidebar .filter-group { flex-direction: column; gap: 8px; }
-.ideas-filter-sidebar .filter-btn { width: 100%; text-align: left; }
+.ideas-filter-sidebar .filter-group { flex-direction: column; width: 100%; }
+.ideas-filter-sidebar .filter-btn { width: 100%; text-align: left; border-right: none; border-bottom: 1px solid var(--border-color); }
+.ideas-filter-sidebar .filter-btn:last-child { border-bottom: none; }
 .ideas-filter-sidebar .custom-slider-container { width: 100%; }
 
 @media (max-width: 860px) {
   .ideas-page-layout { grid-template-columns: 1fr; }
   .ideas-filter-sidebar { position: static; order: -1; }
-  .ideas-filter-sidebar .filter-group { flex-direction: row; flex-wrap: wrap; }
+  .ideas-filter-sidebar .filter-group { flex-direction: row; }
+  .ideas-filter-sidebar .filter-btn { border-bottom: none; border-right: 1px solid var(--border-color); }
+  .ideas-filter-sidebar .filter-btn:last-child { border-right: none; }
 }
 
 .custom-slider-container {
