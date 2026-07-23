@@ -19,6 +19,8 @@
     style.css и script.js, что и на главной странице и у страниц идей.
   -->
 
+  <div class="profile-blur-overlay" id="profileBlurOverlay"></div>
+
   <header class="navbar">
     <div class="navbar-container">
       <a class="brand" href="../index.html">
@@ -26,7 +28,7 @@
       </a>
 
       <nav class="nav-links">
-        <a href="../index.html#ideas" class="nav-link">Идеи</a>
+        <a href="../ideas/all.html" class="nav-link">Идеи</a>
         <a href="../index.html#articles" class="nav-link">Статьи</a>
       </nav>
 
@@ -77,22 +79,50 @@
   <div class="modal-backdrop" id="authBackdrop">
     <div class="modal auth-modal">
       <button class="modal-close" id="authCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="authTabs">
         <button class="auth-tab active" data-auth-tab="signin">Вход</button>
         <button class="auth-tab" data-auth-tab="signup">Регистрация</button>
       </div>
+      <button type="button" class="auth-reset-back" id="authResetBack" style="display:none;">
+        <i data-lucide="arrow-left"></i> Назад ко входу
+      </button>
       <form id="authForm">
-        <div class="form-group" id="usernameGroup" style="display:none;">
-          <label for="authUsername">Имя пользователя</label>
-          <input type="text" id="authUsername" placeholder="Александр" autocomplete="username" />
+        <div class="form-group nickname-group" id="usernameGroup">
+          <label for="authFullName">Имя</label>
+          <input type="text" id="authFullName" placeholder="Александр" autocomplete="name" style="margin-bottom:14px;" />
+
+          <label for="authUsername">Никнейм</label>
+          <div class="nickname-input-wrapper">
+            <span class="nickname-at">@</span>
+            <input type="text" id="authUsername" placeholder="nickname" autocomplete="off" maxlength="15" />
+            <span class="nickname-status" id="nicknameStatus"></span>
+          </div>
+          <div class="nickname-hint" id="nicknameHint">От 5 до 15 символов: латиница в нижнем регистре, цифры, _</div>
         </div>
-        <div class="form-group">
-          <label for="authEmail">Email</label>
-          <input type="email" id="authEmail" placeholder="you@example.com" required autocomplete="email" />
+        <div class="form-group" id="identifierGroup">
+          <label for="authEmail" id="authEmailLabel">Email</label>
+          <input type="text" id="authEmail" placeholder="you@example.com" required autocomplete="email" />
         </div>
-        <div class="form-group">
+        <div class="form-group" id="passwordGroup">
           <label for="authPassword">Пароль</label>
-          <input type="password" id="authPassword" placeholder="Минимум 6 символов" required autocomplete="current-password" />
+          <div class="password-input-wrapper">
+            <input type="password" id="authPassword" placeholder="Минимум 6 символов" required autocomplete="current-password" />
+            <button type="button" class="password-toggle-btn" id="passwordToggleBtn" aria-label="Показать пароль">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
+          <div class="auth-forgot-row" id="authForgotRow">
+            <a href="#" id="forgotPasswordLink" class="auth-forgot-link">Забыли пароль?</a>
+          </div>
+        </div>
+        <div class="form-group" id="recoveryPasswordGroup" style="display:none;">
+          <label for="recoveryPassword">Новый пароль</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="recoveryPassword" placeholder="Минимум 6 символов" autocomplete="new-password" />
+            <button type="button" class="password-toggle-btn" id="recoveryPasswordToggleBtn" aria-label="Показать пароль">
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
         </div>
         <div class="auth-error" id="authError"></div>
         <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">Войти</button>
