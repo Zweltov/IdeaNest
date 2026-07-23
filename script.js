@@ -20,24 +20,35 @@ document.addEventListener("DOMContentLoaded", () => {
   // ================= 1. Логика Меню Профиля (Dropdown) =================
   const profileWrapper = document.getElementById('profileWrapper');
   const profileDropdown = document.getElementById('profileDropdown');
+  const profileBlurOverlay = document.getElementById('profileBlurOverlay');
   const topAvatar = document.getElementById('topAvatar');
   const loginBtn = document.getElementById('loginBtn');
   const logoutBtn = document.getElementById('logoutBtn');
 
+  function openProfileDropdown() {
+    profileDropdown.classList.add('active');
+    profileBlurOverlay?.classList.add('active');
+  }
+  function closeProfileDropdown() {
+    profileDropdown.classList.remove('active');
+    profileBlurOverlay?.classList.remove('active');
+  }
+
   topAvatar.addEventListener('click', (e) => {
     e.stopPropagation();
-    profileDropdown.classList.toggle('active');
+    if (profileDropdown.classList.contains('active')) closeProfileDropdown();
+    else openProfileDropdown();
   });
 
   document.addEventListener('click', (e) => {
     if (!profileWrapper.contains(e.target)) {
-      profileDropdown.classList.remove('active');
+      closeProfileDropdown();
     }
   });
 
   logoutBtn.addEventListener('click', async (e) => {
     e.preventDefault();
-    profileDropdown.classList.remove('active');
+    closeProfileDropdown();
     const { error } = await supabaseClient.auth.signOut();
     if (error) {
       showToast('Не удалось выйти: ' + error.message, true);
@@ -52,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (myIdeasBtn) myIdeasBtn.addEventListener('click', async (e) => {
     e.preventDefault();
-    profileDropdown.classList.remove('active');
+    closeProfileDropdown();
     const pId = await getProfileId();
     if (!pId) { loginBtn?.click(); return; }
     const backdrop = document.getElementById('ideaBackdrop');
@@ -79,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (myArticlesBtn) myArticlesBtn.addEventListener('click', async (e) => {
     e.preventDefault();
-    profileDropdown.classList.remove('active');
+    closeProfileDropdown();
     const pId = await getProfileId();
     if (!pId) { loginBtn?.click(); return; }
     const backdrop = document.getElementById('articleBackdrop');
@@ -107,23 +118,137 @@ document.addEventListener("DOMContentLoaded", () => {
   // ================= 2. Модальное окно авторизации =================
   const authBackdrop = document.getElementById('authBackdrop');
   const authForm = document.getElementById('authForm');
+  const authTabsWrapper = document.getElementById('authTabs');
   const authTabs = document.querySelectorAll('.auth-tab');
+  const authResetBack = document.getElementById('authResetBack');
   const usernameGroup = document.getElementById('usernameGroup');
+  const authFullName = document.getElementById('authFullName');
   const authUsername = document.getElementById('authUsername');
+  const nicknameStatus = document.getElementById('nicknameStatus');
+  const nicknameHint = document.getElementById('nicknameHint');
+  const identifierGroup = document.getElementById('identifierGroup');
   const authEmail = document.getElementById('authEmail');
+  const authEmailLabel = document.getElementById('authEmailLabel');
+  const passwordGroup = document.getElementById('passwordGroup');
   const authPassword = document.getElementById('authPassword');
+  const passwordToggleBtn = document.getElementById('passwordToggleBtn');
+  const authForgotRow = document.getElementById('authForgotRow');
+  const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+  const recoveryPasswordGroup = document.getElementById('recoveryPasswordGroup');
+  const recoveryPassword = document.getElementById('recoveryPassword');
+  const recoveryPasswordToggleBtn = document.getElementById('recoveryPasswordToggleBtn');
   const authError = document.getElementById('authError');
   const authSubmitBtn = document.getElementById('authSubmitBtn');
   const authCloseBtn = document.getElementById('authCloseBtn');
-  let authMode = 'signin'; // 'signin' | 'signup'
+  let authMode = 'signin'; // 'signin' | 'signup' | 'reset' | 'recovery'
+  let nicknameCheckTimer = null;
+  let nicknameState = 'empty'; // 'empty' | 'invalid' | 'checking' | 'available' | 'taken'
+
+  const NICKNAME_MIN = 5;
+  const NICKNAME_MAX = 15;
+  const NICKNAME_RE = /^[a-z0-9_]+$/;
+
+  // Общая логика для кнопки-глаза (используется и для входа, и для восстановления):
+  // меняет type поля, иконку (с анимацией через свежий <i>) и на секунду подсвечивает поле.
+  function wirePasswordToggle(inputEl, btnEl) {
+    if (!btnEl) return;
+    btnEl.addEventListener('click', () => {
+      const showing = inputEl.type === 'text';
+      inputEl.type = showing ? 'password' : 'text';
+      btnEl.innerHTML = `<i data-lucide="${showing ? 'eye' : 'eye-off'}"></i>`;
+      btnEl.setAttribute('aria-label', showing ? 'Показать пароль' : 'Скрыть пароль');
+      if (window.lucide) lucide.createIcons();
+      inputEl.classList.add('flash');
+      setTimeout(() => inputEl.classList.remove('flash'), 300);
+    });
+  }
+  function resetPasswordToggle(inputEl, btnEl) {
+    if (!btnEl) return;
+    inputEl.type = 'password';
+    btnEl.innerHTML = '<i data-lucide="eye"></i>';
+    btnEl.setAttribute('aria-label', 'Показать пароль');
+    if (window.lucide) lucide.createIcons();
+  }
+  wirePasswordToggle(authPassword, passwordToggleBtn);
+  wirePasswordToggle(recoveryPassword, recoveryPasswordToggleBtn);
+
+  function setNicknameStatus(state, hintText, isError) {
+    nicknameState = state;
+    nicknameStatus.className = 'nickname-status' + (state !== 'empty' ? ' ' + state : '');
+    const icons = { checking: 'loader-2', available: 'check', taken: 'x', invalid: 'x' };
+    nicknameStatus.innerHTML = icons[state] ? `<i data-lucide="${icons[state]}"></i>` : '';
+    if (window.lucide) lucide.createIcons();
+    if (hintText !== undefined) {
+      nicknameHint.textContent = hintText;
+      nicknameHint.classList.toggle('error', !!isError);
+    }
+  }
+
+  const DEFAULT_NICKNAME_HINT = `От ${NICKNAME_MIN} до ${NICKNAME_MAX} символов: латиница в нижнем регистре, цифры, _`;
+
+  async function checkNicknameAvailability(value) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('id')
+        .eq('username', value)
+        .maybeSingle();
+      if (error) throw error;
+      if (data) setNicknameStatus('taken', 'Этот никнейм уже занят.', true);
+      else setNicknameStatus('available', DEFAULT_NICKNAME_HINT, false);
+    } catch (err) {
+      console.error('Ошибка проверки никнейма:', err);
+      setNicknameStatus('empty', DEFAULT_NICKNAME_HINT, false);
+    }
+  }
+
+  authUsername.addEventListener('input', () => {
+    const cleaned = authUsername.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (cleaned !== authUsername.value) authUsername.value = cleaned;
+    clearTimeout(nicknameCheckTimer);
+
+    if (!cleaned) { setNicknameStatus('empty', DEFAULT_NICKNAME_HINT, false); return; }
+    if (cleaned.length < NICKNAME_MIN || cleaned.length > NICKNAME_MAX) {
+      setNicknameStatus('invalid', `Длина должна быть от ${NICKNAME_MIN} до ${NICKNAME_MAX} символов.`, true);
+      return;
+    }
+    setNicknameStatus('checking', DEFAULT_NICKNAME_HINT, false);
+    nicknameCheckTimer = setTimeout(() => checkNicknameAvailability(cleaned), 450);
+  });
 
   function openAuthModal(mode) {
     authMode = mode || 'signin';
+    const isReset = authMode === 'reset';
+    const isRecovery = authMode === 'recovery';
+
+    authTabsWrapper.style.display = (isReset || isRecovery) ? 'none' : 'flex';
+    authResetBack.style.display = isReset ? 'flex' : 'none';
     authTabs.forEach(t => t.classList.toggle('active', t.dataset.authTab === authMode));
-    usernameGroup.style.display = authMode === 'signup' ? 'flex' : 'none';
-    authSubmitBtn.textContent = authMode === 'signup' ? 'Создать аккаунт' : 'Войти';
+
+    usernameGroup.classList.toggle('expanded', authMode === 'signup');
+    identifierGroup.style.display = isRecovery ? 'none' : '';
+    authEmail.required = !isRecovery;
+    passwordGroup.style.display = (isReset || isRecovery) ? 'none' : '';
+    authPassword.required = !(isReset || isRecovery);
+    recoveryPasswordGroup.style.display = isRecovery ? 'flex' : 'none';
+    authForgotRow.style.display = (authMode === 'signin') ? 'block' : 'none';
+
+    if (isRecovery) authSubmitBtn.textContent = 'Сохранить новый пароль';
+    else if (isReset) authSubmitBtn.textContent = 'Отправить письмо';
+    else authSubmitBtn.textContent = authMode === 'signup' ? 'Создать аккаунт' : 'Войти';
+
+    if (authMode === 'signup') {
+      authEmailLabel.textContent = 'Email';
+      authEmail.placeholder = 'you@example.com';
+    } else {
+      authEmailLabel.textContent = 'Email или никнейм';
+      authEmail.placeholder = 'you@example.com или nickname';
+    }
+    setNicknameStatus('empty', DEFAULT_NICKNAME_HINT, false);
     authError.textContent = '';
-    authForm.reset();
+    if (!isRecovery) authForm.reset();
+    resetPasswordToggle(authPassword, passwordToggleBtn);
+    resetPasswordToggle(recoveryPassword, recoveryPasswordToggleBtn);
     authBackdrop.classList.add('active');
   }
   function closeAuthModal() { authBackdrop.classList.remove('active'); }
@@ -136,15 +261,87 @@ document.addEventListener("DOMContentLoaded", () => {
     tab.addEventListener('click', () => openAuthModal(tab.dataset.authTab));
   });
 
+  forgotPasswordLink.addEventListener('click', (e) => { e.preventDefault(); openAuthModal('reset'); });
+  authResetBack.addEventListener('click', () => openAuthModal('signin'));
+
+  // По введённой строке определяем, похоже это на email или на никнейм
+  function looksLikeEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  // Превращает email-или-никнейм в настоящий email через RPC-функцию в базе
+  async function resolveEmail(identifier) {
+    if (looksLikeEmail(identifier)) return identifier;
+    const nickname = identifier.replace(/^@/, '').toLowerCase();
+    const { data: resolvedEmail, error } = await supabaseClient.rpc('get_email_by_username', { uname: nickname });
+    if (error) throw error;
+    return resolvedEmail || null;
+  }
+
   authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     authError.textContent = '';
-    const email = authEmail.value.trim();
-    const password = authPassword.value;
 
-    if (!email || !password) { authError.textContent = 'Заполните email и пароль.'; return; }
-    if (authMode === 'signup' && password.length < 6) {
-      authError.textContent = 'Пароль должен быть не короче 6 символов.'; return;
+    // ---- Восстановление: письмо со ссылкой на сброс пароля ----
+    if (authMode === 'reset') {
+      const identifier = authEmail.value.trim();
+      if (!identifier) { authError.textContent = 'Введите email или никнейм.'; return; }
+      authSubmitBtn.disabled = true;
+      authSubmitBtn.textContent = 'Отправляем...';
+      try {
+        const email = await resolveEmail(identifier);
+        if (!email) { authError.textContent = 'Пользователь с таким никнеймом не найден.'; return; }
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+        if (error) throw error;
+        showToast('Письмо для сброса пароля отправлено на почту.');
+        closeAuthModal();
+      } catch (err) {
+        authError.textContent = translateAuthError(err.message);
+      } finally {
+        authSubmitBtn.disabled = false;
+        authSubmitBtn.textContent = 'Отправить письмо';
+      }
+      return;
+    }
+
+    // ---- Сохранение нового пароля после перехода по ссылке из письма ----
+    if (authMode === 'recovery') {
+      const newPass = recoveryPassword.value;
+      if (!newPass || newPass.length < 6) { authError.textContent = 'Пароль должен быть не короче 6 символов.'; return; }
+      authSubmitBtn.disabled = true;
+      authSubmitBtn.textContent = 'Сохраняем...';
+      try {
+        const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+        if (error) throw error;
+        showToast('Пароль обновлён.');
+        closeAuthModal();
+      } catch (err) {
+        authError.textContent = translateAuthError(err.message);
+      } finally {
+        authSubmitBtn.disabled = false;
+        authSubmitBtn.textContent = 'Сохранить новый пароль';
+      }
+      return;
+    }
+
+    // ---- Обычный вход / регистрация ----
+    const identifier = authEmail.value.trim();
+    const password = authPassword.value;
+    if (!identifier || !password) { authError.textContent = 'Заполните все поля.'; return; }
+
+    if (authMode === 'signup') {
+      const fullName = authFullName.value.trim();
+      const username = authUsername.value.trim();
+      if (!fullName) { authError.textContent = 'Введите имя.'; return; }
+      if (!username) { authError.textContent = 'Придумайте никнейм.'; return; }
+      if (username.length < NICKNAME_MIN || username.length > NICKNAME_MAX || !NICKNAME_RE.test(username)) {
+        authError.textContent = `Никнейм должен быть от ${NICKNAME_MIN} до ${NICKNAME_MAX} символов (латиница, цифры, _).`;
+        return;
+      }
+      if (nicknameState === 'taken') { authError.textContent = 'Этот никнейм уже занят.'; return; }
+      if (nicknameState === 'checking') { authError.textContent = 'Подождите, проверяем никнейм...'; return; }
+      if (!looksLikeEmail(identifier)) { authError.textContent = 'Введите корректный email.'; return; }
+      if (password.length < 6) { authError.textContent = 'Пароль должен быть не короче 6 символов.'; return; }
     }
 
     authSubmitBtn.disabled = true;
@@ -152,13 +349,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       if (authMode === 'signup') {
-        const username = authUsername.value.trim() || email.split('@')[0];
-        const { data, error } = await supabaseClient.auth.signUp({ email, password });
+        const fullName = authFullName.value.trim();
+        const username = authUsername.value.trim();
+        const { data, error } = await supabaseClient.auth.signUp({ email: identifier, password });
         if (error) throw error;
         // Если у проекта включено подтверждение по email, сессии ещё не будет —
         // профиль создадим сразу же, как только появится сессия (см. onAuthStateChange).
         if (data.user) {
-          await ensureProfile(data.user, username);
+          await ensureProfile(data.user, username, fullName);
         }
         if (!data.session) {
           showToast('Проверьте почту — нужно подтвердить регистрацию.');
@@ -166,6 +364,8 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
       } else {
+        const email = await resolveEmail(identifier);
+        if (!email) { authError.textContent = 'Пользователь с таким никнеймом не найден.'; return; }
         const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
@@ -180,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function translateAuthError(msg) {
     if (/already registered/i.test(msg)) return 'Пользователь с таким email уже зарегистрирован.';
-    if (/invalid login credentials/i.test(msg)) return 'Неверный email или пароль.';
+    if (/invalid login credentials/i.test(msg)) return 'Неверный email/никнейм или пароль.';
     if (/password/i.test(msg) && /6/.test(msg)) return 'Пароль должен быть не короче 6 символов.';
     return msg;
   }
@@ -188,7 +388,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ================= 3. Состояние авторизации =================
   // Находит (или создаёт) запись в таблице profiles для текущего пользователя.
   // Схема: profiles(id, created_at, username, auth_id -> auth.users.id)
-  async function ensureProfile(user, usernameForNew) {
+  async function ensureProfile(user, usernameForNew, fullNameForNew) {
     try {
       const { data: existing, error: selErr } = await supabaseClient
         .from('profiles')
@@ -201,7 +401,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const username = usernameForNew || (user.email ? user.email.split('@')[0] : 'user');
       const { data: created, error: insErr } = await supabaseClient
         .from('profiles')
-        .insert({ auth_id: user.id, username })
+        .insert({ auth_id: user.id, username, full_name: fullNameForNew || null })
         .select()
         .maybeSingle();
       if (insErr) throw insErr;
@@ -220,7 +420,7 @@ document.addEventListener("DOMContentLoaded", () => {
       currentProfile = null;
       loginBtn.style.display = '';
       profileWrapper.style.display = 'none';
-      profileDropdown.classList.remove('active');
+      closeProfileDropdown();
       return;
     }
 
@@ -241,6 +441,7 @@ document.addEventListener("DOMContentLoaded", () => {
   supabaseClient.auth.onAuthStateChange((event) => {
     updateUserUI();
     if (event === 'SIGNED_IN') showToast('Вы вошли в аккаунт');
+    if (event === 'PASSWORD_RECOVERY') openAuthModal('recovery');
   });
 
   updateUserUI();
@@ -277,17 +478,33 @@ document.addEventListener("DOMContentLoaded", () => {
     ratingSlider.addEventListener('input', updateSliderFill);
   }
 
-  // ================= 6. Фильтры (с сохранением иконок/текста) =================
+  // ================= 6. Фильтры (категория + рейтинг, работают вместе) =================
   const filterBtns = document.querySelectorAll('.filter-btn');
   filterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       filterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const filterValue = btn.dataset.filter;
-      console.log(`Фильтруем по категории: ${filterValue}`);
-      // Подключение к таблице ideas (фильтрация на стороне Supabase) — следующий шаг.
+      applyIdeaFilters();
     });
   });
+
+  if (ratingSlider) {
+    ratingSlider.addEventListener('input', () => applyIdeaFilters());
+  }
+
+  function applyIdeaFilters() {
+    const activeBtn = document.querySelector('.filter-btn.active');
+    const category = activeBtn ? activeBtn.dataset.filter : 'all';
+    const minRating = ratingSlider ? parseFloat(ratingSlider.value) : 0;
+
+    const filtered = ideasCache.filter(idea => {
+      const matchesCategory = category === 'all' || idea.category === category;
+      const matchesRating = idea.rating == null ? minRating === 0 : Number(idea.rating) >= minRating;
+      return matchesCategory && matchesRating;
+    });
+
+    renderIdeasList(filtered);
+  }
 
   // ================= 7. Идеи из Supabase (карточки + окно предпросмотра) =================
   // Схема таблицы ideas: id_idea, budget, risks, potential, complexity, rating,
@@ -361,6 +578,20 @@ document.addEventListener("DOMContentLoaded", () => {
     ideaBackdrop.classList.add('active');
   }
 
+  function renderIdeasList(list) {
+    if (!ideasGrid) return;
+    ideasGrid.innerHTML = list.length
+      ? list.map(renderIdeaCard).join('')
+      : '<p style="opacity:0.6;">Ничего не найдено по заданным фильтрам.</p>';
+    if (window.lucide) lucide.createIcons();
+    ideasGrid.querySelectorAll('[data-idea-id]').forEach(card => {
+      card.addEventListener('click', () => {
+        const idea = ideasCache.find(i => i.id_idea === parseInt(card.dataset.ideaId, 10));
+        if (idea) openIdeaPreview(idea);
+      });
+    });
+  }
+
   async function loadIdeasFromSupabase() {
     if (!ideasGrid) return;
     try {
@@ -370,16 +601,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .order('id_idea', { ascending: true });
       if (error) throw error;
       ideasCache = data || [];
-      ideasGrid.innerHTML = ideasCache.length
-        ? ideasCache.map(renderIdeaCard).join('')
-        : '<p style="opacity:0.6;">Пока нет ни одной идеи в базе.</p>';
-      if (window.lucide) lucide.createIcons();
-      ideasGrid.querySelectorAll('[data-idea-id]').forEach(card => {
-        card.addEventListener('click', () => {
-          const idea = ideasCache.find(i => i.id_idea === parseInt(card.dataset.ideaId, 10));
-          if (idea) openIdeaPreview(idea);
-        });
-      });
+      applyIdeaFilters();
     } catch (e) {
       console.error('Ошибка загрузки идей:', e);
       ideasGrid.innerHTML = '<p style="opacity:0.6;">Не удалось загрузить идеи.</p>';
