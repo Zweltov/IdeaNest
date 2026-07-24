@@ -7,6 +7,7 @@
   <link rel="icon" href="../favicon.ico" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../style.css" />
+  <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});}}catch(e){}})();</script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -47,7 +48,7 @@
             </div>
             <div class="dropdown-divider"></div>
             <a href="#" class="dropdown-item"><i data-lucide="user"></i> Профиль</a>
-            <a href="#" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
+            <a href="../settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
             <a href="#" class="dropdown-item"><i data-lucide="lightbulb"></i> Мои идеи</a>
             <a href="#" class="dropdown-item"><i data-lucide="book-open"></i> Мои статьи</a>
             <a href="#" class="dropdown-item"><i data-lucide="bell"></i> Уведомления</a>
@@ -64,7 +65,7 @@
     </div>
   </header>
 
-  <main style="max-width: 720px; margin: 0 auto; padding: 48px 24px 100px;">
+  <main class="detail-main detail-main--idea">
     <a href="../index.html#ideas" class="btn-text" style="margin-bottom: 24px; display: inline-flex;">
       <i data-lucide="arrow-left"></i> Ко всем идеям
     </a>
