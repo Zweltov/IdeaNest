@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Настройки — IdeaNest</title>
+  <link rel="icon" href="../favicon.ico" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../style.css" />
+  <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});}}catch(e){}})();</script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div class="profile-blur-overlay" id="profileBlurOverlay"></div>
+
+  <header class="navbar">
+    <div class="navbar-container">
+      <a class="brand" href="../index.html"><i data-lucide="layers"></i> IdeaNest</a>
+      <nav class="nav-links">
+        <a href="../ideas/all.html" class="nav-link">Идеи</a>
+        <a href="../index.html#articles" class="nav-link">Статьи</a>
+      </nav>
+      <div class="navbar-actions">
+        <button class="btn btn-secondary" id="loginBtn" style="display:none;">Войти</button>
+        <div class="profile-wrapper" id="profileWrapper" style="display:none;">
+          <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="topAvatar" class="avatar-img" alt="Профиль">
+          <div class="profile-dropdown" id="profileDropdown">
+            <div class="dropdown-header">
+              <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="dropdownAvatar" class="dropdown-avatar" alt="Профиль">
+              <div class="user-info">
+                <span class="user-name" id="userName">Пользователь</span>
+                <span class="user-email" id="userEmail">user@ideanest.com</span>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item"><i data-lucide="user"></i> Профиль</a>
+            <a href="settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
+            <a href="#" class="dropdown-item"><i data-lucide="lightbulb"></i> Мои идеи</a>
+            <a href="#" class="dropdown-item"><i data-lucide="book-open"></i> Мои статьи</a>
+            <a href="#" class="dropdown-item"><i data-lucide="bell"></i> Уведомления</a>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-section-title">Аккаунты</div>
+            <a href="#" class="dropdown-item active-account"><i data-lucide="check-circle-2"></i> Текущий аккаунт</a>
+            <a href="#" class="dropdown-item"><i data-lucide="plus"></i> Добавить аккаунт</a>
+            <a href="#" class="dropdown-item"><i data-lucide="refresh-cw"></i> Переключить аккаунт</a>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item danger" id="logoutBtn"><i data-lucide="log-out"></i> Выйти</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="detail-main detail-main--settings">
+    <h1 class="section-title" style="margin-bottom: 32px;">Настройки</h1>
+
+    <div class="settings-layout">
+      <nav class="settings-nav" id="settingsNav">
+        <button class="settings-nav-item active" data-settings-tab="general"><i data-lucide="sliders-horizontal"></i> Общие</button>
+        <button class="settings-nav-item" data-settings-tab="personalization"><i data-lucide="palette"></i> Персонализация</button>
+        <button class="settings-nav-item" data-settings-tab="privacy"><i data-lucide="shield"></i> Конфиденциальность</button>
+      </nav>
+
+      <div class="settings-content">
+
+        <section class="settings-panel active" id="settingsPanel-general">
+          <h2 class="settings-panel-title">Общие</h2>
+
+          <form id="generalSettingsForm">
+            <div class="settings-avatar-row">
+              <img id="settingsAvatarPreview" class="settings-avatar-preview" src="https://ui-avatars.com/api/?name=U&background=111827&color=fff" alt="Аватар" />
+              <div class="form-group" style="flex:1; margin-bottom:0;">
+                <label for="settingsAvatarUrl">Ссылка на аватар</label>
+                <input type="text" id="settingsAvatarUrl" placeholder="https://..." autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="settingsFullName">Имя</label>
+              <input type="text" id="settingsFullName" placeholder="Александр" autocomplete="name" />
+            </div>
+
+            <div class="form-group" id="settingsUsernameGroup">
+              <label for="settingsUsername">Никнейм</label>
+              <div class="nickname-input-wrapper">
+                <span class="nickname-at">@</span>
+                <input type="text" id="settingsUsername" placeholder="nickname" autocomplete="off" maxlength="15" />
+                <span class="nickname-status" id="settingsUsernameStatus"></span>
+              </div>
+              <div class="nickname-hint" id="settingsUsernameHint">От 5 до 15 символов: латиница в нижнем регистре, цифры, _</div>
+            </div>
+
+            <div class="form-group">
+              <label for="settingsEmail">Email</label>
+              <input type="text" id="settingsEmail" disabled />
+            </div>
+
+            <div class="settings-row-split">
+              <div class="form-group">
+                <label for="settingsLanguage">Язык</label>
+                <select id="settingsLanguage">
+                  <option value="ru">Русский</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="settingsTimezone">Часовой пояс</label>
+                <select id="settingsTimezone">
+                  <option value="Europe/Kaliningrad">Калининград (UTC+2)</option>
+                  <option value="Europe/Moscow">Москва (UTC+3)</option>
+                  <option value="Europe/Samara">Самара (UTC+4)</option>
+                  <option value="Asia/Yekaterinburg">Екатеринбург (UTC+5)</option>
+                  <option value="Asia/Omsk">Омск (UTC+6)</option>
+                  <option value="Asia/Krasnoyarsk">Красноярск (UTC+7)</option>
+                  <option value="Asia/Irkutsk">Иркутск (UTC+8)</option>
+                  <option value="Asia/Yakutsk">Якутск (UTC+9)</option>
+                  <option value="Asia/Vladivostok">Владивосток (UTC+10)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="settings-toggle-row">
+              <div>
+                <div class="settings-toggle-label">Уведомления на сайте</div>
+                <div class="settings-toggle-desc">Показывать всплывающие уведомления о новых ответах и активности</div>
+              </div>
+              <label class="settings-switch">
+                <input type="checkbox" id="settingsNotifications" checked />
+                <span class="settings-switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="settings-toggle-row">
+              <div>
+                <div class="settings-toggle-label">Email-уведомления</div>
+                <div class="settings-toggle-desc">Присылать письма о важных событиях на почту</div>
+              </div>
+              <label class="settings-switch">
+                <input type="checkbox" id="settingsEmailNotifications" checked />
+                <span class="settings-switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="auth-error" id="generalSettingsError"></div>
+            <button type="submit" class="btn btn-primary" id="generalSettingsSubmitBtn" style="margin-top:8px;">Сохранить</button>
+          </form>
+        </section>
+
+        <section class="settings-panel" id="settingsPanel-personalization">
+          <h2 class="settings-panel-title">Персонализация</h2>
+          <p style="color:var(--text-muted); margin-bottom:20px; font-size:0.9rem;">Выбери тему — применится сразу и запомнится для аккаунта.</p>
+          <div class="theme-cards-grid" id="themeCardsGrid">
+            <p style="color:var(--text-muted);">Загрузка тем...</p>
+          </div>
+        </section>
+
+        <section class="settings-panel" id="settingsPanel-privacy">
+          <h2 class="settings-panel-title">Конфиденциальность</h2>
+
+          <div class="settings-subblock">
+            <h3 class="settings-subblock-title">Видимость профиля</h3>
+            <div class="settings-toggle-row" style="border-top:none; padding-top:0;">
+              <div>
+                <div class="settings-toggle-label">Публичный профиль</div>
+                <div class="settings-toggle-desc">Другие пользователи видят твои избранное и апвоуты</div>
+              </div>
+              <label class="settings-switch">
+                <input type="checkbox" id="settingsProfilePublic" checked />
+                <span class="settings-switch-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-subblock">
+            <h3 class="settings-subblock-title">Смена пароля</h3>
+            <form id="changePasswordForm">
+              <div class="form-group">
+                <label for="newPasswordInput">Новый пароль</label>
+                <div class="password-input-wrapper">
+                  <input type="password" id="newPasswordInput" placeholder="Минимум 6 символов" autocomplete="new-password" required minlength="6" />
+                  <button type="button" class="password-toggle-btn" id="newPasswordToggleBtn" aria-label="Показать пароль"><i data-lucide="eye"></i></button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="confirmPasswordInput">Повторите пароль</label>
+                <div class="password-input-wrapper">
+                  <input type="password" id="confirmPasswordInput" placeholder="Ещё раз" autocomplete="new-password" required minlength="6" />
+                  <button type="button" class="password-toggle-btn" id="confirmPasswordToggleBtn" aria-label="Показать пароль"><i data-lucide="eye"></i></button>
+                </div>
+              </div>
+              <div class="auth-error" id="changePasswordError"></div>
+              <button type="submit" class="btn btn-primary" id="changePasswordBtn">Обновить пароль</button>
+            </form>
+          </div>
+
+          <div class="settings-subblock">
+            <h3 class="settings-subblock-title">Сессии</h3>
+            <p class="settings-toggle-desc" style="margin-bottom:12px;">Завершить вход на всех устройствах, кроме текущего действия не потребуется — при следующем открытии сайта там попросят войти заново.</p>
+            <button type="button" class="btn btn-secondary" id="logoutEverywhereBtn"><i data-lucide="log-out"></i> Выйти со всех устройств</button>
+          </div>
+
+          <div class="settings-subblock settings-danger-zone">
+            <h3 class="settings-subblock-title" style="color:#dc2626;">Опасная зона</h3>
+            <p class="settings-toggle-desc" style="margin-bottom:12px;">Аккаунт будет деактивирован и скрыт, ты выйдешь из системы. Это действие нельзя отменить самостоятельно.</p>
+            <button type="button" class="btn" id="deleteAccountBtn" style="background:#dc2626; color:#fff;">Удалить аккаунт</button>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <div class="modal-backdrop" id="authBackdrop">
+    <div class="modal auth-modal">
+      <button class="modal-close" id="authCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+      <div class="auth-tabs" id="authTabs">
+        <button class="auth-tab active" data-auth-tab="signin">Вход</button>
+        <button class="auth-tab" data-auth-tab="signup">Регистрация</button>
+      </div>
+      <button type="button" class="auth-reset-back" id="authResetBack" style="display:none;">
+        <i data-lucide="arrow-left"></i> Назад ко входу
+      </button>
+      <form id="authForm">
+        <div class="form-group nickname-group" id="usernameGroup">
+          <label for="authFullName">Имя</label>
+          <input type="text" id="authFullName" placeholder="Александр" autocomplete="name" style="margin-bottom:14px;" />
+          <label for="authUsername">Никнейм</label>
+          <div class="nickname-input-wrapper">
+            <span class="nickname-at">@</span>
+            <input type="text" id="authUsername" placeholder="nickname" autocomplete="off" maxlength="15" />
+            <span class="nickname-status" id="nicknameStatus"></span>
+          </div>
+          <div class="nickname-hint" id="nicknameHint">От 5 до 15 символов: латиница в нижнем регистре, цифры, _</div>
+        </div>
+        <div class="form-group" id="identifierGroup">
+          <label for="authEmail" id="authEmailLabel">Email</label>
+          <input type="text" id="authEmail" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+        <div class="form-group" id="passwordGroup">
+          <label for="authPassword">Пароль</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="authPassword" placeholder="Минимум 6 символов" required autocomplete="current-password" />
+            <button type="button" class="password-toggle-btn" id="passwordToggleBtn" aria-label="Показать пароль"><i data-lucide="eye"></i></button>
+          </div>
+          <div class="auth-forgot-row" id="authForgotRow">
+            <a href="#" id="forgotPasswordLink" class="auth-forgot-link">Забыли пароль?</a>
+          </div>
+        </div>
+        <div class="form-group" id="recoveryPasswordGroup" style="display:none;">
+          <label for="recoveryPassword">Новый пароль</label>
+          <div class="password-input-wrapper">
+            <input type="password" id="recoveryPassword" placeholder="Минимум 6 символов" autocomplete="new-password" />
+            <button type="button" class="password-toggle-btn" id="recoveryPasswordToggleBtn" aria-label="Показать пароль"><i data-lucide="eye"></i></button>
+          </div>
+        </div>
+        <div class="auth-error" id="authError"></div>
+        <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">Войти</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="themeEditorBackdrop">
+    <div class="modal auth-modal">
+      <button class="modal-close" id="themeEditorCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+      <h2 class="idea-modal-title" style="margin-bottom:20px;" id="themeEditorTitle">Своя тема</h2>
+      <form id="themeEditorForm">
+        <div class="form-group">
+          <label for="themeNameInput">Название</label>
+          <input type="text" id="themeNameInput" placeholder="Моя тема" maxlength="30" required />
+        </div>
+        <div class="theme-color-grid">
+          <div class="theme-color-field">
+            <label for="themeColorAccent">Акцент (кнопки)</label>
+            <input type="color" id="themeColorAccent" value="#000000" />
+          </div>
+          <div class="theme-color-field">
+            <label for="themeColorBg">Фон страницы</label>
+            <input type="color" id="themeColorBg" value="#ffffff" />
+          </div>
+          <div class="theme-color-field">
+            <label for="themeColorBgMuted">Фон секций</label>
+            <input type="color" id="themeColorBgMuted" value="#f9fafb" />
+          </div>
+          <div class="theme-color-field">
+            <label for="themeColorSurface">Карточки</label>
+            <input type="color" id="themeColorSurface" value="#ffffff" />
+          </div>
+          <div class="theme-color-field">
+            <label for="themeColorText">Текст</label>
+            <input type="color" id="themeColorText" value="#111827" />
+          </div>
+        </div>
+        <div class="auth-error" id="themeEditorError"></div>
+        <button type="submit" class="btn btn-primary auth-submit" id="themeEditorSubmitBtn">Сохранить тему</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="../script.js"></script>
+</body>
+</html>
