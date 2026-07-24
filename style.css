@@ -2,6 +2,7 @@
   /* Палитра в стиле Linear/Vercel (Светлая тема с контрастными акцентами) */
   --bg-color: #ffffff;
   --bg-muted: #f9fafb;
+  --surface-color: #ffffff;
   --text-main: #111827;
   --text-muted: #6b7280;
   --border-color: #e5e7eb;
@@ -223,7 +224,7 @@ body {
 }
 .btn-primary { background: var(--accent-primary); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,0.2); }
 .btn-primary:hover { background: var(--accent-hover); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
-.btn-secondary { background: #fff; color: var(--text-main); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
+.btn-secondary { background: var(--surface-color); color: var(--text-main); border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
 .btn-secondary:hover { background: var(--accent-light); transform: translateY(-2px); }
 
 /* ================= Фильтры ================= */
@@ -238,7 +239,7 @@ body {
 .filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .filter-btn {
-  background: #fff;
+  background: var(--surface-color);
   border: 1px solid var(--border-color);
   color: var(--text-muted);
   padding: 8px 16px;
@@ -258,6 +259,160 @@ body {
 }
 .filter-btn.active:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 
+/* ================= Типографика статьи (Markdown-рендер) ================= */
+.article-body { font-size: 1.05rem; line-height: 1.75; color: var(--text-main); }
+.article-body h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; margin: 32px 0 16px; line-height: 1.25; }
+.article-body h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; margin: 28px 0 14px; line-height: 1.3; }
+.article-body h3 { font-size: 1.2rem; font-weight: 700; margin: 22px 0 10px; }
+.article-body h1:first-child, .article-body h2:first-child, .article-body h3:first-child { margin-top: 0; }
+.article-body p { margin: 0 0 16px; }
+.article-body strong { font-weight: 700; }
+.article-body em { font-style: italic; }
+.article-body ul, .article-body ol { margin: 0 0 16px; padding-left: 24px; }
+.article-body li { margin-bottom: 6px; }
+.article-body a { color: var(--accent-primary); text-decoration: underline; text-underline-offset: 2px; }
+.article-body blockquote {
+  margin: 0 0 16px;
+  padding: 4px 18px;
+  border-left: 3px solid var(--border-color);
+  color: var(--text-muted);
+  font-style: italic;
+}
+.article-body code {
+  background: var(--accent-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+.article-body pre {
+  background: var(--accent-light);
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin: 0 0 16px;
+}
+.article-body pre code { background: none; padding: 0; }
+.article-body img { max-width: 100%; border-radius: var(--radius-sm); margin: 12px 0; }
+.article-body hr { border: none; border-top: 1px solid var(--border-color); margin: 28px 0; }
+
+.article-page-body { padding: 0; }
+
+/* ================= Настройки ================= */
+.settings-layout { display: grid; grid-template-columns: 220px 1fr; gap: 32px; align-items: start; }
+
+.settings-nav { display: flex; flex-direction: column; gap: 4px; position: sticky; top: 88px; }
+.settings-nav-item {
+  display: flex; align-items: center; gap: 10px;
+  background: transparent; border: none; text-align: left;
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  font-size: 0.92rem; font-weight: 500; color: var(--text-muted);
+  cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease;
+}
+.settings-nav-item i { width: 17px; height: 17px; }
+.settings-nav-item:hover { background: var(--accent-light); color: var(--text-main); }
+.settings-nav-item.active { background: var(--accent-primary); color: #fff; }
+
+.settings-content {
+  background: var(--surface-color); border: 1px solid var(--border-color);
+  border-radius: var(--radius-md); padding: 28px;
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-panel { display: none; }
+.settings-panel.active { display: block; }
+.settings-panel-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; }
+
+.settings-avatar-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.settings-avatar-preview { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+
+.settings-row-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.form-group select {
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size: 0.9rem; font-family: inherit; color: var(--text-main); background: var(--surface-color);
+}
+
+.settings-toggle-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 0; border-top: 1px solid var(--border-color);
+}
+.settings-toggle-label { font-size: 0.92rem; font-weight: 600; }
+.settings-toggle-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+
+.settings-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+.settings-switch input { opacity: 0; width: 0; height: 0; }
+.settings-switch-slider {
+  position: absolute; inset: 0; background: var(--border-color); border-radius: 999px;
+  cursor: pointer; transition: background-color 0.2s ease;
+}
+.settings-switch-slider::before {
+  content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px;
+  background: var(--surface-color); border-radius: 50%; transition: transform 0.2s ease; box-shadow: var(--shadow-sm);
+}
+.settings-switch input:checked + .settings-switch-slider { background: var(--accent-primary); }
+.settings-switch input:checked + .settings-switch-slider::before { transform: translateX(18px); }
+
+@media (max-width: 760px) {
+  .settings-layout { grid-template-columns: 1fr; }
+  .settings-nav { position: static; flex-direction: row; overflow-x: auto; }
+  .settings-row-split { grid-template-columns: 1fr; }
+}
+
+/* ================= Карточки тем ================= */
+.theme-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+
+.theme-card {
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.2s ease;
+  background: var(--surface-color);
+}
+.theme-card:hover { border-color: var(--text-muted); }
+.theme-card.active { border-color: var(--accent-primary); }
+
+.theme-card-preview { height: 70px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.theme-swatch-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-sm);
+  cursor: help;
+}
+
+.theme-card-body { padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.theme-card-name { font-size: 0.85rem; font-weight: 600; }
+.theme-card-check { width: 16px; height: 16px; color: var(--accent-primary); flex-shrink: 0; }
+
+.theme-card-delete {
+  position: absolute; top: 8px; right: 8px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(0,0,0,0.55); color: #fff; border: none;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  opacity: 0; transition: opacity 0.2s ease;
+}
+.theme-card:hover .theme-card-delete { opacity: 1; }
+.theme-card-delete i { width: 13px; height: 13px; }
+
+.theme-card-add {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; min-height: 118px; color: var(--text-muted);
+  border-style: dashed;
+}
+.theme-card-add:hover { color: var(--text-main); }
+
+.theme-color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px; }
+.theme-color-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.85rem; font-weight: 500; }
+.theme-color-field input[type="color"] { width: 40px; height: 32px; border: 1px solid var(--border-color); border-radius: 6px; padding: 2px; cursor: pointer; background: var(--surface-color); }
+
+.settings-subblock { padding-top: 24px; margin-top: 24px; border-top: 1px solid var(--border-color); }
+.settings-subblock:first-child { padding-top: 0; margin-top: 0; border-top: none; }
+.settings-subblock-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 14px; }
+.settings-danger-zone { background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 16px; margin-top: 24px; }
+.settings-danger-zone .settings-subblock-title { margin-bottom: 8px; }
+
 /* ================= Кастомный Ползунок Рейтинга (iOS / Android style) ================= */
 .slider-group { display: flex; align-items: center; gap: 16px; }
 .slider-label { font-size: 0.9rem; font-weight: 500; color: var(--text-muted); }
@@ -274,7 +429,7 @@ body {
 .ideas-filter-sidebar {
   position: sticky;
   top: 88px;
-  background: #fff;
+  background: var(--surface-color);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 20px;
@@ -300,7 +455,7 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
-  background: #fff;
+  background: var(--surface-color);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .ideas-search-wrap:focus-within { border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
@@ -314,10 +469,60 @@ body {
   color: var(--text-main);
 }
 
-@media (max-width: 860px) {
+@media (max-width: 760px) {
   .ideas-page-layout { grid-template-columns: 1fr; }
   .ideas-filter-sidebar { position: static; order: -1; }
   .ideas-filter-sidebar .filter-group { flex-direction: row; flex-wrap: wrap; }
+}
+
+/* Общий контейнер для "внутренних" страниц (идея/статья/каталог/настройки) */
+.detail-main { margin: 0 auto; padding: 48px 24px 100px; }
+.detail-main--idea { max-width: 720px; }
+.detail-main--article { max-width: 860px; }
+.detail-main--wide { max-width: 1200px; }
+.detail-main--settings { max-width: 1100px; }
+
+/* Кнопка "Фильтры", сворачивающая боковую панель на мобильном */
+.mobile-filter-toggle {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+.mobile-filter-toggle i { width: 17px; height: 17px; transition: transform 0.25s var(--ease-smooth); }
+.mobile-filter-toggle.open i { transform: rotate(180deg); }
+
+@media (max-width: 760px) {
+  .detail-main { padding: 24px 16px 90px; }
+
+  .mobile-filter-toggle { display: flex; }
+
+  .ideas-filter-sidebar {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 20px;
+    margin-bottom: 0;
+    border-width: 0;
+    overflow: hidden;
+    transition: max-height 0.35s var(--ease-smooth), opacity 0.25s var(--ease-smooth), padding 0.35s var(--ease-smooth), margin-bottom 0.35s var(--ease-smooth);
+  }
+  .ideas-filter-sidebar.mobile-expanded {
+    max-height: 640px;
+    opacity: 1;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-width: 1px;
+  }
 }
 
 .custom-slider-container {
@@ -358,7 +563,7 @@ body {
   appearance: none;
   width: 20px;
   height: 20px;
-  background: #fff;
+  background: var(--surface-color);
   border: 1px solid var(--border-color);
   border-radius: 50%;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -387,7 +592,7 @@ body {
 }
 
 .card {
-  background: #fff;
+  background: var(--surface-color);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 24px;
@@ -430,7 +635,7 @@ body {
 
 .modal {
   position: relative;
-  background: #fff;
+  background: var(--surface-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   width: 100%;
@@ -469,7 +674,7 @@ body {
   cursor: pointer;
   transition: all 0.2s var(--ease-smooth);
 }
-.auth-tab.active { background: #fff; color: var(--text-main); box-shadow: var(--shadow-sm); }
+.auth-tab.active { background: var(--surface-color); color: var(--text-main); box-shadow: var(--shadow-sm); }
 
 .form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
 .form-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-main); }
@@ -640,3 +845,117 @@ body {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   width: 100%; margin-top: 8px; text-decoration: none;
 }
+/* ==========================================================================
+   МОБИЛЬНЫЙ ШАГ 3: окно входа и меню профиля — "bottom sheet" снизу экрана
+   ========================================================================== */
+@media (max-width: 760px) {
+  .modal-backdrop { align-items: flex-end; }
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: calc(28px + env(safe-area-inset-bottom));
+    transform: translateY(100%);
+  }
+  .modal-backdrop.active .modal { transform: translateY(0); }
+  .modal::before {
+    content: '';
+    display: block;
+    width: 36px; height: 4px;
+    background: var(--border-color);
+    border-radius: var(--radius-full);
+    margin: 0 auto 16px;
+  }
+
+  .profile-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0;
+    padding: 8px 8px calc(12px + env(safe-area-inset-bottom));
+    transform: translateY(100%);
+  }
+  .profile-dropdown.active { transform: translateY(0); }
+  .profile-dropdown::before {
+    content: '';
+    display: block;
+    width: 36px; height: 4px;
+    background: var(--border-color);
+    border-radius: var(--radius-full);
+    margin: 4px auto 10px;
+  }
+}
+
+/* ==========================================================================
+   FAQ — единая "плашка"-аккордеон
+   ========================================================================== */
+.faq-card {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-top: 32px;
+}
+.faq-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+.faq-item { border-bottom: 1px solid var(--border-color); }
+.faq-item:last-child { border-bottom: none; }
+.faq-question {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.faq-question i { width: 18px; height: 18px; color: var(--text-muted); flex-shrink: 0; transition: transform 0.25s var(--ease-smooth); }
+.faq-item.open .faq-question i { transform: rotate(180deg); }
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s var(--ease-smooth), padding 0.3s var(--ease-smooth);
+  padding: 0 20px;
+}
+.faq-item.open .faq-answer { max-height: 400px; padding: 0 20px 18px; }
+.faq-answer p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.65; }
+
+/* ==========================================================================
+   Похожие статьи — карточки в конце страницы статьи
+   ========================================================================== */
+.related-articles { margin-top: 40px; }
+.related-articles-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 16px; }
+.related-articles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+.related-article-card {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-spring), box-shadow 0.2s var(--ease-smooth), border-color 0.2s;
+}
+.related-article-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--text-muted); }
+.related-article-card .card-tag { margin-bottom: 10px; }
+.related-article-card h4 { font-size: 0.95rem; font-weight: 700; line-height: 1.35; margin-bottom: 8px; }
+.related-article-card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
