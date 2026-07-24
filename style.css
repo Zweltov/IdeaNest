@@ -959,3 +959,61 @@ body {
 .related-article-card .card-tag { margin-bottom: 10px; }
 .related-article-card h4 { font-size: 0.95rem; font-weight: 700; line-height: 1.35; margin-bottom: 8px; }
 .related-article-card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+
+/* ==========================================================================
+   МОБИЛЬНЫЙ ШАГ 4 — нижняя навигационная панель (bottom nav)
+   На десктопе не показывается вообще; на мобильном заменяет собой ссылки
+   и иконку профиля из верхнего навбара, чтобы верх остался лаконичным.
+   ========================================================================== */
+.bottom-nav { display: none; }
+
+@media (max-width: 760px) {
+  .nav-links { display: none; }
+  /* Скрываем только видимую кнопку "Войти" и аватар из верхнего навбара —
+     сам .profile-dropdown должен остаться в DOM видимым (не display:none),
+     так как на мобильном это нижний "bottom sheet", открываемый кнопкой
+     "Профиль" из bottom-nav. */
+  .navbar-actions #loginBtn,
+  .navbar-actions .avatar-img { display: none !important; }
+
+  body { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+
+  .bottom-nav {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 95;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--border-color);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 2px;
+    border: none;
+    background: none;
+    font-family: inherit;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: color 0.2s var(--ease-smooth), transform 0.15s var(--ease-spring);
+  }
+  .bottom-nav-item i { width: 21px; height: 21px; }
+  .bottom-nav-item.active { color: var(--accent-primary); }
+  .bottom-nav-item:active { transform: scale(0.92); }
+}

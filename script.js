@@ -45,6 +45,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Кнопка "Профиль" в нижней мобильной панели: если пользователь не залогинен —
+  // открывает то же окно входа, что и кнопка "Войти" сверху; если залогинен —
+  // открывает/закрывает ту же карточку профиля (у неё уже есть свой стиль
+  // "bottom sheet" на мобильном).
+  const bottomNavProfile = document.getElementById('bottomNavProfile');
+  if (bottomNavProfile) {
+    bottomNavProfile.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (loginBtn && loginBtn.style.display !== 'none') {
+        loginBtn.click();
+      } else if (profileDropdown.classList.contains('active')) {
+        closeProfileDropdown();
+      } else {
+        openProfileDropdown();
+      }
+    });
+  }
+
   logoutBtn.addEventListener('click', async (e) => {
     e.preventDefault();
     closeProfileDropdown();
