@@ -10,20 +10,6 @@
   <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});}}catch(e){}})();</script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <meta name="google-site-verification" content="3582S0R9xKkdkDTkdgidze-TcXZRM8gCEPf9nhYlcKI" />
-  <!-- Yandex.Metrika counter -->
-<script type="text/javascript">
-    (function(m,e,t,r,i,k,a){
-        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=111014197', 'ym');
-
-    ym(111014197, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/111014197" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-<!-- /Yandex.Metrika counter -->
 </head>
 <body>
 
@@ -37,7 +23,7 @@
       
       <nav class="nav-links">
         <a href="ideas/all.html" class="nav-link">Идеи</a>
-        <a href="#articles" class="nav-link">Статьи</a>
+        <a href="articles/index.html" class="nav-link">Статьи</a>
       </nav>
 
       <div class="navbar-actions">
@@ -71,21 +57,6 @@
       </div>
     </div>
   </header>
-
-  <nav class="bottom-nav" id="bottomNav">
-    <a href="index.html" class="bottom-nav-item active">
-      <i data-lucide="home"></i><span>Главная</span>
-    </a>
-    <a href="ideas/all.html" class="bottom-nav-item">
-      <i data-lucide="lightbulb"></i><span>Идеи</span>
-    </a>
-    <a href="index.html#articles" class="bottom-nav-item">
-      <i data-lucide="book-open"></i><span>Статьи</span>
-    </a>
-    <button type="button" class="bottom-nav-item" id="bottomNavProfile">
-      <i data-lucide="user"></i><span>Профиль</span>
-    </button>
-  </nav>
 
   <main>
     <section class="hero">
@@ -130,7 +101,7 @@
     <section id="articles" class="section bg-muted">
       <div class="section-header">
         <h2 class="section-title">Свежие статьи</h2>
-        <a href="#" class="btn-text">Все статьи <i data-lucide="arrow-right"></i></a>
+        <a href="articles/index.html" class="btn-text">Все статьи <i data-lucide="arrow-right"></i></a>
       </div>
       
       <div class="grid-cards articles-grid" id="articlesGrid">

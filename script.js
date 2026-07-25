@@ -9,6 +9,21 @@ const SUPABASE_URL = 'https://hhwndrynnozllrqtcdct.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhod25kcnlubm96bGxycXRjZGN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5MTkyOTIsImV4cCI6MjA5OTQ5NTI5Mn0.Gq2PNYIiZzKIaUNOY1AfF-8yVnAjPCf2HRGMX11Av14';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// "../" если текущая страница уже внутри ideas/, articles/ или settings/, иначе ""
+function siteRootPrefix() {
+  return /\/(ideas|articles|settings)\//.test(window.location.pathname) ? '../' : '';
+}
+
+// Красивая ссылка на статью: /articles/slug на хостинге (Vercel сам перепишет
+// её на articles/article.html через vercel.json), но при открытии сайта
+// напрямую как файла (file://) красивые пути не работают — там отдаём
+// старый добрый articles/article.html?slug=...
+function articleHref(article) {
+  const isFile = window.location.protocol === 'file:';
+  if (article.slug && !isFile) return siteRootPrefix() + 'articles/' + article.slug;
+  return siteRootPrefix() + 'articles/article.html?' + (article.slug ? 'slug=' + article.slug : 'id=' + article.id);
+}
+
 let currentUser = null;   // объект пользователя из supabase.auth
 let currentProfile = null; // строка из таблицы profiles (id, username, auth_id, created_at)
 
@@ -44,24 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
       closeProfileDropdown();
     }
   });
-
-  // Кнопка "Профиль" в нижней мобильной панели: если пользователь не залогинен —
-  // открывает то же окно входа, что и кнопка "Войти" сверху; если залогинен —
-  // открывает/закрывает ту же карточку профиля (у неё уже есть свой стиль
-  // "bottom sheet" на мобильном).
-  const bottomNavProfile = document.getElementById('bottomNavProfile');
-  if (bottomNavProfile) {
-    bottomNavProfile.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (loginBtn && loginBtn.style.display !== 'none') {
-        loginBtn.click();
-      } else if (profileDropdown.classList.contains('active')) {
-        closeProfileDropdown();
-      } else {
-        openProfileDropdown();
-      }
-    });
-  }
 
   logoutBtn.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -124,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const list = (data || []).filter(r => r.articles);
       body.innerHTML = `<h2 class="idea-modal-title">Мои избранные статьи</h2>` +
         (list.length
-          ? list.map(r => `<a class="btn btn-secondary idea-open-btn" style="margin-bottom:10px;" href="articles/article.html?${r.articles.slug ? 'slug=' + r.articles.slug : 'id=' + r.articles.id}">${r.articles.title || 'Без названия'}</a>`).join('')
+          ? list.map(r => `<a class="btn btn-secondary idea-open-btn" style="margin-bottom:10px;" href="${articleHref(r.articles)}">${r.articles.title || 'Без названия'}</a>`).join('')
           : '<p style="color:var(--text-muted);">Пока пусто — добавьте статьи в избранное.</p>');
     } catch (err) {
       console.error(err);
@@ -755,9 +752,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (window.lucide) lucide.createIcons();
       container.querySelectorAll('.related-article-card').forEach(card => {
         card.addEventListener('click', () => {
-          const slug = card.dataset.articleSlug;
-          const id = card.dataset.articleId;
-          window.location.href = slug ? `article.html?slug=${slug}` : `article.html?id=${id}`;
+          const article = { id: card.dataset.articleId, slug: card.dataset.articleSlug || null };
+          window.location.href = articleHref(article);
         });
       });
     } catch (e) {
@@ -789,7 +785,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="idea-field-block">
         <p style="white-space: pre-line;">${articleExcerpt(article, 400)}</p>
       </div>
-      <a class="btn btn-primary idea-open-btn" href="articles/article.html?${article.slug ? 'slug=' + article.slug : 'id=' + article.id}">
+      <a class="btn btn-primary idea-open-btn" href="${articleHref(article)}">
         <i data-lucide="book-open"></i> Читать
       </a>
     `;
@@ -798,7 +794,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function loadArticlesFromSupabase() {
-    if (!articlesGrid) return;
+    const articlesPageGrid = document.getElementById('articlesPageGrid');
+    const targetGrid = articlesGrid || articlesPageGrid;
+    if (!targetGrid) return;
     try {
       // Пробуем подтянуть автора через связь с profiles; если внешний ключ
       // в Supabase не настроен, откатываемся к обычной выборке без автора.
@@ -812,11 +810,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (error) throw error;
       }
       articlesCache = data || [];
-      articlesGrid.innerHTML = articlesCache.length
+      targetGrid.innerHTML = articlesCache.length
         ? articlesCache.map(renderArticleCard).join('')
         : '<p style="opacity:0.6;">Пока нет ни одной статьи в базе.</p>';
       if (window.lucide) lucide.createIcons();
-      articlesGrid.querySelectorAll('[data-article-id]').forEach(card => {
+      targetGrid.querySelectorAll('[data-article-id]').forEach(card => {
         card.addEventListener('click', () => {
           const article = articlesCache.find(a => a.id === parseInt(card.dataset.articleId, 10));
           if (article) openArticlePreview(article);
@@ -824,7 +822,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     } catch (e) {
       console.error('Ошибка загрузки статей:', e);
-      articlesGrid.innerHTML = '<p style="opacity:0.6;">Не удалось загрузить статьи.</p>';
+      targetGrid.innerHTML = '<p style="opacity:0.6;">Не удалось загрузить статьи.</p>';
     }
   }
 
@@ -845,8 +843,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function initArticleDetailPage(container) {
     const params = new URLSearchParams(window.location.search);
-    const slug = params.get('slug');
+    let slug = params.get('slug');
     const legacyId = parseInt(params.get('id'), 10);
+    const onLegacyFile = /\/article\.html$/.test(window.location.pathname);
+
+    // Красивый путь вида /articles/moya-statya — достаём slug прямо из адреса
+    if (!slug && !legacyId && !onLegacyFile) {
+      const match = window.location.pathname.match(/\/articles\/([^/?#]+)\/?$/);
+      if (match && match[1]) slug = decodeURIComponent(match[1]);
+    }
     if (!slug && !legacyId) { container.innerHTML = '<p>Статья не найдена.</p>'; return; }
 
     let article;
@@ -864,9 +869,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Красивая ссылка: если открыли по старому ?id=, тихо переводим адресную строку на ?slug=
-    if (!slug && article.slug) {
-      window.history.replaceState(null, '', `article.html?slug=${article.slug}`);
+    // Если статью открыли по старому адресу (article.html?id=... или ?slug=...),
+    // на хостинге тихо подменяем адресную строку на красивый /articles/slug.
+    // На file:// красивые пути не работают — там просто заменяем id на slug.
+    if (onLegacyFile && article.slug) {
+      const isFile = window.location.protocol === 'file:';
+      const cleanUrl = isFile ? `article.html?slug=${article.slug}` : `/articles/${article.slug}`;
+      window.history.replaceState(null, '', cleanUrl);
     }
 
     const articleId = article.id;
