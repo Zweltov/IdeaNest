@@ -1,6 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/articles/:slug([^.]+)", "destination": "/articles/article.html" },
-    { "source": "/ideas/:id([^.]+)", "destination": "/ideas/idea.html" }
-  ]
-}
