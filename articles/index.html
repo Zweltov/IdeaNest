@@ -3,24 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Статья — IdeaNest</title>
+  <title>Статьи — IdeaNest</title>
   <link rel="icon" href="../favicon.ico" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../style.css" />
   <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});}}catch(e){}})();</script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 </head>
 <body>
-
-  <!--
-    Общий шаблон для ВСЕХ статей (не отдельный файл на каждую): сама статья
-    хранится в таблице articles в Supabase, а нужный id передаётся через
-    ссылку, например articles/article.html?id=3. Подключены те же
-    style.css и script.js, что и на главной странице и у страниц идей.
-  -->
 
   <div class="profile-blur-overlay" id="profileBlurOverlay"></div>
 
@@ -51,8 +42,8 @@
             <div class="dropdown-divider"></div>
             <a href="#" class="dropdown-item"><i data-lucide="user"></i> Профиль</a>
             <a href="../settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
-            <a href="#" class="dropdown-item"><i data-lucide="lightbulb"></i> Мои идеи</a>
-            <a href="#" class="dropdown-item"><i data-lucide="book-open"></i> Мои статьи</a>
+            <a href="#" class="dropdown-item" id="myIdeasBtn"><i data-lucide="lightbulb"></i> Мои идеи</a>
+            <a href="#" class="dropdown-item" id="myArticlesBtn"><i data-lucide="book-open"></i> Мои статьи</a>
             <a href="#" class="dropdown-item"><i data-lucide="bell"></i> Уведомления</a>
             <div class="dropdown-divider"></div>
             <div class="dropdown-section-title">Аккаунты</div>
@@ -67,17 +58,32 @@
     </div>
   </header>
 
-  <main class="detail-main detail-main--article">
+  <main class="detail-main detail-main--wide">
     <a href="../index.html#articles" class="btn-text" style="margin-bottom: 24px; display: inline-flex;">
-      <i data-lucide="arrow-left"></i> Ко всем статьям
+      <i data-lucide="arrow-left"></i> На главную
     </a>
+    <h1 class="section-title" style="margin-bottom: 32px;">Все статьи</h1>
 
-    <div class="article-page-body" style="cursor: default;" id="articleDetailContainer">
-      <p style="color: var(--text-muted);">Загрузка статьи...</p>
+    <div class="grid-cards articles-grid" id="articlesPageGrid">
+      <p style="color: var(--text-muted);">Загрузка статей...</p>
     </div>
   </main>
 
   <div id="toastContainer" class="toast-container"></div>
+
+  <div class="modal-backdrop" id="articleBackdrop">
+    <div class="modal idea-modal">
+      <button class="modal-close" id="articleCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+      <div id="articleModalBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="ideaBackdrop">
+    <div class="modal idea-modal">
+      <button class="modal-close" id="ideaCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
+      <div id="ideaModalBody"></div>
+    </div>
+  </div>
 
   <div class="modal-backdrop" id="authBackdrop">
     <div class="modal auth-modal">
