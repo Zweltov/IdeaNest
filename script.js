@@ -14,14 +14,10 @@ function siteRootPrefix() {
   return /\/(ideas|articles|settings)\//.test(window.location.pathname) ? '../' : '';
 }
 
-// Красивая ссылка на статью: /articles/slug на хостинге (Vercel сам перепишет
-// её на articles/article.html через vercel.json), но при открытии сайта
-// напрямую как файла (file://) красивые пути не работают — там отдаём
-// старый добрый articles/article.html?slug=...
+// Ссылка на статью: всегда обычная articles/article.html?id=... — сама страница
+// статьи после загрузки тихо подменяет адрес на красивый (см. initArticleDetailPage).
 function articleHref(article) {
-  const isFile = window.location.protocol === 'file:';
-  if (article.slug && !isFile) return siteRootPrefix() + 'articles/' + article.slug;
-  return siteRootPrefix() + 'articles/article.html?' + (article.slug ? 'slug=' + article.slug : 'id=' + article.id);
+  return siteRootPrefix() + 'articles/article.html?id=' + article.id;
 }
 
 let currentUser = null;   // объект пользователя из supabase.auth
