@@ -18,11 +18,11 @@ function siteRootPrefix() {
 // её на articles/article.html через vercel.json), но при открытии сайта
 // напрямую как файла (file://) красивые пути не работают — там отдаём
 // старый добрый articles/article.html?slug=...
-// function articleHref(article) {
-//   const isFile = window.location.protocol === 'file:';
-//   if (article.slug && !isFile) return siteRootPrefix() + 'articles/' + article.slug;
-//   return siteRootPrefix() + 'articles/article.html?' + (article.slug ? 'slug=' + article.slug : 'id=' + article.id);
-// }
+function articleHref(article) {
+  const isFile = window.location.protocol === 'file:';
+  if (article.slug && !isFile) return siteRootPrefix() + 'articles/' + article.slug;
+  return siteRootPrefix() + 'articles/article.html?' + (article.slug ? 'slug=' + article.slug : 'id=' + article.id);
+}
 
 let currentUser = null;   // объект пользователя из supabase.auth
 let currentProfile = null; // строка из таблицы profiles (id, username, auth_id, created_at)
