@@ -24,7 +24,7 @@
   <header class="navbar">
     <div class="navbar-container">
       <a class="brand" href="../index.html">
-        <i data-lucide="layers"></i> IdeaNest
+        <img src="../assets/logo-dark.png" class="brand-logo" alt="IdeaNest" /> IdeaNest
       </a>
 
       <nav class="nav-links">
@@ -83,9 +83,21 @@
         <h3 class="ideas-filter-title">Фильтры</h3>
 
         <div class="ideas-filter-block">
-          <div class="ideas-search-wrap">
+          <div class="ideas-search-wrap ideas-search-wrap--wide">
             <i data-lucide="search"></i>
             <input type="text" id="ideaSearchInput" placeholder="Поиск по идеям..." autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="ideas-filter-block">
+          <span class="ideas-filter-block-label">Сортировка</span>
+          <div class="filter-group">
+            <button class="filter-btn active" data-sort="new">Сначала новые</button>
+            <button class="filter-btn" data-sort="old">Сначала старые</button>
+            <button class="filter-btn" data-sort="cheap">Сначала дешёвые</button>
+            <button class="filter-btn" data-sort="expensive">Сначала дорогие</button>
+            <button class="filter-btn" data-sort="popular">Популярные</button>
+            <button class="filter-btn" data-sort="unpopular">Непопулярные</button>
           </div>
         </div>
 
