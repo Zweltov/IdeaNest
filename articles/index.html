@@ -18,7 +18,7 @@
   <header class="navbar">
     <div class="navbar-container">
       <a class="brand" href="../index.html">
-        <i data-lucide="layers"></i> IdeaNest
+        <img src="../assets/logo-dark.png" class="brand-logo" alt="IdeaNest" /> IdeaNest
       </a>
 
       <nav class="nav-links">
@@ -63,6 +63,20 @@
       <i data-lucide="arrow-left"></i> На главную
     </a>
     <h1 class="section-title" style="margin-bottom: 32px;">Все статьи</h1>
+
+    <div class="filters-container">
+      <div class="ideas-search-wrap" style="flex: 1; min-width: 220px; max-width: 360px;">
+        <i data-lucide="search"></i>
+        <input type="text" id="articleSearchInput" placeholder="Искать по статьям..." />
+      </div>
+
+      <div class="filter-group">
+        <button class="filter-btn article-sort-btn active" data-sort="new">Сначала новые</button>
+        <button class="filter-btn article-sort-btn" data-sort="old">Сначала старые</button>
+        <button class="filter-btn article-sort-btn" data-sort="popular">По популярности</button>
+        <button class="filter-btn article-sort-btn" data-sort="az">По алфавиту</button>
+      </div>
+    </div>
 
     <div class="grid-cards articles-grid" id="articlesPageGrid">
       <p style="color: var(--text-muted);">Загрузка статей...</p>
