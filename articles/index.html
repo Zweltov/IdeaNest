@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Статьи — IdeaNest</title>
-  <link rel="icon" href="../favicon.ico" />
+  <link rel="icon" href="../assets/logo-dark.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../style.css" />
   <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});}}catch(e){}})();</script>
@@ -70,11 +70,18 @@
         <input type="text" id="articleSearchInput" placeholder="Искать по статьям..." />
       </div>
 
-      <div class="filter-group">
-        <button class="filter-btn article-sort-btn active" data-sort="new">Сначала новые</button>
-        <button class="filter-btn article-sort-btn" data-sort="old">Сначала старые</button>
-        <button class="filter-btn article-sort-btn" data-sort="popular">По популярности</button>
-        <button class="filter-btn article-sort-btn" data-sort="az">По алфавиту</button>
+      <div class="sort-dropdown" id="articleSortDropdown">
+        <button type="button" class="sort-dropdown-btn" id="articleSortBtn">
+          <span id="articleSortBtnLabel">Сначала новые</span>
+          <i data-lucide="chevron-down"></i>
+        </button>
+        <div class="sort-dropdown-menu" id="articleSortMenu">
+          <button type="button" class="sort-dropdown-item active" data-sort="new">Сначала новые</button>
+          <button type="button" class="sort-dropdown-item" data-sort="old">Сначала старые</button>
+          <button type="button" class="sort-dropdown-item" data-sort="popular">По популярности</button>
+          <button type="button" class="sort-dropdown-item" data-sort="az">По алфавиту (А → Я)</button>
+          <button type="button" class="sort-dropdown-item" data-sort="za">По алфавиту (Я → А)</button>
+        </div>
       </div>
     </div>
 
