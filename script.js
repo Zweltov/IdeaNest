@@ -521,6 +521,61 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  const IDEA_SORT_LABELS = {
+    new: 'Сначала новые', old: 'Сначала старые', cheap: 'Сначала дешевле', expensive: 'Сначала дороже',
+    popular: 'По популярности', az: 'По алфавиту (А → Я)', za: 'По алфавиту (Я → А)'
+  };
+  const ideaUrlParams = new URLSearchParams(window.location.search);
+  let currentIdeaSort = ideaUrlParams.get('sort') || localStorage.getItem('ideanest_idea_sort') || 'new';
+  if (!IDEA_SORT_LABELS[currentIdeaSort]) currentIdeaSort = 'new';
+
+  function sortIdeas(list) {
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      if (currentIdeaSort === 'new') return new Date(b.created_at) - new Date(a.created_at);
+      if (currentIdeaSort === 'old') return new Date(a.created_at) - new Date(b.created_at);
+      if (currentIdeaSort === 'cheap') return (a.budget ?? Infinity) - (b.budget ?? Infinity);
+      if (currentIdeaSort === 'expensive') return (b.budget ?? -Infinity) - (a.budget ?? -Infinity);
+      if (currentIdeaSort === 'popular') return (b._popularity || 0) - (a._popularity || 0);
+      if (currentIdeaSort === 'az') return ideaTitle(a).localeCompare(ideaTitle(b), 'ru');
+      if (currentIdeaSort === 'za') return ideaTitle(b).localeCompare(ideaTitle(a), 'ru');
+      return 0;
+    });
+    return sorted;
+  }
+
+  function initIdeaSortDropdown() {
+    const dropdown = document.getElementById('ideaSortDropdown');
+    if (!dropdown) return;
+    const btn = document.getElementById('ideaSortBtn');
+    const btnLabel = document.getElementById('ideaSortBtnLabel');
+    const menu = document.getElementById('ideaSortMenu');
+
+    function setActive() {
+      menu.querySelectorAll('.sort-dropdown-item').forEach(el => el.classList.toggle('active', el.dataset.sort === currentIdeaSort));
+      btnLabel.textContent = IDEA_SORT_LABELS[currentIdeaSort];
+    }
+    setActive();
+
+    btn.addEventListener('click', (e) => { e.stopPropagation(); dropdown.classList.toggle('open'); });
+    document.addEventListener('click', (e) => { if (!dropdown.contains(e.target)) dropdown.classList.remove('open'); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dropdown.classList.remove('open'); });
+
+    menu.querySelectorAll('.sort-dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        currentIdeaSort = item.dataset.sort;
+        localStorage.setItem('ideanest_idea_sort', currentIdeaSort);
+        const params = new URLSearchParams(window.location.search);
+        params.set('sort', currentIdeaSort);
+        window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+        setActive();
+        dropdown.classList.remove('open');
+        applyIdeaFilters();
+      });
+    });
+  }
+  initIdeaSortDropdown();
+
   function applyIdeaFilters() {
     const activeBtn = document.querySelector('.filter-btn.active');
     const category = activeBtn ? activeBtn.dataset.filter : 'all';
@@ -535,7 +590,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return matchesCategory && matchesRating && matchesSearch;
     });
 
-    renderIdeasList(filtered);
+    renderIdeasList(sortIdeas(filtered));
   }
 
   // ================= 7. Идеи из Supabase (карточки + окно предпросмотра) =================
@@ -612,16 +667,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderIdeasList(list) {
     if (!ideasGrid) return;
-    ideasGrid.innerHTML = list.length
-      ? list.map(renderIdeaCard).join('')
-      : '<p style="opacity:0.6;">Ничего не найдено по заданным фильтрам.</p>';
-    if (window.lucide) lucide.createIcons();
-    ideasGrid.querySelectorAll('[data-idea-id]').forEach(card => {
-      card.addEventListener('click', () => {
-        const idea = ideasCache.find(i => i.id_idea === parseInt(card.dataset.ideaId, 10));
-        if (idea) openIdeaPreview(idea);
+    ideasGrid.classList.add('grid-fade');
+    setTimeout(() => {
+      ideasGrid.innerHTML = list.length
+        ? list.map(renderIdeaCard).join('')
+        : '<p style="opacity:0.6;">Ничего не найдено по заданным фильтрам.</p>';
+      if (window.lucide) lucide.createIcons();
+      ideasGrid.querySelectorAll('[data-idea-id]').forEach(card => {
+        card.addEventListener('click', () => {
+          const idea = ideasCache.find(i => i.id_idea === parseInt(card.dataset.ideaId, 10));
+          if (idea) openIdeaPreview(idea);
+        });
       });
-    });
+      ideasGrid.classList.remove('grid-fade');
+    }, 190);
   }
 
   async function loadIdeasFromSupabase() {
@@ -633,6 +692,12 @@ document.addEventListener("DOMContentLoaded", () => {
         .order('id_idea', { ascending: true });
       if (error) throw error;
       ideasCache = data || [];
+      try {
+        const { data: upvotes } = await supabaseClient.from('upvotes_ideas').select('id_idea');
+        const counts = {};
+        (upvotes || []).forEach(r => { counts[r.id_idea] = (counts[r.id_idea] || 0) + 1; });
+        ideasCache.forEach(i => { i._popularity = counts[i.id_idea] || 0; });
+      } catch (e) { ideasCache.forEach(i => { i._popularity = 0; }); }
       applyIdeaFilters();
     } catch (e) {
       console.error('Ошибка загрузки идей:', e);

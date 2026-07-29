@@ -528,6 +528,8 @@ body {
 
 .ideas-filter-sidebar .filter-group { flex-direction: column; gap: 8px; }
 .ideas-filter-sidebar .filter-btn { width: 100%; text-align: left; }
+.ideas-filter-sidebar .sort-dropdown, .ideas-filter-sidebar .sort-dropdown-btn { width: 100%; }
+.ideas-filter-sidebar .sort-dropdown-menu { left: 0; right: 0; }
 .ideas-filter-sidebar .custom-slider-container { width: 100%; }
 
 .ideas-search-wrap {
