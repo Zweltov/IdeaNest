@@ -70,6 +70,29 @@
     </a>
     <h1 class="section-title" style="margin-bottom: 32px;">Все идеи</h1>
 
+    <div class="filters-container">
+      <div class="ideas-search-wrap" style="flex: 1; min-width: 220px; max-width: 360px;">
+        <i data-lucide="search"></i>
+        <input type="text" id="ideaSearchInput" placeholder="Поиск по идеям..." autocomplete="off" />
+      </div>
+
+      <div class="sort-dropdown" id="ideaSortDropdown">
+        <button type="button" class="sort-dropdown-btn" id="ideaSortBtn">
+          <span id="ideaSortBtnLabel">Сначала новые</span>
+          <i data-lucide="chevron-down"></i>
+        </button>
+        <div class="sort-dropdown-menu" id="ideaSortMenu">
+          <button type="button" class="sort-dropdown-item active" data-sort="new">Сначала новые</button>
+          <button type="button" class="sort-dropdown-item" data-sort="old">Сначала старые</button>
+          <button type="button" class="sort-dropdown-item" data-sort="cheap">Сначала дешевле</button>
+          <button type="button" class="sort-dropdown-item" data-sort="expensive">Сначала дороже</button>
+          <button type="button" class="sort-dropdown-item" data-sort="popular">По популярности</button>
+          <button type="button" class="sort-dropdown-item" data-sort="az">По алфавиту (А → Я)</button>
+          <button type="button" class="sort-dropdown-item" data-sort="za">По алфавиту (Я → А)</button>
+        </div>
+      </div>
+    </div>
+
     <button type="button" class="mobile-filter-toggle" id="mobileFilterToggle">
       <i data-lucide="sliders-horizontal"></i> Фильтры
     </button>
@@ -81,32 +104,6 @@
 
       <aside class="ideas-filter-sidebar" id="ideasFilterSidebar">
         <h3 class="ideas-filter-title">Фильтры</h3>
-
-        <div class="ideas-filter-block">
-          <div class="ideas-search-wrap ideas-search-wrap--wide">
-            <i data-lucide="search"></i>
-            <input type="text" id="ideaSearchInput" placeholder="Поиск по идеям..." autocomplete="off" />
-          </div>
-        </div>
-
-        <div class="ideas-filter-block">
-          <span class="ideas-filter-block-label">Сортировка</span>
-          <div class="sort-dropdown" id="ideaSortDropdown">
-            <button type="button" class="sort-dropdown-btn" id="ideaSortBtn">
-              <span id="ideaSortBtnLabel">Сначала новые</span>
-              <i data-lucide="chevron-down"></i>
-            </button>
-            <div class="sort-dropdown-menu" id="ideaSortMenu">
-              <button type="button" class="sort-dropdown-item active" data-sort="new">Сначала новые</button>
-              <button type="button" class="sort-dropdown-item" data-sort="old">Сначала старые</button>
-              <button type="button" class="sort-dropdown-item" data-sort="cheap">Сначала дешевле</button>
-              <button type="button" class="sort-dropdown-item" data-sort="expensive">Сначала дороже</button>
-              <button type="button" class="sort-dropdown-item" data-sort="popular">По популярности</button>
-              <button type="button" class="sort-dropdown-item" data-sort="az">По алфавиту (А → Я)</button>
-              <button type="button" class="sort-dropdown-item" data-sort="za">По алфавиту (Я → А)</button>
-            </div>
-          </div>
-        </div>
 
         <div class="ideas-filter-block">
           <span class="ideas-filter-block-label">Категория</span>
