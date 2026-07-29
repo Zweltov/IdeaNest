@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Статьи — IdeaNest</title>
-  <link rel="icon" href="../assets/logo-dark.png" />
+  <title>IdeaNest — Премиальные бизнес-идеи</title>
+  <link rel="icon" href="favicon.ico" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="style.css" />
   <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});}}catch(e){}})();</script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -17,20 +17,20 @@
 
   <header class="navbar">
     <div class="navbar-container">
-      <a class="brand" href="../index.html">
-        <img src="../assets/logo-dark.png" class="brand-logo" alt="IdeaNest" /> IdeaNest
+      <a class="brand" href="index.html">
+        <img src="assets/logo-dark.png" class="brand-logo" alt="IdeaNest" /> IdeaNest
       </a>
-
+      
       <nav class="nav-links">
-        <a href="../ideas/all.html" class="nav-link">Идеи</a>
-        <a href="index.html" class="nav-link">Статьи</a>
+        <a href="ideas/all.html" class="nav-link">Идеи</a>
+        <a href="articles/index.html" class="nav-link">Статьи</a>
       </nav>
 
       <div class="navbar-actions">
         <button class="btn btn-secondary" id="loginBtn" style="display:none;">Войти</button>
         <div class="profile-wrapper" id="profileWrapper" style="display:none;">
           <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="topAvatar" class="avatar-img" alt="Профиль">
-
+          
           <div class="profile-dropdown" id="profileDropdown">
             <div class="dropdown-header">
               <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="dropdownAvatar" class="dropdown-avatar" alt="Профиль">
@@ -41,7 +41,7 @@
             </div>
             <div class="dropdown-divider"></div>
             <a href="#" class="dropdown-item"><i data-lucide="user"></i> Профиль</a>
-            <a href="../settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
+            <a href="settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
             <a href="#" class="dropdown-item" id="myIdeasBtn"><i data-lucide="lightbulb"></i> Мои идеи</a>
             <a href="#" class="dropdown-item" id="myArticlesBtn"><i data-lucide="book-open"></i> Мои статьи</a>
             <a href="#" class="dropdown-item"><i data-lucide="bell"></i> Уведомления</a>
@@ -58,36 +58,55 @@
     </div>
   </header>
 
-  <main class="detail-main detail-main--wide">
-    <a href="../index.html#articles" class="btn-text" style="margin-bottom: 24px; display: inline-flex;">
-      <i data-lucide="arrow-left"></i> На главную
-    </a>
-    <h1 class="section-title" style="margin-bottom: 32px;">Все статьи</h1>
-
-    <div class="filters-container">
-      <div class="ideas-search-wrap" style="flex: 1; min-width: 220px; max-width: 360px;">
-        <i data-lucide="search"></i>
-        <input type="text" id="articleSearchInput" placeholder="Искать по статьям..." />
-      </div>
-
-      <div class="sort-dropdown" id="articleSortDropdown">
-        <button type="button" class="sort-dropdown-btn" id="articleSortBtn">
-          <span id="articleSortBtnLabel">Сначала новые</span>
-          <i data-lucide="chevron-down"></i>
-        </button>
-        <div class="sort-dropdown-menu" id="articleSortMenu">
-          <button type="button" class="sort-dropdown-item active" data-sort="new">Сначала новые</button>
-          <button type="button" class="sort-dropdown-item" data-sort="old">Сначала старые</button>
-          <button type="button" class="sort-dropdown-item" data-sort="popular">По популярности</button>
-          <button type="button" class="sort-dropdown-item" data-sort="az">По алфавиту (А → Я)</button>
-          <button type="button" class="sort-dropdown-item" data-sort="za">По алфавиту (Я → А)</button>
+  <main>
+    <section class="hero">
+      <div class="hero-content">
+        <div class="badge">Встречайте новый IdeaNest 2.0</div>
+        <h1 class="hero-title">Найди идею.<br>Создай будущее.</h1>
+        <p class="hero-subtitle">Каталог проверенных бизнес-идей и статей. От концепции до реализации — с минимальными рисками и максимальным профитом.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary">Начать поиск</button>
+          <button class="btn btn-secondary">Как это работает</button>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="grid-cards articles-grid" id="articlesPageGrid">
-      <p style="color: var(--text-muted);">Загрузка статей...</p>
-    </div>
+    <section id="ideas" class="section">
+      <div class="section-header">
+        <h2 class="section-title">Популярные идеи</h2>
+        <a href="ideas/all.html" class="btn-text">Все идеи <i data-lucide="arrow-right"></i></a>
+      </div>
+      
+      <div class="filters-container">
+        <div class="filter-group">
+          <button class="filter-btn active" data-filter="all">Все</button>
+          <button class="filter-btn" data-filter="it">IT & Tech</button>
+          <button class="filter-btn" data-filter="offline">Офлайн бизнес</button>
+          <button class="filter-btn" data-filter="crypto">Крипто</button>
+        </div>
+        
+        <div class="slider-group">
+          <span class="slider-label">Рейтинг: <span id="ratingValue">4.0</span>+</span>
+          <div class="custom-slider-container">
+            <input type="range" id="ratingSlider" min="0" max="5" step="0.1" value="4.0" class="custom-slider">
+            <div class="slider-track-fill" id="sliderFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-cards" id="ideasGrid">
+        </div>
+    </section>
+
+    <section id="articles" class="section bg-muted">
+      <div class="section-header">
+        <h2 class="section-title">Свежие статьи</h2>
+        <a href="articles/index.html" class="btn-text">Все статьи <i data-lucide="arrow-right"></i></a>
+      </div>
+      
+      <div class="grid-cards articles-grid" id="articlesGrid">
+        </div>
+    </section>
   </main>
 
   <div id="toastContainer" class="toast-container"></div>
@@ -160,6 +179,6 @@
     </div>
   </div>
 
-  <script src="../script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
