@@ -488,23 +488,12 @@ document.addEventListener("DOMContentLoaded", () => {
     ratingSlider.addEventListener('input', updateSliderFill);
   }
 
-  // ================= 6. Фильтры (категория + рейтинг + сортировка, работают вместе) =================
-  const categoryBtns = document.querySelectorAll('.filter-btn[data-filter]');
-  categoryBtns.forEach(btn => {
+  // ================= 6. Фильтры (категория + рейтинг, работают вместе) =================
+  const filterBtns = document.querySelectorAll('.filter-btn');
+  filterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
-      categoryBtns.forEach(b => b.classList.remove('active'));
+      filterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      applyIdeaFilters();
-    });
-  });
-
-  const sortBtns = document.querySelectorAll('.filter-btn[data-sort]');
-  let ideaSortMode = 'new';
-  sortBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      sortBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      ideaSortMode = btn.dataset.sort;
       applyIdeaFilters();
     });
   });
@@ -532,21 +521,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function sortIdeas(list) {
-    const sorted = [...list];
-    sorted.sort((a, b) => {
-      if (ideaSortMode === 'old') return new Date(a.created_at) - new Date(b.created_at);
-      if (ideaSortMode === 'cheap') return (a.budget ?? Infinity) - (b.budget ?? Infinity);
-      if (ideaSortMode === 'expensive') return (b.budget ?? -Infinity) - (a.budget ?? -Infinity);
-      if (ideaSortMode === 'popular') return ideaUpvoteCount(b) - ideaUpvoteCount(a);
-      if (ideaSortMode === 'unpopular') return ideaUpvoteCount(a) - ideaUpvoteCount(b);
-      return new Date(b.created_at) - new Date(a.created_at); // 'new' по умолчанию
-    });
-    return sorted;
-  }
-
   function applyIdeaFilters() {
-    const activeBtn = document.querySelector('.filter-btn[data-filter].active');
+    const activeBtn = document.querySelector('.filter-btn.active');
     const category = activeBtn ? activeBtn.dataset.filter : 'all';
     const minRating = ratingSlider ? parseFloat(ratingSlider.value) : 0;
     const searchQuery = ideaSearchInput ? ideaSearchInput.value.trim().toLowerCase() : '';
@@ -559,7 +535,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return matchesCategory && matchesRating && matchesSearch;
     });
 
-    renderIdeasList(sortIdeas(filtered));
+    renderIdeasList(filtered);
   }
 
   // ================= 7. Идеи из Supabase (карточки + окно предпросмотра) =================
@@ -587,12 +563,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return idea.title && idea.title.trim() ? idea.title : `Идея №${idea.id_idea}`;
   }
 
-  function ideaUpvoteCount(idea) {
-    const raw = idea.upvotes_ideas;
-    if (Array.isArray(raw) && raw.length && typeof raw[0].count === 'number') return raw[0].count;
-    return 0;
-  }
-
   function renderIdeaCard(idea) {
     const shortText = (idea.pluses || idea.risks || 'Описание пока не заполнено.').slice(0, 110);
     return `
@@ -602,13 +572,8 @@ document.addEventListener("DOMContentLoaded", () => {
         <p class="card-desc">${shortText}${shortText.length >= 110 ? '…' : ''}</p>
         <div class="card-footer">
           <span>${formatBudget(idea.budget)}</span>
-          <div style="display:flex; align-items:center; gap:12px;">
-            <div class="card-rating">
-              <i data-lucide="star" style="width:14px; height:14px; fill: currentColor;"></i> ${idea.rating != null ? Number(idea.rating).toFixed(1) : '—'}
-            </div>
-            <div class="card-rating">
-              <i data-lucide="arrow-up" style="width:14px; height:14px;"></i> ${ideaUpvoteCount(idea)}
-            </div>
+          <div class="card-rating">
+            <i data-lucide="star" style="width:14px; height:14px; fill: currentColor;"></i> ${idea.rating != null ? Number(idea.rating).toFixed(1) : '—'}
           </div>
         </div>
       </div>`;
@@ -662,15 +627,11 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadIdeasFromSupabase() {
     if (!ideasGrid) return;
     try {
-      let { data, error } = await supabaseClient
+      const { data, error } = await supabaseClient
         .from('ideas')
-        .select('*, upvotes_ideas(count)')
+        .select('*')
         .order('id_idea', { ascending: true });
-      if (error) {
-        const fallback = await supabaseClient.from('ideas').select('*').order('id_idea', { ascending: true });
-        data = fallback.data; error = fallback.error;
-        if (error) throw error;
-      }
+      if (error) throw error;
       ideasCache = data || [];
       applyIdeaFilters();
     } catch (e) {
@@ -713,14 +674,53 @@ document.addEventListener("DOMContentLoaded", () => {
   // Markdown -> безопасный HTML. marked.js делает разбор (**bold**, # заголовки и т.д.),
   // DOMPurify чистит результат перед вставкой в страницу. Если библиотеки почему-то
   // не подгрузились — просто показываем текст как есть, с переносами строк.
+  const INFO_BLOCK_TYPES = {
+    tip: { icon: 'lightbulb', label: 'Совет' },
+    warning: { icon: 'triangle-alert', label: 'Важно' },
+    note: { icon: 'pin', label: 'Запомните' },
+    success: { icon: 'check-circle-2', label: 'Итог' },
+    danger: { icon: 'x-circle', label: 'Частая ошибка' }
+  };
+
+  // Вырезает :::tip ... ::: (и другие типы) из текста статьи, рендерит их
+  // в готовый HTML-блок, а на их место подставляет плейсхолдер — чтобы
+  // остальной текст спокойно прошёл через обычный Markdown-рендер.
+  function extractInfoBlocks(text) {
+    const blocks = [];
+    const cleaned = text.replace(/:::(tip|warning|note|success|danger|pros|cons|checklist)\s*\n([\s\S]*?)\n:::/g, (m, type, body) => {
+      const idx = blocks.length;
+      if (type === 'pros' || type === 'cons') {
+        const isPros = type === 'pros';
+        const items = body.split('\n').map(l => l.trim()).filter(Boolean)
+          .map(l => `<li><i data-lucide="${isPros ? 'check' : 'x'}"></i> ${l}</li>`).join('');
+        blocks.push(`<ul class="proscons-list ${type}">${items}</ul>`);
+      } else if (type === 'checklist') {
+        const items = body.split('\n').map(l => l.trim()).filter(Boolean)
+          .map(l => `<li><i data-lucide="square"></i> ${l}</li>`).join('');
+        blocks.push(`<ul class="checklist-list">${items}</ul>`);
+      } else {
+        const meta = INFO_BLOCK_TYPES[type];
+        const bodyHtml = window.marked ? marked.parse(body.trim(), { breaks: true }) : `<p>${body.trim()}</p>`;
+        blocks.push(`<div class="infobox infobox-${type}"><div class="infobox-title"><i data-lucide="${meta.icon}"></i> ${meta.label}</div><div class="infobox-body">${bodyHtml}</div></div>`);
+      }
+      return `\n@@INFOBLOCK${idx}@@\n`;
+    });
+    return { cleaned, blocks };
+  }
+
   function renderMarkdown(text) {
     if (!text) return '<p>Текст пока не заполнен.</p>';
+    const { cleaned, blocks } = extractInfoBlocks(text);
+    let html;
     if (window.marked && window.DOMPurify) {
-      const html = marked.parse(text, { breaks: true });
-      return DOMPurify.sanitize(html);
+      html = marked.parse(cleaned, { breaks: true });
+    } else {
+      html = `<p style="white-space: pre-line;">${cleaned.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
     }
-    const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return `<p style="white-space: pre-line;">${escaped}</p>`;
+    blocks.forEach((b, i) => {
+      html = html.replace(new RegExp(`<p>\\s*@@INFOBLOCK${i}@@\\s*</p>|@@INFOBLOCK${i}@@`), b);
+    });
+    return window.DOMPurify ? DOMPurify.sanitize(html) : html;
   }
 
   function setMetaDescription(text) {
@@ -797,12 +797,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function articleUpvoteCount(article) {
-    const raw = article.upvotes_articles;
-    if (Array.isArray(raw) && raw.length && typeof raw[0].count === 'number') return raw[0].count;
-    return 0;
-  }
-
   function renderArticleCard(article) {
     return `
       <div class="card" data-article-id="${article.id}">
@@ -811,7 +805,6 @@ document.addEventListener("DOMContentLoaded", () => {
         <p class="card-desc">${articleExcerpt(article, 130)}</p>
         <div class="card-footer">
           <span>${formatDate(article.created_at)}</span>
-          <div class="card-rating"><i data-lucide="arrow-up" style="width:14px; height:14px;"></i> ${articleUpvoteCount(article)}</div>
         </div>
       </div>`;
   }
@@ -835,31 +828,16 @@ document.addEventListener("DOMContentLoaded", () => {
     articleBackdrop.classList.add('active');
   }
 
-  // Отрисовывает список статей в указанный контейнер и вешает клики на карточки
-  function renderArticlesInto(list, gridEl) {
-    if (!gridEl) return;
-    gridEl.innerHTML = list.length
-      ? list.map(renderArticleCard).join('')
-      : '<p style="opacity:0.6;">Ничего не найдено.</p>';
-    if (window.lucide) lucide.createIcons();
-    gridEl.querySelectorAll('[data-article-id]').forEach(card => {
-      card.addEventListener('click', () => {
-        const article = articlesCache.find(a => a.id === parseInt(card.dataset.articleId, 10));
-        if (article) openArticlePreview(article);
-      });
-    });
-  }
-
   async function loadArticlesFromSupabase() {
     const articlesPageGrid = document.getElementById('articlesPageGrid');
     const targetGrid = articlesGrid || articlesPageGrid;
     if (!targetGrid) return;
     try {
-      // Пробуем подтянуть автора и число апвоутов через связи; если внешние
-      // ключи в Supabase не настроены, откатываемся к обычной выборке.
+      // Пробуем подтянуть автора через связь с profiles; если внешний ключ
+      // в Supabase не настроен, откатываемся к обычной выборке без автора.
       let { data, error } = await supabaseClient
         .from('articles')
-        .select('*, profiles(username), upvotes_articles(count)')
+        .select('*, profiles(username)')
         .order('created_at', { ascending: false });
       if (error) {
         const fallback = await supabaseClient.from('articles').select('*').order('created_at', { ascending: false });
@@ -867,8 +845,16 @@ document.addEventListener("DOMContentLoaded", () => {
         if (error) throw error;
       }
       articlesCache = data || [];
-      if (articlesGrid) renderArticlesInto(articlesCache, articlesGrid);
-      if (articlesPageGrid) initArticlesPage(articlesPageGrid);
+      targetGrid.innerHTML = articlesCache.length
+        ? articlesCache.map(renderArticleCard).join('')
+        : '<p style="opacity:0.6;">Пока нет ни одной статьи в базе.</p>';
+      if (window.lucide) lucide.createIcons();
+      targetGrid.querySelectorAll('[data-article-id]').forEach(card => {
+        card.addEventListener('click', () => {
+          const article = articlesCache.find(a => a.id === parseInt(card.dataset.articleId, 10));
+          if (article) openArticlePreview(article);
+        });
+      });
     } catch (e) {
       console.error('Ошибка загрузки статей:', e);
       targetGrid.innerHTML = '<p style="opacity:0.6;">Не удалось загрузить статьи.</p>';
@@ -876,41 +862,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   loadArticlesFromSupabase();
-
-  // ================= 7в. Отдельная страница "Статьи" (поиск + сортировка) =================
-  function initArticlesPage(gridEl) {
-    const searchInput = document.getElementById('articleSearchInput');
-    const sortBtns = document.querySelectorAll('.article-sort-btn');
-    let sortMode = 'new';
-
-    function applyFilters() {
-      const query = (searchInput?.value || '').trim().toLowerCase();
-      let list = articlesCache.filter(a =>
-        !query ||
-        (a.title || '').toLowerCase().includes(query) ||
-        (a.text || '').toLowerCase().includes(query)
-      );
-      list = [...list].sort((a, b) => {
-        if (sortMode === 'old') return new Date(a.created_at) - new Date(b.created_at);
-        if (sortMode === 'popular') return articleUpvoteCount(b) - articleUpvoteCount(a);
-        if (sortMode === 'az') return (a.title || '').localeCompare(b.title || '', 'ru');
-        return new Date(b.created_at) - new Date(a.created_at); // 'new' по умолчанию
-      });
-      renderArticlesInto(list, gridEl);
-    }
-
-    if (searchInput) searchInput.addEventListener('input', applyFilters);
-    sortBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        sortBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        sortMode = btn.dataset.sort;
-        applyFilters();
-      });
-    });
-
-    applyFilters();
-  }
 
   // ================= 8. Страница отдельной идеи (ideas/idea.html?id=N) =================
   // Один общий шаблон для всех идей: сама идея достаётся из Supabase по id_idea
@@ -997,11 +948,13 @@ document.addEventListener("DOMContentLoaded", () => {
         </button>
       </div>
       <div id="articleFaqContainer">${renderFaqCard(article.faq)}</div>
+      <div id="articleRelatedIdeasContainer"></div>
       <div id="articleRelatedContainer"></div>
     `;
     if (window.lucide) lucide.createIcons();
     wireFaqCard(document.getElementById('articleFaqContainer'));
     loadRelatedArticles(article, document.getElementById('articleRelatedContainer'));
+    loadRelatedIdeas(articleId, document.getElementById('articleRelatedIdeasContainer'));
 
     document.getElementById('articleUpvoteBtn').addEventListener('click', async (e) => {
       const pId = await getProfileId();
@@ -1050,6 +1003,26 @@ document.addEventListener("DOMContentLoaded", () => {
       try { await supabaseClient.from('views_articles').insert({ id_profile: profileId, id_article: articleId }); }
       catch (e) { console.warn('Не удалось записать просмотр:', e); }
     }
+  }
+
+  async function loadRelatedIdeas(articleId, box) {
+    if (!box) return;
+    try {
+      const { data: rel } = await supabaseClient
+        .from('idea_articles')
+        .select('ideas(id_idea, title)')
+        .eq('id_article', articleId);
+      const list = (rel || []).filter(r => r.ideas);
+      if (!list.length) return;
+      box.innerHTML = `
+        <div class="idea-field-block" style="margin-top:20px;">
+          <h4><i data-lucide="lightbulb"></i> Идеи из статьи</h4>
+          <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+            ${list.map(r => `<a class="btn btn-secondary idea-open-btn" href="../ideas/idea.html?id=${r.ideas.id_idea}">${r.ideas.title || 'Идея №' + r.ideas.id_idea}</a>`).join('')}
+          </div>
+        </div>`;
+      if (window.lucide) lucide.createIcons();
+    } catch (e) { console.warn('Не удалось загрузить связанные идеи:', e); }
   }
 
   async function getProfileId() {
@@ -1122,7 +1095,29 @@ document.addEventListener("DOMContentLoaded", () => {
           <i data-lucide="bookmark"></i> ${isFav ? 'В избранном' : 'В избранное'}
         </button>
       </div>
+      <div id="ideaRelatedArticles"></div>
     `;
+    if (window.lucide) lucide.createIcons();
+
+    // Статьи, связанные с этой идеей (таблица idea_articles)
+    try {
+      const { data: rel } = await supabaseClient
+        .from('idea_articles')
+        .select('articles(id, title, slug)')
+        .eq('id_idea', ideaId);
+      const relList = (rel || []).filter(r => r.articles);
+      const relBox = document.getElementById('ideaRelatedArticles');
+      if (relBox && relList.length) {
+        relBox.innerHTML = `
+          <div class="idea-field-block" style="margin-top:28px;">
+            <h4><i data-lucide="book-open"></i> Статьи по теме</h4>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+              ${relList.map(r => `<a class="btn btn-secondary idea-open-btn" href="${articleHref(r.articles)}">${r.articles.title || 'Без названия'}</a>`).join('')}
+            </div>
+          </div>`;
+        if (window.lucide) lucide.createIcons();
+      }
+    } catch (e) { console.warn('Не удалось загрузить связанные статьи:', e); }
     if (window.lucide) lucide.createIcons();
 
     document.getElementById('ideaUpvoteBtn').addEventListener('click', async (e) => {
