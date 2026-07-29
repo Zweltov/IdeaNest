@@ -845,20 +845,110 @@ document.addEventListener("DOMContentLoaded", () => {
         if (error) throw error;
       }
       articlesCache = data || [];
-      targetGrid.innerHTML = articlesCache.length
-        ? articlesCache.map(renderArticleCard).join('')
-        : '<p style="opacity:0.6;">Пока нет ни одной статьи в базе.</p>';
-      if (window.lucide) lucide.createIcons();
-      targetGrid.querySelectorAll('[data-article-id]').forEach(card => {
-        card.addEventListener('click', () => {
-          const article = articlesCache.find(a => a.id === parseInt(card.dataset.articleId, 10));
-          if (article) openArticlePreview(article);
-        });
-      });
+
+      // Для сортировки "по популярности" считаем апвоуты статей одним запросом
+      if (articlesPageGrid) {
+        try {
+          const { data: upvotes } = await supabaseClient.from('upvotes_articles').select('id_article');
+          const counts = {};
+          (upvotes || []).forEach(r => { counts[r.id_article] = (counts[r.id_article] || 0) + 1; });
+          articlesCache.forEach(a => { a._popularity = counts[a.id] || 0; });
+        } catch (e) { articlesCache.forEach(a => { a._popularity = 0; }); }
+        initArticleListControls();
+      } else {
+        targetGrid.innerHTML = articlesCache.length
+          ? articlesCache.map(renderArticleCard).join('')
+          : '<p style="opacity:0.6;">Пока нет ни одной статьи в базе.</p>';
+        if (window.lucide) lucide.createIcons();
+        wireArticleCardClicks(targetGrid);
+      }
     } catch (e) {
       console.error('Ошибка загрузки статей:', e);
       targetGrid.innerHTML = '<p style="opacity:0.6;">Не удалось загрузить статьи.</p>';
     }
+  }
+
+  function wireArticleCardClicks(grid) {
+    grid.querySelectorAll('[data-article-id]').forEach(card => {
+      card.addEventListener('click', () => {
+        const article = articlesCache.find(a => a.id === parseInt(card.dataset.articleId, 10));
+        if (article) openArticlePreview(article);
+      });
+    });
+  }
+
+  // ---------- Каталог статей: поиск + сортировка (страница "Все статьи") ----------
+  const ARTICLE_SORT_LABELS = {
+    new: 'Сначала новые', old: 'Сначала старые', popular: 'По популярности',
+    az: 'По алфавиту (А → Я)', za: 'По алфавиту (Я → А)'
+  };
+
+  function initArticleListControls() {
+    const grid = document.getElementById('articlesPageGrid');
+    const dropdown = document.getElementById('articleSortDropdown');
+    const btn = document.getElementById('articleSortBtn');
+    const btnLabel = document.getElementById('articleSortBtnLabel');
+    const menu = document.getElementById('articleSortMenu');
+    const searchInput = document.getElementById('articleSearchInput');
+    if (!grid || !dropdown) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    let currentSort = urlParams.get('sort') || localStorage.getItem('ideanest_article_sort') || 'new';
+    if (!ARTICLE_SORT_LABELS[currentSort]) currentSort = 'new';
+
+    function setActiveMenuItem() {
+      menu.querySelectorAll('.sort-dropdown-item').forEach(el => el.classList.toggle('active', el.dataset.sort === currentSort));
+      btnLabel.textContent = ARTICLE_SORT_LABELS[currentSort];
+    }
+
+    function sortAndRender() {
+      const query = (searchInput?.value || '').trim().toLowerCase();
+      let list = !query ? [...articlesCache] : articlesCache.filter(a =>
+        (a.title || '').toLowerCase().includes(query) || (a.description || '').toLowerCase().includes(query));
+
+      list.sort((a, b) => {
+        if (currentSort === 'new') return new Date(b.created_at) - new Date(a.created_at);
+        if (currentSort === 'old') return new Date(a.created_at) - new Date(b.created_at);
+        if (currentSort === 'popular') return (b._popularity || 0) - (a._popularity || 0);
+        if (currentSort === 'az') return (a.title || '').localeCompare(b.title || '', 'ru');
+        if (currentSort === 'za') return (b.title || '').localeCompare(a.title || '', 'ru');
+        return 0;
+      });
+
+      grid.classList.add('grid-fade');
+      setTimeout(() => {
+        grid.innerHTML = list.length ? list.map(renderArticleCard).join('') : '<p style="opacity:0.6;">Ничего не найдено.</p>';
+        if (window.lucide) lucide.createIcons();
+        wireArticleCardClicks(grid);
+        grid.classList.remove('grid-fade');
+      }, 190);
+    }
+
+    setActiveMenuItem();
+    sortAndRender();
+
+    btn.addEventListener('click', (e) => { e.stopPropagation(); dropdown.classList.toggle('open'); });
+    document.addEventListener('click', (e) => { if (!dropdown.contains(e.target)) dropdown.classList.remove('open'); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dropdown.classList.remove('open'); });
+
+    menu.querySelectorAll('.sort-dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        currentSort = item.dataset.sort;
+        localStorage.setItem('ideanest_article_sort', currentSort);
+        const params = new URLSearchParams(window.location.search);
+        params.set('sort', currentSort);
+        window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+        setActiveMenuItem();
+        dropdown.classList.remove('open');
+        sortAndRender();
+      });
+    });
+
+    let searchDebounce;
+    searchInput?.addEventListener('input', () => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(sortAndRender, 200);
+    });
   }
 
   loadArticlesFromSupabase();
