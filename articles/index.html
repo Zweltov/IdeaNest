@@ -40,7 +40,7 @@
               </div>
             </div>
             <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item"><i data-lucide="user"></i> Профиль</a>
+            <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
             <a href="../settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
             <a href="#" class="dropdown-item" id="myIdeasBtn"><i data-lucide="lightbulb"></i> Мои идеи</a>
             <a href="#" class="dropdown-item" id="myArticlesBtn"><i data-lucide="book-open"></i> Мои статьи</a>
@@ -70,20 +70,36 @@
         <input type="text" id="articleSearchInput" placeholder="Искать по статьям..." />
       </div>
 
-      <div class="sort-dropdown" id="articleSortDropdown">
-        <button type="button" class="sort-dropdown-btn" id="articleSortBtn">
-          <span id="articleSortBtnLabel">Сначала новые</span>
-          <i data-lucide="chevron-down"></i>
-        </button>
-        <div class="sort-dropdown-menu" id="articleSortMenu">
-          <button type="button" class="sort-dropdown-item active" data-sort="new">Сначала новые</button>
-          <button type="button" class="sort-dropdown-item" data-sort="old">Сначала старые</button>
-          <button type="button" class="sort-dropdown-item" data-sort="popular">По популярности</button>
-          <button type="button" class="sort-dropdown-item" data-sort="az">По алфавиту (А → Я)</button>
-          <button type="button" class="sort-dropdown-item" data-sort="za">По алфавиту (Я → А)</button>
+      <div class="filters-actions">
+        <div class="sort-dropdown" id="articleIdeaFilterDropdown">
+          <button type="button" class="sort-dropdown-btn" id="articleIdeaFilterBtn" title="Фильтр по идее">
+            <i data-lucide="lightbulb"></i>
+            <span class="sort-btn-label" id="articleIdeaFilterLabel">Идея</span>
+            <i data-lucide="chevron-down" class="sort-chevron"></i>
+          </button>
+          <div class="sort-dropdown-menu" id="articleIdeaFilterMenu">
+            <p class="sort-dropdown-empty">Загрузка…</p>
+          </div>
+        </div>
+
+        <div class="sort-dropdown" id="articleSortDropdown">
+          <button type="button" class="sort-dropdown-btn" id="articleSortBtn" title="Сортировка">
+            <i data-lucide="arrow-up-down" class="sort-icon-only"></i>
+            <span class="sort-btn-label" id="articleSortBtnLabel">Сначала новые</span>
+            <i data-lucide="chevron-down" class="sort-chevron"></i>
+          </button>
+          <div class="sort-dropdown-menu" id="articleSortMenu">
+            <button type="button" class="sort-dropdown-item active" data-sort="new">Сначала новые</button>
+            <button type="button" class="sort-dropdown-item" data-sort="old">Сначала старые</button>
+            <button type="button" class="sort-dropdown-item" data-sort="popular">По популярности</button>
+            <button type="button" class="sort-dropdown-item" data-sort="az">По алфавиту (А → Я)</button>
+            <button type="button" class="sort-dropdown-item" data-sort="za">По алфавиту (Я → А)</button>
+          </div>
         </div>
       </div>
     </div>
+
+    <div id="articleIdeaFilterChip" class="filter-chip-row" style="display:none;"></div>
 
     <div class="grid-cards articles-grid" id="articlesPageGrid">
       <p style="color: var(--text-muted);">Загрузка статей...</p>
