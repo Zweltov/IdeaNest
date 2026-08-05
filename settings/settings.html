@@ -35,7 +35,7 @@
               </div>
             </div>
             <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item"><i data-lucide="user"></i> Профиль</a>
+            <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
             <a href="settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
             <a href="#" class="dropdown-item"><i data-lucide="lightbulb"></i> Мои идеи</a>
             <a href="#" class="dropdown-item"><i data-lucide="book-open"></i> Мои статьи</a>
@@ -68,35 +68,10 @@
         <section class="settings-panel active" id="settingsPanel-general">
           <h2 class="settings-panel-title">Общие</h2>
 
+          <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:20px;">
+            Имя, никнейм, email и пароль — в <button type="button" class="auth-forgot-link" id="settingsOpenProfileBtn" style="background:none;border:none;padding:0;cursor:pointer;font:inherit;">окне профиля</button>.
+          </p>
           <form id="generalSettingsForm">
-            <div class="settings-avatar-row">
-              <img id="settingsAvatarPreview" class="settings-avatar-preview" src="https://ui-avatars.com/api/?name=U&background=111827&color=fff" alt="Аватар" />
-              <div class="form-group" style="flex:1; margin-bottom:0;">
-                <label for="settingsAvatarUrl">Ссылка на аватар</label>
-                <input type="text" id="settingsAvatarUrl" placeholder="https://..." autocomplete="off" />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="settingsFullName">Имя</label>
-              <input type="text" id="settingsFullName" placeholder="Александр" autocomplete="name" />
-            </div>
-
-            <div class="form-group" id="settingsUsernameGroup">
-              <label for="settingsUsername">Никнейм</label>
-              <div class="nickname-input-wrapper">
-                <span class="nickname-at">@</span>
-                <input type="text" id="settingsUsername" placeholder="nickname" autocomplete="off" maxlength="15" />
-                <span class="nickname-status" id="settingsUsernameStatus"></span>
-              </div>
-              <div class="nickname-hint" id="settingsUsernameHint">От 5 до 15 символов: латиница в нижнем регистре, цифры, _</div>
-            </div>
-
-            <div class="form-group">
-              <label for="settingsEmail">Email</label>
-              <input type="text" id="settingsEmail" disabled />
-            </div>
-
             <div class="settings-row-split">
               <div class="form-group">
                 <label for="settingsLanguage">Язык</label>
@@ -118,6 +93,26 @@
                   <option value="Asia/Yakutsk">Якутск (UTC+9)</option>
                   <option value="Asia/Vladivostok">Владивосток (UTC+10)</option>
                 </select>
+              </div>
+            </div>
+
+            <div class="form-group" style="margin-top:8px;">
+              <label>Навбар (десктоп)</label>
+              <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:8px;">
+                Порядок пунктов меню. Добавляй кнопками ниже, перетаскивай для порядка. Сохраняется в этом браузере.
+              </p>
+              <div class="navbar-config-list" id="navbarConfigList"></div>
+              <div class="navbar-config-add" id="navbarConfigAdd"></div>
+              <button type="button" class="btn btn-secondary" id="navbarConfigReset" style="margin-top:4px;font-size:0.85rem;height:36px;padding:0 14px;">Сбросить навбар</button>
+              <div class="settings-toggle-row" style="border-top:none; padding-top:12px;">
+                <div>
+                  <div class="settings-toggle-label">Ссылки как кнопки</div>
+                  <div class="settings-toggle-desc">Выкл — обычные ссылки (по умолчанию). Вкл — с краями, как кнопки</div>
+                </div>
+                <label class="settings-switch">
+                  <input type="checkbox" id="navbarStyleToggle" />
+                  <span class="settings-switch-slider"></span>
+                </label>
               </div>
             </div>
 
