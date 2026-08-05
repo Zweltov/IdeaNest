@@ -11,7 +11,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // "../" если текущая страница уже внутри ideas/, articles/ или settings/, иначе ""
 function siteRootPrefix() {
-  return /\/(ideas|articles|settings)\//.test(window.location.pathname) ? '../' : '';
+  return /\/(ideas|articles|settings|profile)\//.test(window.location.pathname) ? '../' : '';
 }
 
 // Ссылка на статью: всегда обычная articles/article.html?id=... — сама страница
@@ -35,95 +35,632 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginBtn = document.getElementById('loginBtn');
   const logoutBtn = document.getElementById('logoutBtn');
 
-  function openProfileDropdown() {
-    profileDropdown.classList.add('active');
-    profileBlurOverlay?.classList.add('active');
-  }
-  function closeProfileDropdown() {
-    profileDropdown.classList.remove('active');
-    profileBlurOverlay?.classList.remove('active');
+  // На мобилке dropdown переносим в <body>: иначе position:fixed ломается
+  // из‑за backdrop-filter у .navbar (создаёт containing block).
+  const profileDropdownHome = profileDropdown ? profileDropdown.parentElement : null;
+  function isMobileNav() {
+    return window.matchMedia('(max-width: 760px)').matches;
   }
 
-  topAvatar.addEventListener('click', (e) => {
+  // Свайп вниз по полоске / листу → закрыть bottom sheet
+  let sheetDragY = 0;
+  let sheetDragging = false;
+  function resetSheetTransform() {
+    if (!profileDropdown) return;
+    profileDropdown.style.transition = '';
+    profileDropdown.style.transform = '';
+  }
+  function wireProfileSheetGestures() {
+    if (!profileDropdown || profileDropdown.dataset.gesturesWired) return;
+    profileDropdown.dataset.gesturesWired = '1';
+
+    // Реальная полоска-ручка (удобнее ловить touch, чем ::before)
+    if (!profileDropdown.querySelector('.sheet-handle')) {
+      const handle = document.createElement('div');
+      handle.className = 'sheet-handle';
+      handle.setAttribute('aria-hidden', 'true');
+      profileDropdown.insertBefore(handle, profileDropdown.firstChild);
+    }
+
+    const onStart = (clientY) => {
+      if (!isMobileNav() || !profileDropdown.classList.contains('active')) return;
+      sheetDragging = true;
+      sheetDragY = clientY;
+      profileDropdown.style.transition = 'none';
+    };
+    const onMove = (clientY) => {
+      if (!sheetDragging) return;
+      const dy = Math.max(0, clientY - sheetDragY);
+      profileDropdown.style.transform = `translateY(${dy}px)`;
+      if (profileBlurOverlay) profileBlurOverlay.style.opacity = String(Math.max(0.15, 1 - dy / 320));
+    };
+    const onEnd = (clientY) => {
+      if (!sheetDragging) return;
+      sheetDragging = false;
+      const dy = Math.max(0, clientY - sheetDragY);
+      profileDropdown.style.transition = '';
+      if (profileBlurOverlay) profileBlurOverlay.style.opacity = '';
+      if (dy > 100) {
+        closeProfileDropdown();
+      } else {
+        profileDropdown.style.transform = '';
+      }
+    };
+
+    const handleEl = () => profileDropdown.querySelector('.sheet-handle');
+    profileDropdown.addEventListener('touchstart', (e) => {
+      // тянем только за ручку или если скролл листа в самом верху
+      const t = e.touches[0];
+      const fromHandle = e.target.closest('.sheet-handle');
+      if (fromHandle || profileDropdown.scrollTop <= 0) onStart(t.clientY);
+    }, { passive: true });
+    profileDropdown.addEventListener('touchmove', (e) => {
+      if (!sheetDragging) return;
+      onMove(e.touches[0].clientY);
+    }, { passive: true });
+    profileDropdown.addEventListener('touchend', (e) => {
+      if (!sheetDragging) return;
+      onEnd(e.changedTouches[0].clientY);
+    });
+  }
+  wireProfileSheetGestures();
+
+  // На всякий случай — меню закрыто при загрузке страницы
+  if (profileDropdown) {
+    profileDropdown.classList.remove('active');
+    profileDropdown.setAttribute('aria-hidden', 'true');
+  }
+  profileBlurOverlay?.classList.remove('active');
+
+  function openProfileDropdown() {
+    if (!profileDropdown) return;
+    // Всегда в <body>: иначе z-index меню ограничивается .navbar (blur ложится поверх)
+    if (profileDropdown.parentElement !== document.body) {
+      document.body.appendChild(profileDropdown);
+    }
+    resetSheetTransform();
+    void profileDropdown.offsetWidth;
+    profileDropdown.classList.add('active');
+    profileDropdown.setAttribute('aria-hidden', 'false');
+    // Фон страницы не трогаем. На мобилке — невидимый оверлей только чтобы ловить тап снаружи.
+    if (isMobileNav()) profileBlurOverlay?.classList.add('active');
+    document.getElementById('bottomNav')?.classList.add('behind-sheet');
+  }
+  function closeProfileDropdown() {
+    if (!profileDropdown) return;
+    profileDropdown.classList.remove('active');
+    profileDropdown.setAttribute('aria-hidden', 'true');
+    profileBlurOverlay?.classList.remove('active');
+    document.getElementById('bottomNav')?.classList.remove('behind-sheet');
+    resetSheetTransform();
+    if (profileDropdown.parentElement === document.body && profileDropdownHome) {
+      setTimeout(() => {
+        if (!profileDropdown.classList.contains('active') && profileDropdownHome) {
+          profileDropdownHome.appendChild(profileDropdown);
+        }
+      }, 320);
+    }
+  }
+
+  topAvatar?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (profileDropdown.classList.contains('active')) closeProfileDropdown();
     else openProfileDropdown();
   });
 
+  profileBlurOverlay?.addEventListener('click', () => closeProfileDropdown());
+
   document.addEventListener('click', (e) => {
-    if (!profileWrapper.contains(e.target)) {
+    if (!profileDropdown?.classList.contains('active')) return;
+    if (
+      !profileWrapper?.contains(e.target) &&
+      !e.target.closest('#bottomNavMenuBtn') &&
+      !profileDropdown.contains(e.target)
+    ) {
       closeProfileDropdown();
     }
   });
 
-  logoutBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
-    closeProfileDropdown();
-    const { error } = await supabaseClient.auth.signOut();
-    if (error) {
-      showToast('Не удалось выйти: ' + error.message, true);
-    } else {
-      showToast('Вы вышли из аккаунта');
-    }
-  });
+  // ================= Мобильный bottom nav =================
+  // Вставляется на все страницы; на десктопе скрыт CSS. Пути через siteRootPrefix().
+  (function initBottomNav() {
+    if (document.getElementById('bottomNav')) return;
+    const root = siteRootPrefix();
+    const path = window.location.pathname;
+    const isHome = /\/(index\.html)?$/.test(path) || path.endsWith('/') && !/\/(ideas|articles|settings)\//.test(path);
+    const isIdeas = /\/ideas\//.test(path);
+    const isArticles = /\/articles\//.test(path);
+    const isSettings = /\/(settings|profile)\//.test(path);
 
-  // "Мои идеи" / "Мои статьи" — список избранного прямо в уже готовых окнах идей/статей
-  const myIdeasBtn = document.getElementById('myIdeasBtn');
-  const myArticlesBtn = document.getElementById('myArticlesBtn');
+    const nav = document.createElement('nav');
+    nav.className = 'bottom-nav';
+    nav.id = 'bottomNav';
+    nav.setAttribute('aria-label', 'Основная навигация');
+    nav.innerHTML = `
+      <a href="${root}index.html" class="bottom-nav-item${isHome ? ' active' : ''}" data-nav="home">
+        <i data-lucide="home"></i><span>Главная</span>
+      </a>
+      <a href="${root}ideas/all.html" class="bottom-nav-item${isIdeas ? ' active' : ''}" data-nav="ideas">
+        <i data-lucide="lightbulb"></i><span>Идеи</span>
+      </a>
+      <a href="${root}articles/index.html" class="bottom-nav-item${isArticles ? ' active' : ''}" data-nav="articles">
+        <i data-lucide="book-open"></i><span>Статьи</span>
+      </a>
+      <button type="button" class="bottom-nav-item" id="bottomNavMenuBtn" data-nav="menu">
+        <i data-lucide="menu"></i><span>Меню</span>
+      </button>`;
+    document.body.appendChild(nav);
+    if (window.lucide) lucide.createIcons();
 
-  if (myIdeasBtn) myIdeasBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
-    closeProfileDropdown();
-    const pId = await getProfileId();
-    if (!pId) { loginBtn?.click(); return; }
-    const backdrop = document.getElementById('ideaBackdrop');
-    const body = document.getElementById('ideaModalBody');
-    if (!backdrop || !body) return;
-    body.innerHTML = '<p style="color:var(--text-muted);">Загрузка...</p>';
-    backdrop.classList.add('active');
+    document.getElementById('bottomNavMenuBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openMobileMenu();
+    });
+  })();
+
+  function ensureMobileMenu() {
+    if (document.getElementById('mobileMenuBackdrop')) return;
+    const root = siteRootPrefix();
+    const backdrop = document.createElement('div');
+    backdrop.id = 'mobileMenuBackdrop';
+    backdrop.className = 'mobile-menu-backdrop';
+    backdrop.innerHTML = `
+      <div class="mobile-menu-sheet" id="mobileMenuSheet" role="dialog" aria-label="Меню">
+        <div class="sheet-handle" aria-hidden="true"></div>
+        <div class="mobile-menu-title">Меню</div>
+        <nav class="mobile-menu-nav">
+          <a class="mobile-menu-link" href="${root}index.html"><i data-lucide="home"></i> Главная</a>
+          <a class="mobile-menu-link" href="${root}ideas/all.html"><i data-lucide="lightbulb"></i> Идеи</a>
+          <a class="mobile-menu-link" href="${root}articles/index.html"><i data-lucide="book-open"></i> Статьи</a>
+          <a class="mobile-menu-link" href="${root}settings/settings.html"><i data-lucide="settings"></i> Настройки</a>
+          <button type="button" class="mobile-menu-link" id="mobileMenuProfileBtn"><i data-lucide="user"></i> Профиль</button>
+        </nav>
+        <div class="mobile-menu-footer">
+          <button type="button" class="btn btn-secondary" id="mobileMenuAuthBtn" style="width:100%;"></button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeMobileMenu(); });
+    document.getElementById('mobileMenuProfileBtn')?.addEventListener('click', () => {
+      closeMobileMenu();
+      if (!currentUser) { loginBtn?.click(); return; }
+      openProfileWindow();
+    });
+    document.getElementById('mobileMenuAuthBtn')?.addEventListener('click', async () => {
+      closeMobileMenu();
+      if (currentUser) {
+        await supabaseClient.auth.signOut({ scope: 'global' });
+        showToast('Вы вышли');
+        setTimeout(() => location.reload(), 400);
+      } else loginBtn?.click();
+    });
+  }
+  function openMobileMenu() {
+    ensureMobileMenu();
+    const authBtn = document.getElementById('mobileMenuAuthBtn');
+    if (authBtn) authBtn.textContent = currentUser ? 'Выйти' : 'Войти';
+    document.getElementById('mobileMenuBackdrop')?.classList.add('active');
+    document.getElementById('mobileMenuSheet')?.classList.add('active');
+    document.getElementById('bottomNav')?.classList.add('behind-sheet');
+    if (window.lucide) lucide.createIcons();
+  }
+  function closeMobileMenu() {
+    document.getElementById('mobileMenuBackdrop')?.classList.remove('active');
+    document.getElementById('mobileMenuSheet')?.classList.remove('active');
+    document.getElementById('bottomNav')?.classList.remove('behind-sheet');
+  }
+
+  (function initSiteFooter() {
+    if (document.getElementById('siteFooter')) return;
+    const root = siteRootPrefix();
+    const footer = document.createElement('footer');
+    footer.id = 'siteFooter';
+    footer.className = 'site-footer';
+    footer.innerHTML = `
+      <div class="site-footer-inner">
+        <div class="site-footer-brand">
+          <div class="site-footer-logo">IdeaNest</div>
+          <p class="site-footer-tagline">Идеи и статьи для запуска бизнеса</p>
+        </div>
+        <div class="site-footer-cols">
+          <div class="site-footer-col">
+            <div class="site-footer-heading">Разделы</div>
+            <a href="${root}index.html">Главная</a>
+            <a href="${root}ideas/all.html">Идеи</a>
+            <a href="${root}articles/index.html">Статьи</a>
+          </div>
+          <div class="site-footer-col">
+            <div class="site-footer-heading">О проекте</div>
+            <a href="#" data-footer-soon="about">Об авторе</a>
+            <a href="#" data-footer-soon="contacts">Контакты</a>
+          </div>
+          <div class="site-footer-col">
+            <div class="site-footer-heading">Ссылки</div>
+            <a href="https://t.me/" target="_blank" rel="noopener noreferrer">Telegram</a>
+            <a href="https://github.com/" target="_blank" rel="noopener noreferrer">GitHub</a>
+          </div>
+        </div>
+      </div>
+      <div class="site-footer-bottom"><span>© ${new Date().getFullYear()} IdeaNest</span></div>`;
+    document.body.appendChild(footer);
+    footer.querySelectorAll('[data-footer-soon]').forEach(a => {
+      a.addEventListener('click', (e) => { e.preventDefault(); showToast('Раздел скоро появится'); });
+    });
+  })();
+
+
+  // ================= Навбар: конфиг + мегаменю =================
+  const NAVBAR_LS_KEY = 'ideanest_navbar_desktop';
+
+  const NAV_CATALOG = [
+    { id: 'home', kind: 'link', label: 'Главная', path: 'index.html', icon: 'home' },
+    { id: 'ideas', kind: 'mega-ideas', label: 'Идеи', path: 'ideas/all.html', icon: 'lightbulb' },
+    { id: 'articles', kind: 'mega-articles', label: 'Статьи', path: 'articles/index.html', icon: 'book-open' },
+    { id: 'ideas-all', kind: 'link', label: 'Все идеи', path: 'ideas/all.html', icon: 'layout-grid', group: 'ideas' },
+    { id: 'ideas-it', kind: 'link', label: 'IT & Tech', path: 'ideas/all.html?category=it', icon: 'cpu', group: 'ideas' },
+    { id: 'ideas-offline', kind: 'link', label: 'Офлайн бизнес', path: 'ideas/all.html?category=offline', icon: 'store', group: 'ideas' },
+    { id: 'ideas-crypto', kind: 'link', label: 'Крипто', path: 'ideas/all.html?category=crypto', icon: 'coins', group: 'ideas' },
+    { id: 'articles-all', kind: 'link', label: 'Все статьи', path: 'articles/index.html', icon: 'book-open', group: 'articles' },
+  ];
+
+  const DEFAULT_NAVBAR = [
+    { id: 'home', kind: 'link', label: 'Главная', path: 'index.html', icon: 'home' },
+    { id: 'ideas', kind: 'mega-ideas', label: 'Идеи', path: 'ideas/all.html', icon: 'lightbulb' },
+    { id: 'articles', kind: 'mega-articles', label: 'Статьи', path: 'articles/index.html', icon: 'book-open' },
+  ];
+
+  const NAV_STYLE_KEY = 'ideanest_navbar_style'; // '0' | '1'  кнопки вкл/выкл
+
+
+  function loadNavbarConfig() {
     try {
-      const { data, error } = await supabaseClient
-        .from('favorites_ideas')
-        .select('id_idea, ideas(id_idea, title)')
-        .eq('id_profile', pId);
-      if (error) throw error;
-      const list = (data || []).filter(r => r.ideas);
-      body.innerHTML = `<h2 class="idea-modal-title">Мои избранные идеи</h2>` +
-        (list.length
-          ? list.map(r => `<a class="btn btn-secondary idea-open-btn" style="margin-bottom:10px;" href="ideas/idea.html?id=${r.ideas.id_idea}">${r.ideas.title || 'Идея №' + r.ideas.id_idea}</a>`).join('')
-          : '<p style="color:var(--text-muted);">Пока пусто — добавьте идеи в избранное.</p>');
-    } catch (err) {
-      console.error(err);
-      body.innerHTML = '<p>Не удалось загрузить список.</p>';
+      const raw = localStorage.getItem(NAVBAR_LS_KEY);
+      if (!raw) return DEFAULT_NAVBAR.map(x => ({ ...x }));
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || !parsed.length) return DEFAULT_NAVBAR.map(x => ({ ...x }));
+      let items = parsed.map(item => {
+        const cat = NAV_CATALOG.find(c => c.id === item.id);
+        return cat ? { ...cat } : item;
+      }).filter(Boolean);
+      // миграция: если нет «Главная» — добавим в начало
+      if (!items.some(i => i.id === 'home')) {
+        const home = NAV_CATALOG.find(c => c.id === 'home');
+        if (home) items = [{ ...home }, ...items];
+      }
+      return items;
+    } catch {
+      return DEFAULT_NAVBAR.map(x => ({ ...x }));
     }
-  });
+  }
 
-  if (myArticlesBtn) myArticlesBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
-    closeProfileDropdown();
-    const pId = await getProfileId();
-    if (!pId) { loginBtn?.click(); return; }
-    const backdrop = document.getElementById('articleBackdrop');
-    const body = document.getElementById('articleModalBody');
-    if (!backdrop || !body) return;
-    body.innerHTML = '<p style="color:var(--text-muted);">Загрузка...</p>';
-    backdrop.classList.add('active');
-    try {
-      const { data, error } = await supabaseClient
-        .from('favorites_articles')
-        .select('id_article, articles(id, title, slug)')
-        .eq('id_profile', pId);
-      if (error) throw error;
-      const list = (data || []).filter(r => r.articles);
-      body.innerHTML = `<h2 class="idea-modal-title">Мои избранные статьи</h2>` +
-        (list.length
-          ? list.map(r => `<a class="btn btn-secondary idea-open-btn" style="margin-bottom:10px;" href="${articleHref(r.articles)}">${r.articles.title || 'Без названия'}</a>`).join('')
-          : '<p style="color:var(--text-muted);">Пока пусто — добавьте статьи в избранное.</p>');
-    } catch (err) {
-      console.error(err);
-      body.innerHTML = '<p>Не удалось загрузить список.</p>';
+  function saveNavbarConfig(items) {
+    localStorage.setItem(NAVBAR_LS_KEY, JSON.stringify(items));
+  }
+
+  function loadNavbarStyle() {
+    // 0 = ссылки (по умолчанию), 1 = кнопки
+    const v = localStorage.getItem(NAV_STYLE_KEY);
+    return v === '1' || v === 'true' ? 1 : 0;
+  }
+  function saveNavbarStyle(v) {
+    localStorage.setItem(NAV_STYLE_KEY, v ? '1' : '0');
+    applyNavbarStyle(v ? 1 : 0);
+  }
+  function applyNavbarStyle(v) {
+    const on = v === 1 || v === true || v === '1';
+    document.documentElement.classList.toggle('nav-as-buttons', on);
+  }
+
+  function navHref(path) {
+    if (!path) return '#';
+    if (/^https?:\/\//.test(path)) return path;
+    return siteRootPrefix() + path;
+  }
+
+  function isNavItemActive(item) {
+    const path = window.location.pathname || '';
+    const curCat = new URLSearchParams(window.location.search).get('category');
+    const href = item.path || '';
+
+    // Главная — только корень
+    if (item.id === 'home') {
+      return /\/(index\.html)?$/.test(path) || (path.endsWith('/') && !/\/(ideas|articles|settings|profile)\//.test(path));
     }
-  });
+
+    // Конкретная категория идей — только при совпадении ?category=
+    if (href.includes('category=')) {
+      const cat = new URLSearchParams(href.split('?')[1] || '').get('category');
+      return /\/ideas\//.test(path) && !!cat && cat === curCat;
+    }
+
+    // «Все идеи» / меню Идеи — идеи без category (или category отсутствует)
+    if (item.kind === 'mega-ideas' || item.id === 'ideas-all') {
+      return /\/ideas\//.test(path) && !curCat;
+    }
+
+    // Статьи
+    if (item.kind === 'mega-articles' || item.id === 'articles-all') {
+      return /\/articles\//.test(path);
+    }
+
+    if (href.includes('ideas/')) return /\/ideas\//.test(path) && !curCat;
+    if (href.includes('articles/')) return /\/articles\//.test(path);
+    return false;
+  }
+
+  function rebuildNavbarFromConfig() {
+    const nav = document.querySelector('.nav-links');
+    if (!nav) return;
+    const items = loadNavbarConfig();
+    nav.innerHTML = '';
+    nav.dataset.megaReady = '';
+    items.forEach(item => {
+      const cat = NAV_CATALOG.find(c => c.id === item.id) || item;
+      const a = document.createElement('a');
+      a.className = 'nav-link';
+      a.dataset.navId = cat.id;
+      let href = cat.path || '#';
+      if (cat.kind === 'mega-ideas') href = 'ideas/all.html';
+      if (cat.kind === 'mega-articles') href = 'articles/index.html';
+      a.href = navHref(href);
+      const icon = cat.icon || 'circle';
+      const group = cat.group || (cat.kind === 'mega-ideas' ? 'ideas' : cat.kind === 'mega-articles' ? 'articles' : cat.id === 'home' ? 'home' : 'link');
+      a.dataset.navGroup = group;
+      a.innerHTML = `<i data-lucide="${icon}" class="nav-link-icon"></i><span class="nav-link-text">${cat.label}</span>`;
+      if (isNavItemActive(cat)) a.classList.add('active');
+      nav.appendChild(a);
+    });
+    if (window.lucide) lucide.createIcons();
+    applyNavbarStyle(loadNavbarStyle());
+    initNavMegaMenus();
+  }
+
+  function pinToNavbar(catalogId) {
+    const cat = NAV_CATALOG.find(c => c.id === catalogId);
+    if (!cat) return;
+    const items = loadNavbarConfig();
+    if (items.some(i => i.id === cat.id)) {
+      showToast('Уже есть в навбаре');
+      return;
+    }
+    items.push({ ...cat });
+    saveNavbarConfig(items);
+    rebuildNavbarFromConfig();
+    showToast('Добавлено в навбар: ' + cat.label);
+    renderNavbarConfigSettings();
+  }
+
+  function unpinFromNavbar(catalogId) {
+    let items = loadNavbarConfig().filter(i => i.id !== catalogId);
+    if (!items.length) items = DEFAULT_NAVBAR.map(x => ({ ...x }));
+    saveNavbarConfig(items);
+    rebuildNavbarFromConfig();
+    renderNavbarConfigSettings();
+  }
+
+  function initNavMegaMenus() {
+    const nav = document.querySelector('.nav-links');
+    if (!nav || nav.dataset.megaReady) return;
+    nav.dataset.megaReady = '1';
+    const root = siteRootPrefix();
+    const ideasHref = root + 'ideas/all.html';
+    const articlesHref = root + 'articles/index.html';
+    const links = [...nav.querySelectorAll('a.nav-link')];
+    links.forEach(link => {
+      const id = link.dataset.navId;
+      const cfg = id ? NAV_CATALOG.find(c => c.id === id) : null;
+      const text = (link.textContent || '').trim().toLowerCase();
+      const isIdeas = (cfg && cfg.kind === 'mega-ideas') || text.includes('идеи') || (link.getAttribute('href') || '').includes('ideas/all');
+      const isArticles = (cfg && cfg.kind === 'mega-articles') || text.includes('стат') || (link.getAttribute('href') || '').includes('articles');
+      // только mega-типы получают выпадашку
+      const wantsMega = (cfg && (cfg.kind === 'mega-ideas' || cfg.kind === 'mega-articles')) || (!cfg && (isIdeas || isArticles));
+      if (!wantsMega) return;
+      if (cfg && cfg.kind === 'link') return;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'nav-item';
+      link.parentNode.insertBefore(wrap, link);
+      wrap.appendChild(link);
+      link.classList.add('nav-link--mega');
+
+      const panel = document.createElement('div');
+      panel.className = 'mega-menu';
+      panel.setAttribute('role', 'menu');
+
+      if (isIdeas || (cfg && cfg.kind === 'mega-ideas')) {
+        panel.innerHTML = `
+          <div class="mega-menu-inner">
+            <div class="mega-menu-col">
+              <div class="mega-menu-label">Каталог</div>
+              <a class="mega-menu-item" href="${ideasHref}" role="menuitem">
+                <i data-lucide="layout-grid"></i>
+                <span><strong>Все идеи</strong><small>Полный каталог</small></span>
+              </a>
+              <a class="mega-menu-item" href="${ideasHref}?category=it" role="menuitem">
+                <i data-lucide="cpu"></i>
+                <span><strong>IT & Tech</strong><small>Цифровые продукты</small></span>
+              </a>
+              <a class="mega-menu-item" href="${ideasHref}?category=offline" role="menuitem">
+                <i data-lucide="store"></i>
+                <span><strong>Офлайн бизнес</strong><small>Локальные проекты</small></span>
+              </a>
+              <a class="mega-menu-item" href="${ideasHref}?category=crypto" role="menuitem">
+                <i data-lucide="coins"></i>
+                <span><strong>Крипто</strong><small>Web3 и токены</small></span>
+              </a>
+            </div>
+            <div class="mega-menu-col mega-menu-col--side" data-mega-side="ideas">
+              <div class="mega-menu-label">Свежие</div>
+              <p class="mega-menu-loading">Загрузка…</p>
+            </div>
+          </div>`;
+      } else {
+        panel.innerHTML = `
+          <div class="mega-menu-inner">
+            <div class="mega-menu-col">
+              <div class="mega-menu-label">Каталог</div>
+              <a class="mega-menu-item" href="${articlesHref}" role="menuitem">
+                <i data-lucide="book-open"></i>
+                <span><strong>Все статьи</strong><small>Полный список</small></span>
+              </a>
+              <a class="mega-menu-item" href="${articlesHref}" role="menuitem">
+                <i data-lucide="sparkles"></i>
+                <span><strong>Новые</strong><small>Сначала свежие</small></span>
+              </a>
+              <a class="mega-menu-item" href="${articlesHref}" role="menuitem">
+                <i data-lucide="flame"></i>
+                <span><strong>Популярные</strong><small>По просмотрам</small></span>
+              </a>
+            </div>
+            <div class="mega-menu-col mega-menu-col--side" data-mega-side="articles">
+              <div class="mega-menu-label">По идеям</div>
+              <p class="mega-menu-loading">Загрузка…</p>
+            </div>
+          </div>`;
+      }
+
+      wrap.appendChild(panel);
+
+      let closeTimer = null;
+      const open = () => {
+        clearTimeout(closeTimer);
+        document.querySelectorAll('.nav-item.open').forEach(el => {
+          if (el !== wrap) el.classList.remove('open');
+        });
+        wrap.classList.add('open');
+      };
+      const scheduleClose = () => {
+        // длиннее задержка + «мост» сверху у меню, чтобы курсор успел доехать
+        closeTimer = setTimeout(() => wrap.classList.remove('open'), 320);
+      };
+      wrap.addEventListener('mouseenter', open);
+      wrap.addEventListener('mouseleave', scheduleClose);
+      link.addEventListener('focus', open);
+      panel.addEventListener('mouseenter', () => clearTimeout(closeTimer));
+      link.addEventListener('click', (e) => {
+        if (window.matchMedia('(max-width: 760px)').matches) return;
+        if (!wrap.classList.contains('open')) {
+          e.preventDefault();
+          open();
+        }
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.nav-item')) {
+        document.querySelectorAll('.nav-item.open').forEach(el => el.classList.remove('open'));
+      }
+    });
+
+    if (window.lucide) lucide.createIcons();
+
+    (async () => {
+      try {
+        const sides = document.querySelectorAll('[data-mega-side="ideas"]');
+        if (sides.length) {
+          const { data } = await supabaseClient
+            .from('ideas')
+            .select('id_idea, title, category, rating')
+            .order('created_at', { ascending: false })
+            .limit(4);
+          const list = data || [];
+          const html = list.length
+            ? '<div class="mega-menu-label">Свежие</div>' + list.map(i => {
+                const title = (i.title && i.title.trim()) ? i.title : ('Идея №' + i.id_idea);
+                return `<a class="mega-menu-item mega-menu-item--compact" href="${root}ideas/idea.html?id=${i.id_idea}">
+                  <span><strong>${title}</strong><small>${i.category || ''}${i.rating != null ? ' · ★ ' + Number(i.rating).toFixed(1) : ''}</small></span>
+                </a>`;
+              }).join('')
+            : '<div class="mega-menu-label">Свежие</div><p class="mega-menu-empty">Пока пусто</p>';
+          sides.forEach(side => { side.innerHTML = html; });
+        }
+      } catch (e) { console.warn(e); }
+
+      try {
+        const sides = document.querySelectorAll('[data-mega-side="articles"]');
+        if (sides.length) {
+          const { data } = await supabaseClient
+            .from('ideas')
+            .select('id_idea, title')
+            .order('rating', { ascending: false, nullsFirst: false })
+            .limit(4);
+          const list = data || [];
+          const html = list.length
+            ? '<div class="mega-menu-label">По идеям</div>' + list.map(i => {
+                const title = (i.title && i.title.trim()) ? i.title : ('Идея №' + i.id_idea);
+                return `<a class="mega-menu-item mega-menu-item--compact" href="${root}articles/index.html?idea_id=${i.id_idea}">
+                  <span><strong>${title}</strong><small>Статьи по этой идее</small></span>
+                </a>`;
+              }).join('')
+            : '<div class="mega-menu-label">По идеям</div><p class="mega-menu-empty">Пока пусто</p>';
+          sides.forEach(side => { side.innerHTML = html; });
+        }
+      } catch (e) { console.warn(e); }
+
+      if (window.lucide) lucide.createIcons();
+    })();
+  }
+
+  // Применить сохранённый навбар (вместо дефолтных ссылок в HTML)
+  rebuildNavbarFromConfig();
+
+  function renderNavbarConfigSettings() {
+    const listEl = document.getElementById('navbarConfigList');
+    const addEl = document.getElementById('navbarConfigAdd');
+    if (!listEl || !addEl) return;
+
+    const items = loadNavbarConfig();
+    listEl.innerHTML = items.map((item, idx) => `
+      <div class="navbar-config-item" draggable="true" data-idx="${idx}" data-id="${item.id}">
+        <span class="nav-cfg-handle"><i data-lucide="grip-vertical"></i></span>
+        <span class="nav-cfg-label">${item.label}</span>
+        <span class="nav-cfg-kind">${item.group === 'ideas' ? 'идеи' : item.group === 'articles' ? 'статьи' : item.kind === 'link' ? 'ссылка' : 'меню'}</span>
+        <button type="button" class="nav-cfg-remove" data-remove="${item.id}" title="Убрать" aria-label="Убрать">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+    `).join('');
+
+    const present = new Set(items.map(i => i.id));
+    addEl.innerHTML = NAV_CATALOG.map(c => `
+      <button type="button" class="navbar-config-add-btn" data-add="${c.id}" ${present.has(c.id) ? 'disabled' : ''}>
+        + ${c.label}
+      </button>
+    `).join('');
+
+    if (window.lucide) lucide.createIcons();
+
+    addEl.querySelectorAll('[data-add]').forEach(btn => {
+      btn.addEventListener('click', () => pinToNavbar(btn.dataset.add));
+    });
+    listEl.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', () => unpinFromNavbar(btn.dataset.remove));
+    });
+
+    // drag reorder
+    let dragIdx = null;
+    listEl.querySelectorAll('.navbar-config-item').forEach(row => {
+      row.addEventListener('dragstart', () => {
+        dragIdx = Number(row.dataset.idx);
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragend', () => row.classList.remove('dragging'));
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const overIdx = Number(row.dataset.idx);
+        if (dragIdx === null || overIdx === dragIdx) return;
+        const arr = loadNavbarConfig();
+        const [moved] = arr.splice(dragIdx, 1);
+        arr.splice(overIdx, 0, moved);
+        saveNavbarConfig(arr);
+        dragIdx = overIdx;
+        rebuildNavbarFromConfig();
+        renderNavbarConfigSettings();
+      });
+    });
+  }
+
 
   // ================= 2. Модальное окно авторизации =================
   const authBackdrop = document.getElementById('authBackdrop');
@@ -361,12 +898,17 @@ document.addEventListener("DOMContentLoaded", () => {
       if (authMode === 'signup') {
         const fullName = authFullName.value.trim();
         const username = authUsername.value.trim();
-        const { data, error } = await supabaseClient.auth.signUp({ email: identifier, password });
+        // full_name хранится в Auth user_metadata, не в таблице profiles
+        const { data, error } = await supabaseClient.auth.signUp({
+          email: identifier,
+          password,
+          options: { data: { full_name: fullName, username } }
+        });
         if (error) throw error;
         // Если у проекта включено подтверждение по email, сессии ещё не будет —
         // профиль создадим сразу же, как только появится сессия (см. onAuthStateChange).
         if (data.user) {
-          await ensureProfile(data.user, username, fullName);
+          await ensureProfile(data.user, username);
         }
         if (!data.session) {
           showToast('Проверьте почту — нужно подтвердить регистрацию.');
@@ -398,7 +940,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ================= 3. Состояние авторизации =================
   // Находит (или создаёт) запись в таблице profiles для текущего пользователя.
   // Схема: profiles(id, created_at, username, auth_id -> auth.users.id)
-  async function ensureProfile(user, usernameForNew, fullNameForNew) {
+  // Имя (full_name) — только в Auth user_metadata, в profiles его нет.
+  async function ensureProfile(user, usernameForNew) {
     try {
       const { data: existing, error: selErr } = await supabaseClient
         .from('profiles')
@@ -408,10 +951,12 @@ document.addEventListener("DOMContentLoaded", () => {
       if (selErr) throw selErr;
       if (existing) return existing;
 
-      const username = usernameForNew || (user.email ? user.email.split('@')[0] : 'user');
+      const username = usernameForNew
+        || user.user_metadata?.username
+        || (user.email ? user.email.split('@')[0] : 'user');
       const { data: created, error: insErr } = await supabaseClient
         .from('profiles')
-        .insert({ auth_id: user.id, username, full_name: fullNameForNew || null })
+        .insert({ auth_id: user.id, username })
         .select()
         .maybeSingle();
       if (insErr) throw insErr;
@@ -428,23 +973,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!currentUser) {
       currentProfile = null;
-      loginBtn.style.display = '';
-      profileWrapper.style.display = 'none';
+      if (loginBtn) loginBtn.style.display = '';
+      if (profileWrapper) profileWrapper.style.display = 'none';
       closeProfileDropdown();
       return;
     }
 
+    // Сразу показываем аватар (не ждём сеть) — иначе 5–10 сек пусто
+    const quickName = currentUser.user_metadata?.username
+      || currentUser.user_metadata?.full_name
+      || (currentUser.email ? currentUser.email.split('@')[0] : 'U');
+    const quickAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(quickName)}&background=111827&color=fff&bold=true`;
+    const topAv = document.getElementById('topAvatar');
+    const dropAv = document.getElementById('dropdownAvatar');
+    if (topAv) topAv.src = quickAvatar;
+    if (dropAv) dropAv.src = quickAvatar;
+    const nameEl = document.getElementById('userName');
+    const emailEl = document.getElementById('userEmail');
+    if (nameEl) nameEl.textContent = quickName;
+    if (emailEl) emailEl.textContent = currentUser.email || '';
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (profileWrapper) profileWrapper.style.display = '';
+
+    // Профиль из БД — догружаем в фоне и обновляем подпись/аватар
     currentProfile = await ensureProfile(currentUser);
-    const displayName = currentProfile?.username || currentUser.email.split('@')[0];
-    const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=111827&color=fff&bold=true`;
-
-    document.getElementById('topAvatar').src = avatarUrl;
-    document.getElementById('dropdownAvatar').src = avatarUrl;
-    document.getElementById('userName').textContent = displayName;
-    document.getElementById('userEmail').textContent = currentUser.email;
-
-    loginBtn.style.display = 'none';
-    profileWrapper.style.display = '';
+    if (!currentUser) return; // разлогинились пока ждали
+    const displayName = currentProfile?.username || quickName;
+    const avatarUrl = currentProfile?.avatar_url
+      || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=111827&color=fff&bold=true`;
+    if (topAv) topAv.src = avatarUrl;
+    if (dropAv) dropAv.src = avatarUrl;
+    if (nameEl) nameEl.textContent = displayName;
   }
 
   // Реагируем на любые изменения сессии: вход, выход, обновление токена
@@ -495,8 +1054,26 @@ document.addEventListener("DOMContentLoaded", () => {
       filterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       applyIdeaFilters();
+      // синхронизируем URL
+      const cat = btn.dataset.filter;
+      const url = new URL(window.location.href);
+      if (cat && cat !== 'all') url.searchParams.set('category', cat);
+      else url.searchParams.delete('category');
+      history.replaceState(null, '', url);
     });
   });
+
+  // ?category=it|offline|crypto
+  const catFromUrl = new URLSearchParams(window.location.search).get('category');
+  if (catFromUrl) {
+    let matched = false;
+    filterBtns.forEach(b => {
+      const on = b.dataset.filter === catFromUrl;
+      b.classList.toggle('active', on);
+      if (on) matched = true;
+    });
+    if (!matched) filterBtns.forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
+  }
 
   if (ratingSlider) {
     ratingSlider.addEventListener('input', () => applyIdeaFilters());
@@ -529,9 +1106,78 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentIdeaSort = ideaUrlParams.get('sort') || localStorage.getItem('ideanest_idea_sort') || 'new';
   if (!IDEA_SORT_LABELS[currentIdeaSort]) currentIdeaSort = 'new';
 
+  // Обратный фильтр: ?article_id=N → идеи, связанные со статьёй
+  let filterArticleId = parseInt(ideaUrlParams.get('article_id'), 10) || null;
+  let filterArticleTitle = null;
+  let relatedIdeaIds = new Set();      // из idea_articles
+  let mainIdeaIdForArticle = null;     // articles.main_idea_id этой статьи
+
+  function updateIdeaUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    params.set('sort', currentIdeaSort);
+    if (filterArticleId) params.set('article_id', String(filterArticleId));
+    else params.delete('article_id');
+    const qs = params.toString();
+    window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+  }
+
+  function renderIdeaArticleFilterChip() {
+    const chipBox = document.getElementById('ideaArticleFilterChip');
+    if (!chipBox) return;
+    if (!filterArticleId) {
+      chipBox.style.display = 'none';
+      chipBox.innerHTML = '';
+      return;
+    }
+    const name = filterArticleTitle || ('Статья №' + filterArticleId);
+    chipBox.style.display = 'flex';
+    chipBox.innerHTML = `
+      <span class="filter-chip">
+        <span class="filter-chip-label">Фильтр:</span>
+        <span class="filter-chip-name">${name}</span>
+        <button type="button" class="filter-chip-clear" id="clearArticleFilterBtn" aria-label="Сбросить фильтр">
+          <i data-lucide="x"></i>
+        </button>
+      </span>`;
+    if (window.lucide) lucide.createIcons();
+    document.getElementById('clearArticleFilterBtn')?.addEventListener('click', () => {
+      filterArticleId = null;
+      filterArticleTitle = null;
+      relatedIdeaIds = new Set();
+      mainIdeaIdForArticle = null;
+      updateIdeaUrlParams();
+      renderIdeaArticleFilterChip();
+      applyIdeaFilters();
+    });
+  }
+
+  async function resolveFilterArticle() {
+    if (!filterArticleId) return;
+    try {
+      const [{ data: article }, { data: rel }] = await Promise.all([
+        supabaseClient.from('articles').select('id, title, main_idea_id').eq('id', filterArticleId).maybeSingle(),
+        supabaseClient.from('idea_articles').select('id_idea').eq('id_article', filterArticleId)
+      ]);
+      if (article) {
+        filterArticleTitle = (article.title && article.title.trim()) ? article.title : ('Статья №' + article.id);
+        mainIdeaIdForArticle = article.main_idea_id ? Number(article.main_idea_id) : null;
+        renderIdeaArticleFilterChip();
+      }
+      relatedIdeaIds = new Set((rel || []).map(r => Number(r.id_idea)));
+      if (mainIdeaIdForArticle) relatedIdeaIds.add(mainIdeaIdForArticle);
+      applyIdeaFilters();
+    } catch (e) { console.warn('Не удалось загрузить данные фильтра по статье:', e); }
+  }
+
   function sortIdeas(list) {
     const sorted = [...list];
     sorted.sort((a, b) => {
+      // Главная идея статьи — выше остальных связанных
+      if (filterArticleId && mainIdeaIdForArticle) {
+        const fa = Number(a.id_idea) === mainIdeaIdForArticle ? 1 : 0;
+        const fb = Number(b.id_idea) === mainIdeaIdForArticle ? 1 : 0;
+        if (fa !== fb) return fb - fa;
+      }
       if (currentIdeaSort === 'new') return new Date(b.created_at) - new Date(a.created_at);
       if (currentIdeaSort === 'old') return new Date(a.created_at) - new Date(b.created_at);
       if (currentIdeaSort === 'cheap') return (a.budget ?? Infinity) - (b.budget ?? Infinity);
@@ -553,11 +1199,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function setActive() {
       menu.querySelectorAll('.sort-dropdown-item').forEach(el => el.classList.toggle('active', el.dataset.sort === currentIdeaSort));
-      btnLabel.textContent = IDEA_SORT_LABELS[currentIdeaSort];
+      if (btnLabel) btnLabel.textContent = IDEA_SORT_LABELS[currentIdeaSort];
     }
     setActive();
+    if (window.lucide) lucide.createIcons();
 
-    btn.addEventListener('click', (e) => { e.stopPropagation(); dropdown.classList.toggle('open'); });
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.sort-dropdown.open').forEach(el => { if (el !== dropdown) el.classList.remove('open'); });
+      dropdown.classList.toggle('open');
+    });
     document.addEventListener('click', (e) => { if (!dropdown.contains(e.target)) dropdown.classList.remove('open'); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dropdown.classList.remove('open'); });
 
@@ -565,9 +1216,7 @@ document.addEventListener("DOMContentLoaded", () => {
       item.addEventListener('click', () => {
         currentIdeaSort = item.dataset.sort;
         localStorage.setItem('ideanest_idea_sort', currentIdeaSort);
-        const params = new URLSearchParams(window.location.search);
-        params.set('sort', currentIdeaSort);
-        window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+        updateIdeaUrlParams();
         setActive();
         dropdown.classList.remove('open');
         applyIdeaFilters();
@@ -575,6 +1224,65 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   initIdeaSortDropdown();
+  renderIdeaArticleFilterChip();
+  if (filterArticleId) resolveFilterArticle();
+
+  // UI-выбор статьи для фильтра на странице идей
+  (async function initIdeaArticleFilterDropdown() {
+    const dd = document.getElementById('ideaArticleFilterDropdown');
+    const fBtn = document.getElementById('ideaArticleFilterBtn');
+    const fMenu = document.getElementById('ideaArticleFilterMenu');
+    const fLabel = document.getElementById('ideaArticleFilterLabel');
+    if (!dd || !fBtn || !fMenu) return;
+
+    fBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.sort-dropdown.open').forEach(el => { if (el !== dd) el.classList.remove('open'); });
+      dd.classList.toggle('open');
+    });
+    document.addEventListener('click', (e) => { if (!dd.contains(e.target)) dd.classList.remove('open'); });
+
+    try {
+      const { data: articles } = await supabaseClient
+        .from('articles')
+        .select('id, title')
+        .order('created_at', { ascending: false });
+      const list = articles || [];
+      fMenu.innerHTML = [
+        `<button type="button" class="sort-dropdown-item${!filterArticleId ? ' active' : ''}" data-article-id="">Все статьи</button>`,
+        ...list.map(a => {
+          const title = a.title || ('Статья №' + a.id);
+          const active = filterArticleId === Number(a.id) ? ' active' : '';
+          return `<button type="button" class="sort-dropdown-item${active}" data-article-id="${a.id}">${title}</button>`;
+        })
+      ].join('');
+      if (filterArticleId) {
+        const found = list.find(a => Number(a.id) === filterArticleId);
+        if (found && fLabel) fLabel.textContent = found.title || ('Статья №' + found.id);
+      }
+      fMenu.querySelectorAll('[data-article-id]').forEach(el => {
+        el.addEventListener('click', async () => {
+          const raw = el.dataset.articleId;
+          filterArticleId = raw ? parseInt(raw, 10) : null;
+          filterArticleTitle = filterArticleId ? el.textContent.trim() : null;
+          relatedIdeaIds = new Set();
+          mainIdeaIdForArticle = null;
+          updateIdeaUrlParams();
+          renderIdeaArticleFilterChip();
+          fMenu.querySelectorAll('.sort-dropdown-item').forEach(x => x.classList.toggle('active', x === el));
+          if (fLabel) fLabel.textContent = filterArticleId ? el.textContent.trim() : 'Статья';
+          dd.classList.remove('open');
+          if (filterArticleId) await resolveFilterArticle();
+          else applyIdeaFilters();
+        });
+      });
+    } catch (e) {
+      console.warn(e);
+      fMenu.innerHTML = '<p class="sort-dropdown-empty">Не удалось загрузить</p>';
+    }
+    if (window.lucide) lucide.createIcons();
+  })();
+
 
   function applyIdeaFilters() {
     const activeBtn = document.querySelector('.filter-btn.active');
@@ -583,11 +1291,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const searchQuery = ideaSearchInput ? ideaSearchInput.value.trim().toLowerCase() : '';
 
     const filtered = ideasCache.filter(idea => {
+      const matchesArticle = !filterArticleId || relatedIdeaIds.has(Number(idea.id_idea));
       const matchesCategory = category === 'all' || idea.category === category;
       const matchesRating = idea.rating == null ? minRating === 0 : Number(idea.rating) >= minRating;
       const matchesSearch = !searchQuery || [idea.title, idea.pluses, idea.minuses, idea.risks, idea.potential]
         .some(field => (field || '').toLowerCase().includes(searchQuery));
-      return matchesCategory && matchesRating && matchesSearch;
+      return matchesArticle && matchesCategory && matchesRating && matchesSearch;
     });
 
     renderIdeasList(sortIdeas(filtered));
@@ -618,13 +1327,19 @@ document.addEventListener("DOMContentLoaded", () => {
     return idea.title && idea.title.trim() ? idea.title : `Идея №${idea.id_idea}`;
   }
 
-  function renderIdeaCard(idea) {
-    const shortText = (idea.pluses || idea.risks || 'Описание пока не заполнено.').slice(0, 110);
+  function renderIdeaCard(idea, { featured } = {}) {
+    const len = featured ? 180 : 110;
+    const shortText = (idea.pluses || idea.risks || 'Описание пока не заполнено.').slice(0, len);
+    const cls = featured ? 'card card--featured' : 'card';
+    const badge = featured
+      ? `<span class="card-featured-badge"><i data-lucide="star"></i> Главная идея статьи</span>`
+      : '';
     return `
-      <div class="card" data-idea-id="${idea.id_idea}">
+      <div class="${cls}" data-idea-id="${idea.id_idea}">
+        ${badge}
         <span class="card-tag">${idea.complexity || 'Сложность не указана'}</span>
         <h3 class="card-title">${ideaTitle(idea)}</h3>
-        <p class="card-desc">${shortText}${shortText.length >= 110 ? '…' : ''}</p>
+        <p class="card-desc">${shortText}${shortText.length >= len ? '…' : ''}</p>
         <div class="card-footer">
           <span>${formatBudget(idea.budget)}</span>
           <div class="card-rating">
@@ -670,7 +1385,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ideasGrid.classList.add('grid-fade');
     setTimeout(() => {
       ideasGrid.innerHTML = list.length
-        ? list.map(renderIdeaCard).join('')
+        ? list.map(idea => renderIdeaCard(idea, {
+            featured: !!(filterArticleId && mainIdeaIdForArticle && Number(idea.id_idea) === mainIdeaIdForArticle)
+          })).join('')
         : '<p style="opacity:0.6;">Ничего не найдено по заданным фильтрам.</p>';
       if (window.lucide) lucide.createIcons();
       ideasGrid.querySelectorAll('[data-idea-id]').forEach(card => {
@@ -773,9 +1490,28 @@ document.addEventListener("DOMContentLoaded", () => {
     return { cleaned, blocks };
   }
 
+  function extractYoutubeId(url) {
+    if (!url) return null;
+    const m = String(url).match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  function preprocessMediaMarkdown(text) {
+    let s = text.replace(/:::youtube\s+(\S+)\s*:::/gi, (_, idOrUrl) => {
+      const id = extractYoutubeId(idOrUrl) || idOrUrl.replace(/[^\w-]/g, '');
+      return id && id.length >= 6 ? ('\n\n@@YOUTUBE:' + id + '@@\n\n') : '';
+    });
+    s = s.replace(/^(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=[\w-]+|youtu\.be\/[\w-]+|youtube\.com\/shorts\/[\w-]+)\S*)\s*$/gim, (line) => {
+      const id = extractYoutubeId(line.trim());
+      return id ? ('\n\n@@YOUTUBE:' + id + '@@\n\n') : line;
+    });
+    return s;
+  }
+
   function renderMarkdown(text) {
     if (!text) return '<p>Текст пока не заполнен.</p>';
-    const { cleaned, blocks } = extractInfoBlocks(text);
+    const withMedia = preprocessMediaMarkdown(text);
+    const { cleaned, blocks } = extractInfoBlocks(withMedia);
     let html;
     if (window.marked && window.DOMPurify) {
       html = marked.parse(cleaned, { breaks: true });
@@ -785,7 +1521,13 @@ document.addEventListener("DOMContentLoaded", () => {
     blocks.forEach((b, i) => {
       html = html.replace(new RegExp(`<p>\\s*@@INFOBLOCK${i}@@\\s*</p>|@@INFOBLOCK${i}@@`), b);
     });
-    return window.DOMPurify ? DOMPurify.sanitize(html) : html;
+    html = html.replace(/<p>\s*@@YOUTUBE:([\w-]{6,})@@\s*<\/p>|@@YOUTUBE:([\w-]{6,})@@/g, (_, a, b) => {
+      const id = a || b;
+      return '<div class="video-embed"><iframe src="https://www.youtube.com/embed/' + id + '" title="YouTube" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>';
+    });
+    html = html.replace(/<img /g, '<img class="article-md-img" loading="lazy" ');
+    const purifyCfg = { ADD_TAGS: ['iframe'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'src', 'title', 'loading'] };
+    return window.DOMPurify ? DOMPurify.sanitize(html, purifyCfg) : html;
   }
 
   function setMetaDescription(text) {
@@ -862,12 +1604,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function renderArticleCard(article) {
+  function renderArticleCard(article, { featured } = {}) {
+    const cls = featured ? 'card card--featured' : 'card';
+    const badge = featured
+      ? `<span class="card-featured-badge"><i data-lucide="star"></i> Главная по идее</span>`
+      : '';
     return `
-      <div class="card" data-article-id="${article.id}">
+      <div class="${cls}" data-article-id="${article.id}">
+        ${badge}
         <span class="card-tag">${articleAuthor(article)}</span>
         <h3 class="card-title">${article.title || 'Без названия'}</h3>
-        <p class="card-desc">${articleExcerpt(article, 130)}</p>
+        <p class="card-desc">${articleExcerpt(article, featured ? 180 : 130)}</p>
         <div class="card-footer">
           <span>${formatDate(article.created_at)}</span>
         </div>
@@ -955,23 +1702,102 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnLabel = document.getElementById('articleSortBtnLabel');
     const menu = document.getElementById('articleSortMenu');
     const searchInput = document.getElementById('articleSearchInput');
+    const chipBox = document.getElementById('articleIdeaFilterChip');
     if (!grid || !dropdown) return;
 
     const urlParams = new URLSearchParams(window.location.search);
     let currentSort = urlParams.get('sort') || localStorage.getItem('ideanest_article_sort') || 'new';
     if (!ARTICLE_SORT_LABELS[currentSort]) currentSort = 'new';
 
+    // Фильтр по идее (?idea_id=N):
+    // — статьи с main_idea_id = N → увеличенная «главная» карточка
+    // — статьи, связанные через idea_articles → обычные карточки
+    let filterIdeaId = parseInt(urlParams.get('idea_id'), 10) || null;
+    let filterIdeaTitle = null;
+    let relatedArticleIds = new Set(); // id статей из idea_articles для выбранной идеи
+
+    function updateUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      params.set('sort', currentSort);
+      if (filterIdeaId) params.set('idea_id', String(filterIdeaId));
+      else params.delete('idea_id');
+      const qs = params.toString();
+      window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    }
+
+    function renderFilterChip() {
+      if (!chipBox) return;
+      if (!filterIdeaId) {
+        chipBox.style.display = 'none';
+        chipBox.innerHTML = '';
+        return;
+      }
+      const name = filterIdeaTitle || ('Идея №' + filterIdeaId);
+      chipBox.style.display = 'flex';
+      chipBox.innerHTML = `
+        <span class="filter-chip">
+          <span class="filter-chip-label">Фильтр:</span>
+          <span class="filter-chip-name">${name}</span>
+          <button type="button" class="filter-chip-clear" id="clearIdeaFilterBtn" aria-label="Сбросить фильтр">
+            <i data-lucide="x"></i>
+          </button>
+        </span>`;
+      if (window.lucide) lucide.createIcons();
+      document.getElementById('clearIdeaFilterBtn')?.addEventListener('click', () => {
+        filterIdeaId = null;
+        filterIdeaTitle = null;
+        relatedArticleIds = new Set();
+        updateUrlParams();
+        renderFilterChip();
+        sortAndRender();
+      });
+    }
+
+    async function resolveFilterIdea() {
+      if (!filterIdeaId) return;
+      try {
+        const [{ data: idea }, { data: rel }] = await Promise.all([
+          supabaseClient.from('ideas').select('id_idea, title').eq('id_idea', filterIdeaId).maybeSingle(),
+          supabaseClient.from('idea_articles').select('id_article').eq('id_idea', filterIdeaId)
+        ]);
+        if (idea) {
+          filterIdeaTitle = (idea.title && idea.title.trim()) ? idea.title : ('Идея №' + idea.id_idea);
+          renderFilterChip();
+        }
+        relatedArticleIds = new Set((rel || []).map(r => Number(r.id_article)));
+        sortAndRender();
+      } catch (e) { console.warn('Не удалось загрузить данные фильтра по идее:', e); }
+    }
+
     function setActiveMenuItem() {
       menu.querySelectorAll('.sort-dropdown-item').forEach(el => el.classList.toggle('active', el.dataset.sort === currentSort));
       btnLabel.textContent = ARTICLE_SORT_LABELS[currentSort];
     }
 
+    function isMainForFilter(a) {
+      return filterIdeaId && Number(a.main_idea_id) === filterIdeaId;
+    }
+
     function sortAndRender() {
       const query = (searchInput?.value || '').trim().toLowerCase();
-      let list = !query ? [...articlesCache] : articlesCache.filter(a =>
-        (a.title || '').toLowerCase().includes(query) || (a.description || '').toLowerCase().includes(query));
+      let list = [...articlesCache];
+
+      if (filterIdeaId) {
+        list = list.filter(a =>
+          Number(a.main_idea_id) === filterIdeaId || relatedArticleIds.has(Number(a.id)));
+      }
+      if (query) {
+        list = list.filter(a =>
+          (a.title || '').toLowerCase().includes(query) || (a.description || '').toLowerCase().includes(query));
+      }
 
       list.sort((a, b) => {
+        // Главные по идее — всегда выше связанных
+        if (filterIdeaId) {
+          const fa = isMainForFilter(a) ? 1 : 0;
+          const fb = isMainForFilter(b) ? 1 : 0;
+          if (fa !== fb) return fb - fa;
+        }
         if (currentSort === 'new') return new Date(b.created_at) - new Date(a.created_at);
         if (currentSort === 'old') return new Date(a.created_at) - new Date(b.created_at);
         if (currentSort === 'popular') return (b._popularity || 0) - (a._popularity || 0);
@@ -982,17 +1808,82 @@ document.addEventListener("DOMContentLoaded", () => {
 
       grid.classList.add('grid-fade');
       setTimeout(() => {
-        grid.innerHTML = list.length ? list.map(renderArticleCard).join('') : '<p style="opacity:0.6;">Ничего не найдено.</p>';
+        grid.innerHTML = list.length
+          ? list.map(a => renderArticleCard(a, { featured: isMainForFilter(a) })).join('')
+          : '<p style="opacity:0.6;">Ничего не найдено.</p>';
         if (window.lucide) lucide.createIcons();
         wireArticleCardClicks(grid);
         grid.classList.remove('grid-fade');
       }, 190);
     }
 
-    setActiveMenuItem();
-    sortAndRender();
+    // UI-выбор идеи для фильтра
+    async function initArticleIdeaFilterDropdown() {
+      const dd = document.getElementById('articleIdeaFilterDropdown');
+      const fBtn = document.getElementById('articleIdeaFilterBtn');
+      const fMenu = document.getElementById('articleIdeaFilterMenu');
+      const fLabel = document.getElementById('articleIdeaFilterLabel');
+      if (!dd || !fBtn || !fMenu) return;
 
-    btn.addEventListener('click', (e) => { e.stopPropagation(); dropdown.classList.toggle('open'); });
+      fBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.sort-dropdown.open').forEach(el => { if (el !== dd) el.classList.remove('open'); });
+        dd.classList.toggle('open');
+      });
+      document.addEventListener('click', (e) => { if (!dd.contains(e.target)) dd.classList.remove('open'); });
+
+      try {
+        const { data: ideas } = await supabaseClient
+          .from('ideas')
+          .select('id_idea, title')
+          .order('id_idea', { ascending: true });
+        const list = ideas || [];
+        const items = [
+          `<button type="button" class="sort-dropdown-item${!filterIdeaId ? ' active' : ''}" data-idea-id="">Все идеи</button>`,
+          ...list.map(i => {
+            const title = (i.title && i.title.trim()) ? i.title : ('Идея №' + i.id_idea);
+            const active = filterIdeaId === Number(i.id_idea) ? ' active' : '';
+            return `<button type="button" class="sort-dropdown-item${active}" data-idea-id="${i.id_idea}">${title}</button>`;
+          })
+        ];
+        fMenu.innerHTML = items.join('');
+        if (filterIdeaId) {
+          const found = list.find(i => Number(i.id_idea) === filterIdeaId);
+          if (found && fLabel) fLabel.textContent = (found.title && found.title.trim()) ? found.title : ('Идея №' + found.id_idea);
+        }
+        fMenu.querySelectorAll('[data-idea-id]').forEach(el => {
+          el.addEventListener('click', async () => {
+            const raw = el.dataset.ideaId;
+            filterIdeaId = raw ? parseInt(raw, 10) : null;
+            filterIdeaTitle = filterIdeaId ? el.textContent.trim() : null;
+            relatedArticleIds = new Set();
+            updateUrlParams();
+            renderFilterChip();
+            fMenu.querySelectorAll('.sort-dropdown-item').forEach(x => x.classList.toggle('active', x === el));
+            if (fLabel) fLabel.textContent = filterIdeaId ? el.textContent.trim() : 'Идея';
+            dd.classList.remove('open');
+            if (filterIdeaId) await resolveFilterIdea();
+            else sortAndRender();
+          });
+        });
+      } catch (e) {
+        console.warn(e);
+        fMenu.innerHTML = '<p class="sort-dropdown-empty">Не удалось загрузить</p>';
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+    initArticleIdeaFilterDropdown();
+
+    setActiveMenuItem();
+    renderFilterChip();
+    if (filterIdeaId) resolveFilterIdea();
+    else sortAndRender();
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.sort-dropdown.open').forEach(el => { if (el !== dropdown) el.classList.remove('open'); });
+      dropdown.classList.toggle('open');
+    });
     document.addEventListener('click', (e) => { if (!dropdown.contains(e.target)) dropdown.classList.remove('open'); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dropdown.classList.remove('open'); });
 
@@ -1000,9 +1891,7 @@ document.addEventListener("DOMContentLoaded", () => {
       item.addEventListener('click', () => {
         currentSort = item.dataset.sort;
         localStorage.setItem('ideanest_article_sort', currentSort);
-        const params = new URLSearchParams(window.location.search);
-        params.set('sort', currentSort);
-        window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+        updateUrlParams();
         setActiveMenuItem();
         dropdown.classList.remove('open');
         sortAndRender();
@@ -1221,9 +2110,20 @@ document.addEventListener("DOMContentLoaded", () => {
       isUpvoted = !!upRow;
     }
 
+    const coverUrl = idea.cover_url || idea.image_url || idea.banner_url || '';
+    const cat = (idea.category || '').toLowerCase();
+    const coverClass = coverUrl ? '' : (' idea-hero--' + (cat || 'default'));
+    const coverStyle = coverUrl
+      ? (' style="background-image:url(\'' + String(coverUrl).replace(/'/g, '%27') + '\');"')
+      : '';
+
     container.innerHTML = `
-      <span class="card-tag">${idea.complexity || 'Сложность не указана'}</span>
-      <h1 class="idea-modal-title">${ideaTitle(idea)}</h1>
+      <div class="idea-hero${coverClass}"${coverStyle}>
+        <div class="idea-hero-overlay">
+          <span class="card-tag idea-hero-tag">${idea.complexity || idea.category || 'Идея'}</span>
+          <h1 class="idea-hero-title">${ideaTitle(idea)}</h1>
+        </div>
+      </div>
       <div class="idea-pill-row">
         <span class="idea-pill"><i data-lucide="wallet"></i> ${formatBudget(idea.budget)}</span>
         <span class="idea-pill"><i data-lucide="bar-chart-2"></i> ${idea.complexity || '—'}</span>
@@ -1250,22 +2150,67 @@ document.addEventListener("DOMContentLoaded", () => {
           <i data-lucide="bookmark"></i> ${isFav ? 'В избранном' : 'В избранное'}
         </button>
       </div>
+      <div id="ideaMainArticleBlock"></div>
       <div id="ideaRelatedArticles"></div>
     `;
     if (window.lucide) lucide.createIcons();
 
-    // Статьи, связанные с этой идеей (таблица idea_articles)
+    // Главная статья идеи (articles.main_idea_id = эта идея) + остальные связанные
     try {
-      const { data: rel } = await supabaseClient
-        .from('idea_articles')
-        .select('articles(id, title, slug)')
-        .eq('id_idea', ideaId);
-      const relList = (rel || []).filter(r => r.articles);
+      const [{ data: mainArticles }, { data: rel }] = await Promise.all([
+        supabaseClient
+          .from('articles')
+          .select('id, title, slug, text, description, created_at, profiles(username)')
+          .eq('main_idea_id', ideaId)
+          .order('created_at', { ascending: false }),
+        supabaseClient
+          .from('idea_articles')
+          .select('articles(id, title, slug)')
+          .eq('id_idea', ideaId)
+      ]);
+
+      const mainList = mainArticles || [];
+      const mainBox = document.getElementById('ideaMainArticleBlock');
+
+      // Шаг 5: ровно одна главная статья → крупный блок
+      if (mainBox && mainList.length === 1) {
+        const a = mainList[0];
+        const excerpt = articleExcerpt(a, 220);
+        mainBox.innerHTML = `
+          <div class="main-article-block">
+            <div class="main-article-block-label">
+              <i data-lucide="book-open"></i> Главная статья по этой идее
+            </div>
+            <h3 class="main-article-block-title">${a.title || 'Без названия'}</h3>
+            <p class="main-article-block-meta">
+              ${articleAuthor(a)}${a.created_at ? ' · ' + formatDate(a.created_at) : ''}
+            </p>
+            <p class="main-article-block-excerpt">${excerpt}</p>
+            <a class="btn btn-primary" href="${articleHref(a)}" style="align-self:flex-start; text-decoration:none;">
+              <i data-lucide="book-open"></i> Читать статью
+            </a>
+          </div>`;
+        if (window.lucide) lucide.createIcons();
+      } else if (mainBox && mainList.length > 1) {
+        // Несколько главных — просто список ссылок, без крупного блока
+        mainBox.innerHTML = `
+          <div class="idea-field-block" style="margin-top:28px;">
+            <h4><i data-lucide="star"></i> Главные статьи</h4>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+              ${mainList.map(a => `<a class="btn btn-secondary idea-open-btn" href="${articleHref(a)}">${a.title || 'Без названия'}</a>`).join('')}
+            </div>
+          </div>`;
+        if (window.lucide) lucide.createIcons();
+      }
+
+      // Остальные связанные (idea_articles), без дублей главных
+      const mainIds = new Set(mainList.map(a => Number(a.id)));
+      const relList = (rel || []).filter(r => r.articles && !mainIds.has(Number(r.articles.id)));
       const relBox = document.getElementById('ideaRelatedArticles');
       if (relBox && relList.length) {
         relBox.innerHTML = `
           <div class="idea-field-block" style="margin-top:28px;">
-            <h4><i data-lucide="book-open"></i> Статьи по теме</h4>
+            <h4><i data-lucide="book-open"></i> Ещё статьи по теме</h4>
             <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
               ${relList.map(r => `<a class="btn btn-secondary idea-open-btn" href="${articleHref(r.articles)}">${r.articles.title || 'Без названия'}</a>`).join('')}
             </div>
@@ -1342,6 +2287,26 @@ document.addEventListener("DOMContentLoaded", () => {
       loadThemeSettings();
       loadPrivacySettings();
     });
+    // навбар-конфиг доступен сразу (localStorage)
+    renderNavbarConfigSettings();
+    document.getElementById('navbarConfigReset')?.addEventListener('click', () => {
+      saveNavbarConfig(DEFAULT_NAVBAR.map(x => ({ ...x })));
+      rebuildNavbarFromConfig();
+      renderNavbarConfigSettings();
+      showToast('Навбар сброшен');
+    });
+    applyNavbarStyle(loadNavbarStyle());
+    const styleToggle = document.getElementById('navbarStyleToggle');
+    if (styleToggle) {
+      styleToggle.checked = loadNavbarStyle() === 1;
+      styleToggle.addEventListener('change', () => {
+        saveNavbarStyle(styleToggle.checked);
+      });
+    }
+    document.getElementById('settingsOpenProfileBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      openProfileWindow();
+    });
   }
 
   // ---------- Конфиденциальность ----------
@@ -1388,14 +2353,9 @@ document.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => window.location.href = '../index.html', 800);
     });
 
-    document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
-      const typed = prompt('Это действие деактивирует аккаунт. Введите УДАЛИТЬ, чтобы подтвердить:');
-      if (typed !== 'УДАЛИТЬ') return;
-      const { error } = await supabaseClient.from('profiles').update({ is_deleted: true }).eq('id', profileId);
-      if (error) { showToast('Не удалось удалить аккаунт', true); return; }
-      await supabaseClient.auth.signOut({ scope: 'global' });
-      showToast('Аккаунт деактивирован');
-      setTimeout(() => window.location.href = '../index.html', 800);
+    document.getElementById('deleteAccountBtn')?.addEventListener('click', () => {
+      const nick = currentProfile?.username || currentUser?.user_metadata?.username || '';
+      openDeleteNicknameModal(nick);
     });
   }
 
@@ -1574,80 +2534,791 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!profile) return;
     currentProfile = profile;
 
-    const avatarUrlInput = document.getElementById('settingsAvatarUrl');
-    const avatarPreview = document.getElementById('settingsAvatarPreview');
-    avatarUrlInput.value = profile.avatar_url || '';
-    avatarPreview.src = profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.username || 'U')}&background=111827&color=fff`;
-    avatarUrlInput.addEventListener('input', () => { if (avatarUrlInput.value.trim()) avatarPreview.src = avatarUrlInput.value.trim(); });
+    const langEl = document.getElementById('settingsLanguage');
+    const tzEl = document.getElementById('settingsTimezone');
+    const notifEl = document.getElementById('settingsNotifications');
+    const emailNotifEl = document.getElementById('settingsEmailNotifications');
+    if (langEl) langEl.value = profile.language || 'ru';
+    if (tzEl) tzEl.value = profile.timezone || 'Europe/Moscow';
+    if (notifEl) notifEl.checked = profile.notifications_enabled !== false;
+    if (emailNotifEl) emailNotifEl.checked = profile.email_notifications !== false;
 
-    document.getElementById('settingsFullName').value = profile.full_name || '';
-    document.getElementById('settingsEmail').value = currentUser.email || '';
-    document.getElementById('settingsLanguage').value = profile.language || 'ru';
-    document.getElementById('settingsTimezone').value = profile.timezone || 'Europe/Moscow';
-    document.getElementById('settingsNotifications').checked = profile.notifications_enabled !== false;
-    document.getElementById('settingsEmailNotifications').checked = profile.email_notifications !== false;
+    renderNavbarConfigSettings();
 
-    // Проверка занятости никнейма — та же идея, что в форме регистрации, но отдельная
-    // реализация, чтобы не задевать код формы входа/регистрации.
-    const usernameInput = document.getElementById('settingsUsername');
-    const usernameStatus = document.getElementById('settingsUsernameStatus');
-    const usernameHint = document.getElementById('settingsUsernameHint');
-    const DEFAULT_HINT = 'От 5 до 15 символов: латиница в нижнем регистре, цифры, _';
-    usernameInput.value = profile.username || '';
-    let usernameCheckTimer;
-    usernameInput.addEventListener('input', () => {
-      const cleaned = usernameInput.value.trim().toLowerCase();
-      usernameInput.value = cleaned;
-      clearTimeout(usernameCheckTimer);
-      if (!cleaned || cleaned === (profile.username || '')) {
-        usernameStatus.className = 'nickname-status';
-        usernameHint.textContent = DEFAULT_HINT; usernameHint.classList.remove('error');
-        return;
-      }
-      if (cleaned.length < 5 || cleaned.length > 15 || !/^[a-z0-9_]+$/.test(cleaned)) {
-        usernameStatus.className = 'nickname-status invalid';
-        usernameHint.textContent = 'Длина 5–15, только латиница/цифры/_'; usernameHint.classList.add('error');
-        return;
-      }
-      usernameStatus.className = 'nickname-status checking';
-      usernameCheckTimer = setTimeout(async () => {
-        const { data } = await supabaseClient.from('profiles').select('id').eq('username', cleaned).maybeSingle();
-        if (data) {
-          usernameStatus.className = 'nickname-status taken';
-          usernameHint.textContent = 'Этот никнейм уже занят.'; usernameHint.classList.add('error');
-        } else {
-          usernameStatus.className = 'nickname-status available';
-          usernameHint.textContent = DEFAULT_HINT; usernameHint.classList.remove('error');
-        }
-      }, 450);
-    });
-
-    document.getElementById('generalSettingsForm').addEventListener('submit', async (e) => {
+    const form = document.getElementById('generalSettingsForm');
+    if (!form || form.dataset.wired) return;
+    form.dataset.wired = '1';
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const errorEl = document.getElementById('generalSettingsError');
-      errorEl.textContent = '';
-      if (usernameStatus.classList.contains('taken') || usernameStatus.classList.contains('invalid')) {
-        errorEl.textContent = 'Проверьте никнейм — сейчас он недоступен.';
-        return;
-      }
+      if (errorEl) errorEl.textContent = '';
       const submitBtn = document.getElementById('generalSettingsSubmitBtn');
-      submitBtn.disabled = true;
+      if (submitBtn) submitBtn.disabled = true;
       const { error } = await supabaseClient.from('profiles').update({
-        avatar_url: avatarUrlInput.value.trim() || null,
-        full_name: document.getElementById('settingsFullName').value.trim() || null,
-        username: usernameInput.value.trim(),
-        language: document.getElementById('settingsLanguage').value,
-        timezone: document.getElementById('settingsTimezone').value,
-        notifications_enabled: document.getElementById('settingsNotifications').checked,
-        email_notifications: document.getElementById('settingsEmailNotifications').checked
+        language: document.getElementById('settingsLanguage')?.value || 'ru',
+        timezone: document.getElementById('settingsTimezone')?.value || 'Europe/Moscow',
+        notifications_enabled: document.getElementById('settingsNotifications')?.checked !== false,
+        email_notifications: document.getElementById('settingsEmailNotifications')?.checked !== false
       }).eq('id', profileId);
-      submitBtn.disabled = false;
+      if (submitBtn) submitBtn.disabled = false;
       if (error) {
-        errorEl.textContent = error.code === '23505' ? 'Этот никнейм уже занят.' : 'Не удалось сохранить. Попробуйте снова.';
+        if (errorEl) errorEl.textContent = 'Не удалось сохранить. Попробуйте снова.';
         return;
       }
-      Object.assign(currentProfile, { avatar_url: avatarUrlInput.value.trim(), username: usernameInput.value.trim() });
       showToast('Настройки сохранены');
     });
+  }
+
+
+  // ================= Аватар: файл → обрезка → Storage =================
+  let avatarCropState = null; // { img, scale, minScale, offsetX, offsetY, dragging, lastX, lastY }
+
+  function openAvatarPicker() {
+    if (!currentUser) {
+      document.getElementById('loginBtn')?.click();
+      return;
+    }
+    let input = document.getElementById('profileAvatarFileInput');
+    if (!input) {
+      input = document.createElement('input');
+      input.type = 'file';
+      input.id = 'profileAvatarFileInput';
+      input.accept = 'image/jpeg,image/png,image/webp,image/gif';
+      input.hidden = true;
+      document.body.appendChild(input);
+      input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        input.value = '';
+        if (file) openAvatarCropModal(file);
+      });
+    }
+    input.click();
+  }
+
+  function ensureAvatarCropModal() {
+    if (document.getElementById('avatarCropBackdrop')) return;
+    const backdrop = document.createElement('div');
+    backdrop.className = 'avatar-crop-backdrop';
+    backdrop.id = 'avatarCropBackdrop';
+    backdrop.innerHTML = `
+      <div class="avatar-crop-modal" role="dialog" aria-modal="true" aria-label="Обрезка аватара">
+        <h3 class="avatar-crop-title">Обрезать фото</h3>
+        <div class="avatar-crop-stage" id="avatarCropStage">
+          <canvas id="avatarCropCanvas" width="320" height="320"></canvas>
+          <div class="avatar-crop-frame" aria-hidden="true"></div>
+        </div>
+        <label class="avatar-crop-zoom-label">Масштаб
+          <input type="range" id="avatarCropZoom" min="1" max="3" step="0.01" value="1" />
+        </label>
+        <p class="avatar-crop-hint">Перетащите фото, чтобы выбрать область</p>
+        <div class="avatar-crop-actions">
+          <button type="button" class="btn btn-secondary" id="avatarCropCancel">Отмена</button>
+          <button type="button" class="btn btn-primary" id="avatarCropSave">Сохранить</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+
+    document.getElementById('avatarCropCancel').addEventListener('click', closeAvatarCropModal);
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeAvatarCropModal(); });
+    document.getElementById('avatarCropSave').addEventListener('click', saveCroppedAvatar);
+
+    const stage = document.getElementById('avatarCropStage');
+    const onDown = (clientX, clientY) => {
+      if (!avatarCropState) return;
+      avatarCropState.dragging = true;
+      avatarCropState.lastX = clientX;
+      avatarCropState.lastY = clientY;
+    };
+    const onMove = (clientX, clientY) => {
+      if (!avatarCropState?.dragging) return;
+      const dx = clientX - avatarCropState.lastX;
+      const dy = clientY - avatarCropState.lastY;
+      avatarCropState.lastX = clientX;
+      avatarCropState.lastY = clientY;
+      avatarCropState.offsetX += dx;
+      avatarCropState.offsetY += dy;
+      clampAvatarCrop();
+      drawAvatarCrop();
+    };
+    const onUp = () => { if (avatarCropState) avatarCropState.dragging = false; };
+
+    stage.addEventListener('mousedown', (e) => { e.preventDefault(); onDown(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup', onUp);
+    stage.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      onDown(t.clientX, t.clientY);
+    }, { passive: true });
+    stage.addEventListener('touchmove', (e) => {
+      if (!avatarCropState?.dragging) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      onMove(t.clientX, t.clientY);
+    }, { passive: false });
+    stage.addEventListener('touchend', onUp);
+
+    document.getElementById('avatarCropZoom').addEventListener('input', (e) => {
+      if (!avatarCropState) return;
+      avatarCropState.scale = avatarCropState.minScale * parseFloat(e.target.value);
+      clampAvatarCrop();
+      drawAvatarCrop();
+    });
+  }
+
+  function openAvatarCropModal(file) {
+    if (!file.type.startsWith('image/')) {
+      showToast('Выберите изображение', true);
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      showToast('Файл слишком большой (макс. 8 МБ)', true);
+      return;
+    }
+    ensureAvatarCropModal();
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const size = 320;
+      const minScale = Math.max(size / img.width, size / img.height);
+      avatarCropState = {
+        img,
+        scale: minScale,
+        minScale,
+        offsetX: (size - img.width * minScale) / 2,
+        offsetY: (size - img.height * minScale) / 2,
+        dragging: false,
+        lastX: 0,
+        lastY: 0
+      };
+      const zoom = document.getElementById('avatarCropZoom');
+      zoom.value = '1';
+      zoom.min = '1';
+      zoom.max = '3';
+      drawAvatarCrop();
+      document.getElementById('avatarCropBackdrop').classList.add('active');
+      document.getElementById('avatarCropSave').disabled = false;
+      document.getElementById('avatarCropSave').textContent = 'Сохранить';
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      showToast('Не удалось открыть изображение', true);
+    };
+    img.src = url;
+  }
+
+  function closeAvatarCropModal() {
+    document.getElementById('avatarCropBackdrop')?.classList.remove('active');
+    avatarCropState = null;
+  }
+
+  function clampAvatarCrop() {
+    const s = avatarCropState;
+    if (!s) return;
+    const size = 320;
+    const w = s.img.width * s.scale;
+    const h = s.img.height * s.scale;
+    // изображение должно покрывать весь квадрат
+    if (w >= size) {
+      s.offsetX = Math.min(0, Math.max(size - w, s.offsetX));
+    } else {
+      s.offsetX = (size - w) / 2;
+    }
+    if (h >= size) {
+      s.offsetY = Math.min(0, Math.max(size - h, s.offsetY));
+    } else {
+      s.offsetY = (size - h) / 2;
+    }
+  }
+
+  function drawAvatarCrop() {
+    const canvas = document.getElementById('avatarCropCanvas');
+    const s = avatarCropState;
+    if (!canvas || !s) return;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, 320, 320);
+    ctx.drawImage(s.img, s.offsetX, s.offsetY, s.img.width * s.scale, s.img.height * s.scale);
+  }
+
+  async function saveCroppedAvatar() {
+    const s = avatarCropState;
+    if (!s || !currentUser) return;
+    const btn = document.getElementById('avatarCropSave');
+    btn.disabled = true;
+    btn.textContent = 'Сохраняем…';
+
+    try {
+      // 256×256 JPEG (меньше файл → стабильнее upload)
+      const SIZE = 256;
+      const out = document.createElement('canvas');
+      out.width = SIZE;
+      out.height = SIZE;
+      const ctx = out.getContext('2d');
+      const scale = SIZE / 320;
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, SIZE, SIZE);
+      ctx.drawImage(
+        s.img,
+        s.offsetX * scale,
+        s.offsetY * scale,
+        s.img.width * s.scale * scale,
+        s.img.height * s.scale * scale
+      );
+
+      const blob = await new Promise((resolve, reject) => {
+        out.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.82);
+      });
+
+      const profileId = await getProfileId();
+      if (!profileId) throw new Error('Нет профиля');
+
+      const path = `${currentUser.id}/${profileId}_${Date.now()}.jpg`;
+
+      // Signed upload — без огромного Authorization в заголовках (фикс "header size")
+      let publicUrl = null;
+      const { data: signed, error: signErr } = await supabaseClient.storage
+        .from('avatars')
+        .createSignedUploadUrl(path);
+
+      if (!signErr && signed?.signedUrl) {
+        const putRes = await fetch(signed.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'image/jpeg' },
+          body: blob
+        });
+        if (!putRes.ok) throw new Error('Ошибка загрузки: ' + putRes.status);
+      } else {
+        // fallback
+        const { error: upErr } = await supabaseClient.storage
+          .from('avatars')
+          .upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '3600' });
+        if (upErr) throw upErr;
+      }
+
+      const { data: pub } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+      publicUrl = pub?.publicUrl;
+      if (!publicUrl) throw new Error('Нет URL');
+
+      const { error: dbErr } = await supabaseClient
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', profileId);
+      if (dbErr) throw dbErr;
+
+      if (currentProfile) currentProfile.avatar_url = publicUrl;
+      // обновить все аватарки на странице
+      ['topAvatar', 'dropdownAvatar', 'profilePageAvatar'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.src = publicUrl;
+      });
+
+      closeAvatarCropModal();
+      showToast('Аватар обновлён');
+    } catch (err) {
+      console.error(err);
+      const msg = err?.message || String(err);
+      if (/bucket|not found|row-level|policy|403|401/i.test(msg)) {
+        showToast('Storage: создайте bucket «avatars» (см. SQL)', true);
+      } else {
+        showToast('Не удалось сохранить аватар: ' + msg, true);
+      }
+      btn.disabled = false;
+      btn.textContent = 'Сохранить';
+    }
+  }
+
+  // ================= Окно профиля (оверлей поверх страницы) =================
+  function ensureProfileWindow() {
+    if (document.getElementById('profileWindowBackdrop')) return;
+    const backdrop = document.createElement('div');
+    backdrop.className = 'profile-window-backdrop';
+    backdrop.id = 'profileWindowBackdrop';
+    const win = document.createElement('div');
+    win.className = 'profile-window';
+    win.id = 'profileWindow';
+    win.setAttribute('role', 'dialog');
+    win.setAttribute('aria-modal', 'true');
+    win.innerHTML = `
+      <button type="button" class="profile-window-close" id="profileWindowClose" aria-label="Закрыть">
+        <i data-lucide="x"></i>
+      </button>
+      <div id="profileWindowBody"><p style="color:var(--text-muted);">Загрузка…</p></div>`;
+    document.body.appendChild(backdrop);
+    document.body.appendChild(win);
+    backdrop.addEventListener('click', closeProfileWindow);
+    document.getElementById('profileWindowClose').addEventListener('click', closeProfileWindow);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && win.classList.contains('active')) closeProfileWindow();
+    });
+  }
+
+  function openProfileWindow() {
+    ensureProfileWindow();
+    closeProfileDropdown();
+    const win = document.getElementById('profileWindow');
+    const backdrop = document.getElementById('profileWindowBackdrop');
+    backdrop.classList.add('active');
+    // reflow for animation
+    void win.offsetWidth;
+    win.classList.add('active');
+    renderProfileWindow();
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeProfileWindow() {
+    document.getElementById('profileWindow')?.classList.remove('active');
+    document.getElementById('profileWindowBackdrop')?.classList.remove('active');
+  }
+
+  async function renderProfileWindow() {
+    const body = document.getElementById('profileWindowBody');
+    if (!body) return;
+
+    if (!currentUser) {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      currentUser = session?.user || null;
+    }
+    if (!currentUser) {
+      body.innerHTML = `
+        <div style="text-align:center; padding:24px 8px;">
+          <p style="color:var(--text-muted); margin-bottom:16px;">Войдите, чтобы открыть профиль.</p>
+          <button type="button" class="btn btn-primary" id="profileWinLoginBtn">Войти</button>
+        </div>`;
+      document.getElementById('profileWinLoginBtn')?.addEventListener('click', () => {
+        closeProfileWindow();
+        document.getElementById('loginBtn')?.click();
+      });
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    const profileId = await getProfileId();
+    let profile = currentProfile;
+    if (profileId) {
+      const { data } = await supabaseClient.from('profiles').select('*').eq('id', profileId).maybeSingle();
+      if (data) { profile = data; currentProfile = data; }
+    }
+
+    const fullName = currentUser.user_metadata?.full_name || '';
+    const username = profile?.username || currentUser.user_metadata?.username || '';
+    const email = currentUser.email || '';
+    const avatarUrl = profile?.avatar_url
+      || `https://ui-avatars.com/api/?name=${encodeURIComponent(username || fullName || 'U')}&background=111827&color=fff&bold=true&size=256`;
+    const created = profile?.created_at
+      ? new Date(profile.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+      : '—';
+    const visibility = profile?.profile_visibility === 'private' ? 'Приватный' : 'Публичный';
+
+    // Статистика профиля
+    let stats = { up: 0, comments: 0, viewsIdeas: 0, viewsArticles: 0 };
+    if (profileId) {
+      try {
+        const { data: st } = await supabaseClient
+          .from('profiles_statistic')
+          .select('stat_up, stat_comments, stat_views_ideas, stat_views_articles, stat_old')
+          .eq('id_profile', profileId)
+          .maybeSingle();
+        if (st) {
+          stats = {
+            up: Number(st.stat_up) || 0,
+            comments: parseInt(st.stat_comments, 10) || Number(st.stat_comments) || 0,
+            viewsIdeas: Number(st.stat_views_ideas) || 0,
+            viewsArticles: Number(st.stat_views_articles) || 0
+          };
+        }
+      } catch (e) { console.warn('stats', e); }
+    }
+
+    body.innerHTML = `
+      <div class="profile-page-header">
+        <div class="profile-page-avatar-wrap">
+          <img class="profile-page-avatar" id="profilePageAvatar" src="${avatarUrl}" alt="Аватар" />
+          <button type="button" class="profile-page-avatar-edit" id="profileAvatarEditBtn" title="Сменить аватар" aria-label="Сменить аватар">
+            <i data-lucide="camera"></i>
+          </button>
+        </div>
+        <div class="profile-page-identity">
+          <h2 id="profilePageFullName">${fullName || username || 'Без имени'}</h2>
+          <div class="profile-page-nick">@${username || '—'}</div>
+        </div>
+      </div>
+
+      <div class="profile-page-section">
+        <div class="profile-page-section-title">Аккаунт</div>
+        <form id="profileAccountForm">
+          <div class="form-group">
+            <label for="profileEditFullName">Имя</label>
+            <input type="text" id="profileEditFullName" value="${(fullName || '').replace(/"/g, '&quot;')}" placeholder="Александр" autocomplete="name" />
+          </div>
+          <div class="form-group">
+            <label for="profileEditUsername">Никнейм</label>
+            <div class="nickname-input-wrapper">
+              <span class="nickname-at">@</span>
+              <input type="text" id="profileEditUsername" value="${(username || '').replace(/"/g, '&quot;')}" placeholder="nickname" autocomplete="off" maxlength="15" />
+              <span class="nickname-status" id="profileUsernameStatus"></span>
+            </div>
+            <div class="nickname-hint" id="profileUsernameHint">От 5 до 15 символов: латиница в нижнем регистре, цифры, _</div>
+          </div>
+          <div class="profile-info-row" style="border-bottom:none; padding-top:4px;">
+            <span class="profile-info-label">Email</span>
+            <span class="profile-info-value">${email || '—'}</span>
+          </div>
+          <div class="profile-info-row">
+            <span class="profile-info-label">Регистрация</span>
+            <span class="profile-info-value">${created}</span>
+          </div>
+          <div class="profile-info-row">
+            <span class="profile-info-label">Видимость</span>
+            <span class="profile-info-value">${visibility}</span>
+          </div>
+          <div class="auth-error" id="profileAccountError"></div>
+          <button type="submit" class="btn btn-primary" id="profileAccountSaveBtn" style="width:100%; margin-top:8px;">Сохранить</button>
+        </form>
+      </div>
+
+      <div class="profile-page-section">
+        <div class="profile-page-section-title">Статистика</div>
+        <div class="profile-stats-grid">
+          <div class="profile-stat-card">
+            <div class="profile-stat-value">${stats.up}</div>
+            <div class="profile-stat-label">Апвоуты</div>
+          </div>
+          <div class="profile-stat-card">
+            <div class="profile-stat-value">${stats.comments}</div>
+            <div class="profile-stat-label">Комментарии</div>
+          </div>
+          <div class="profile-stat-card">
+            <div class="profile-stat-value">${stats.viewsIdeas}</div>
+            <div class="profile-stat-label">Просмотры идей</div>
+          </div>
+          <div class="profile-stat-card">
+            <div class="profile-stat-value">${stats.viewsArticles}</div>
+            <div class="profile-stat-label">Просмотры статей</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-page-section" style="border-top:none; padding-top:8px;">
+        <div class="profile-page-section-title">Смена пароля</div>
+        <form id="profileChangePasswordForm">
+          <div class="form-group">
+            <label for="profileNewPassword">Новый пароль</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="profileNewPassword" placeholder="Минимум 6 символов" autocomplete="new-password" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="profileConfirmPassword">Повторите пароль</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="profileConfirmPassword" placeholder="Ещё раз" autocomplete="new-password" />
+            </div>
+          </div>
+          <div class="auth-error" id="profilePasswordError"></div>
+          <button type="submit" class="btn btn-secondary" id="profilePasswordBtn" style="width:100%;">Обновить пароль</button>
+        </form>
+      </div>
+
+      <div class="profile-page-actions">
+        <button type="button" class="btn btn-danger-text" id="profileDeleteAccountBtn" style="width:100%;">
+          Удалить аккаунт
+        </button>
+      </div>`;
+
+    if (window.lucide) lucide.createIcons();
+
+    document.getElementById('profileAvatarEditBtn')?.addEventListener('click', () => {
+      openAvatarPicker();
+    });
+
+    // --- Редактирование имени / ника ---
+    const profileUserInput = document.getElementById('profileEditUsername');
+    const profileUserHint = document.getElementById('profileUsernameHint');
+    const profileUserStatus = document.getElementById('profileUsernameStatus');
+    let profileNickOk = true;
+    let profileNickTimer = null;
+    const originalUsername = username;
+
+    function setProfileNickStatus(state, hint, isError) {
+      if (profileUserHint) {
+        profileUserHint.textContent = hint;
+        profileUserHint.style.color = isError ? '#dc2626' : '';
+      }
+      if (profileUserStatus) {
+        profileUserStatus.textContent = state === 'available' ? '✓' : state === 'taken' || state === 'invalid' ? '✗' : state === 'checking' ? '…' : '';
+        profileUserStatus.style.color = state === 'available' ? '#059669' : state === 'taken' || state === 'invalid' ? '#dc2626' : '';
+      }
+      profileNickOk = state === 'available' || state === 'empty' || (state !== 'invalid' && state !== 'taken' && state !== 'checking' && profileUserInput?.value.trim() === originalUsername);
+      if (state === 'available') profileNickOk = true;
+      if (state === 'taken' || state === 'invalid' || state === 'checking') profileNickOk = false;
+      if (profileUserInput && profileUserInput.value.trim() === originalUsername) profileNickOk = true;
+    }
+
+    profileUserInput?.addEventListener('input', () => {
+      let v = profileUserInput.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (v !== profileUserInput.value) profileUserInput.value = v;
+      clearTimeout(profileNickTimer);
+      if (!v) {
+        setProfileNickStatus('empty', `От ${NICKNAME_MIN} до ${NICKNAME_MAX} символов: латиница в нижнем регистре, цифры, _`, false);
+        return;
+      }
+      if (v === originalUsername) {
+        setProfileNickStatus('available', 'Текущий никнейм', false);
+        return;
+      }
+      if (v.length < NICKNAME_MIN || v.length > NICKNAME_MAX) {
+        setProfileNickStatus('invalid', `Длина должна быть от ${NICKNAME_MIN} до ${NICKNAME_MAX} символов.`, true);
+        return;
+      }
+      if (!NICKNAME_RE.test(v)) {
+        setProfileNickStatus('invalid', 'Только латиница, цифры и _', true);
+        return;
+      }
+      setProfileNickStatus('checking', 'Проверяем…', false);
+      profileNickTimer = setTimeout(async () => {
+        try {
+          const { data } = await supabaseClient.from('profiles').select('id').eq('username', v).maybeSingle();
+          if (data && Number(data.id) !== Number(profileId)) {
+            setProfileNickStatus('taken', 'Этот никнейм уже занят', true);
+          } else {
+            setProfileNickStatus('available', 'Никнейм свободен', false);
+          }
+        } catch {
+          setProfileNickStatus('available', '', false);
+        }
+      }, 400);
+    });
+
+    document.getElementById('profileAccountForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById('profileAccountError');
+      if (errEl) errEl.textContent = '';
+      const newName = (document.getElementById('profileEditFullName')?.value || '').trim();
+      const newNick = (document.getElementById('profileEditUsername')?.value || '').trim().toLowerCase();
+
+      if (newNick && (newNick.length < NICKNAME_MIN || newNick.length > NICKNAME_MAX || !NICKNAME_RE.test(newNick))) {
+        if (errEl) errEl.textContent = `Никнейм: от ${NICKNAME_MIN} до ${NICKNAME_MAX} символов (a-z, 0-9, _).`;
+        return;
+      }
+      if (!profileNickOk && newNick !== originalUsername) {
+        if (errEl) errEl.textContent = 'Выберите свободный никнейм.';
+        return;
+      }
+
+      const saveBtn = document.getElementById('profileAccountSaveBtn');
+      if (saveBtn) saveBtn.disabled = true;
+
+      try {
+        const { error: metaErr } = await supabaseClient.auth.updateUser({
+          data: { full_name: newName || null, username: newNick || null }
+        });
+        if (metaErr) throw metaErr;
+
+        if (profileId) {
+          const patch = { username: newNick || originalUsername };
+          const { error: dbErr } = await supabaseClient.from('profiles').update(patch).eq('id', profileId);
+          if (dbErr) {
+            if (dbErr.code === '23505') throw new Error('Этот никнейм уже занят.');
+            throw dbErr;
+          }
+        }
+
+        if (currentUser) {
+          currentUser.user_metadata = {
+            ...(currentUser.user_metadata || {}),
+            full_name: newName || null,
+            username: newNick || null
+          };
+        }
+        if (currentProfile) currentProfile.username = newNick || originalUsername;
+
+        // UI
+        const display = newName || newNick || 'Без имени';
+        const h2 = document.getElementById('profilePageFullName');
+        const nickEl = document.querySelector('.profile-page-nick');
+        if (h2) h2.textContent = display;
+        if (nickEl) nickEl.textContent = '@' + (newNick || '—');
+        const nameNav = document.getElementById('userName');
+        if (nameNav) nameNav.textContent = newNick || newName || nameNav.textContent;
+
+        const avUrl = currentProfile?.avatar_url
+          || `https://ui-avatars.com/api/?name=${encodeURIComponent(newNick || newName || 'U')}&background=111827&color=fff&bold=true`;
+        if (!currentProfile?.avatar_url) {
+          ['topAvatar', 'dropdownAvatar', 'profilePageAvatar'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.src = avUrl;
+          });
+        }
+
+        showToast('Профиль сохранён');
+      } catch (err) {
+        console.error(err);
+        if (errEl) errEl.textContent = err.message || 'Не удалось сохранить.';
+      }
+      if (saveBtn) saveBtn.disabled = false;
+    });
+
+    document.getElementById('profileChangePasswordForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById('profilePasswordError');
+      errEl.textContent = '';
+      const p1 = document.getElementById('profileNewPassword').value;
+      const p2 = document.getElementById('profileConfirmPassword').value;
+      if (p1 !== p2) { errEl.textContent = 'Пароли не совпадают.'; return; }
+      if (p1.length < 6) { errEl.textContent = 'Минимум 6 символов.'; return; }
+      const btn = document.getElementById('profilePasswordBtn');
+      btn.disabled = true;
+      const { error } = await supabaseClient.auth.updateUser({ password: p1 });
+      btn.disabled = false;
+      if (error) { errEl.textContent = 'Не удалось обновить: ' + error.message; return; }
+      document.getElementById('profileChangePasswordForm').reset();
+      showToast('Пароль обновлён');
+    });
+
+    // --- Удаление аккаунта: поповер → ввод ника ---
+    const deleteBtn = document.getElementById('profileDeleteAccountBtn');
+    deleteBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openDeleteConfirmPopover(deleteBtn, username || originalUsername || '');
+    });
+  }
+
+  function openDeleteConfirmPopover(anchorBtn, expectedUsername) {
+    // убрать старый
+    document.getElementById('deleteAccountPopover')?.remove();
+
+    const pop = document.createElement('div');
+    pop.id = 'deleteAccountPopover';
+    pop.className = 'delete-account-popover';
+    pop.innerHTML = `
+      <p class="delete-pop-title">Вы уверены?</p>
+      <p class="delete-pop-desc">Это деактивирует аккаунт и скроет ваши данные.</p>
+      <div class="delete-pop-actions">
+        <button type="button" class="btn btn-secondary" id="deletePopCancel">Отмена</button>
+        <button type="button" class="btn" id="deletePopConfirm" style="background:#dc2626;color:#fff;">Удалить аккаунт</button>
+      </div>`;
+
+    // вставить рядом с кнопкой внутри окна профиля
+    const actions = anchorBtn.closest('.profile-page-actions') || anchorBtn.parentElement;
+    actions.style.position = 'relative';
+    actions.appendChild(pop);
+    // анимация
+    requestAnimationFrame(() => pop.classList.add('open'));
+
+    const closePop = () => {
+      pop.classList.remove('open');
+      setTimeout(() => pop.remove(), 180);
+      document.removeEventListener('click', onOutside);
+    };
+    const onOutside = (ev) => {
+      if (!pop.contains(ev.target) && ev.target !== anchorBtn) closePop();
+    };
+    setTimeout(() => document.addEventListener('click', onOutside), 0);
+
+    document.getElementById('deletePopCancel')?.addEventListener('click', closePop);
+    document.getElementById('deletePopConfirm')?.addEventListener('click', () => {
+      closePop();
+      openDeleteNicknameModal(expectedUsername);
+    });
+  }
+
+  function openDeleteNicknameModal(expectedUsername) {
+    document.getElementById('deleteNickBackdrop')?.remove();
+
+    const backdrop = document.createElement('div');
+    backdrop.id = 'deleteNickBackdrop';
+    backdrop.className = 'delete-nick-backdrop';
+    backdrop.innerHTML = `
+      <div class="delete-nick-modal" role="dialog" aria-modal="true">
+        <h3>Удаление аккаунта</h3>
+        <p class="delete-nick-desc">Введите свой никнейм <strong>@${expectedUsername || '…'}</strong>, чтобы подтвердить.</p>
+        <div class="form-group">
+          <div class="nickname-input-wrapper">
+            <span class="nickname-at">@</span>
+            <input type="text" id="deleteNickInput" placeholder="${expectedUsername || 'nickname'}" autocomplete="off" maxlength="15" />
+          </div>
+        </div>
+        <div class="auth-error" id="deleteNickError"></div>
+        <div class="delete-nick-actions">
+          <button type="button" class="btn btn-secondary" id="deleteNickCancel">Отмена</button>
+          <button type="button" class="btn" id="deleteNickSubmit" style="background:#dc2626;color:#fff;">Удалить навсегда</button>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    requestAnimationFrame(() => backdrop.classList.add('active'));
+
+    const close = () => {
+      backdrop.classList.remove('active');
+      setTimeout(() => backdrop.remove(), 220);
+    };
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+    document.getElementById('deleteNickCancel')?.addEventListener('click', close);
+
+    const input = document.getElementById('deleteNickInput');
+    input?.focus();
+
+    const doDelete = async () => {
+      const errEl = document.getElementById('deleteNickError');
+      const typed = (input?.value || '').trim().toLowerCase().replace(/^@/, '');
+      const expected = (expectedUsername || '').trim().toLowerCase();
+      if (!expected || typed !== expected) {
+        if (errEl) errEl.textContent = 'Никнейм не совпадает.';
+        return;
+      }
+      const submitBtn = document.getElementById('deleteNickSubmit');
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Удаляем…'; }
+
+      try {
+        const profileId = await getProfileId();
+        if (!profileId) throw new Error('Профиль не найден');
+
+        // soft-delete: флаг + время; auth-пользователь остаётся (полное удаление — Edge Function)
+        const { error } = await supabaseClient.from('profiles').update({
+          is_deleted: true,
+          deleted_at: new Date().toISOString()
+        }).eq('id', profileId);
+        if (error) {
+          // если колонки deleted_at нет — только is_deleted
+          if (/deleted_at|column/i.test(error.message || '')) {
+            const { error: e2 } = await supabaseClient.from('profiles').update({ is_deleted: true }).eq('id', profileId);
+            if (e2) throw e2;
+          } else {
+            throw error;
+          }
+        }
+
+        await supabaseClient.auth.signOut({ scope: 'global' });
+        close();
+        closeProfileWindow();
+        showToast('Аккаунт деактивирован');
+        setTimeout(() => {
+          const root = siteRootPrefix();
+          window.location.href = root + 'index.html';
+        }, 900);
+      } catch (err) {
+        console.error(err);
+        if (errEl) errEl.textContent = err.message || 'Не удалось удалить аккаунт.';
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Удалить навсегда'; }
+      }
+    };
+
+    document.getElementById('deleteNickSubmit')?.addEventListener('click', doDelete);
+    input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doDelete(); } });
+  }
+
+
+  // Пункт «Профиль» в меню / любые .profile-open-link
+  document.querySelectorAll('#profilePageLink, a.dropdown-item').forEach(el => {
+    if (el.id === 'profilePageLink' || (el.getAttribute('href') || '').includes('profile/profile')) {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        openProfileWindow();
+      });
+    }
+  });
+
+  // Старый URL / #profile — открыть окно профиля
+  if (/\/profile\//.test(window.location.pathname) || window.location.hash === '#profile') {
+    initialUserUIPromise.then(() => openProfileWindow());
   }
 });
