@@ -290,6 +290,147 @@ document.addEventListener("DOMContentLoaded", () => {
   })();
 
 
+
+
+  // Hero CTA на главной
+  document.getElementById('heroStartBtn')?.addEventListener('click', () => {
+    document.getElementById('ideas')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  document.getElementById('heroHowBtn')?.addEventListener('click', () => {
+    document.getElementById('articles')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // ================= Мультиаккаунт (локально в браузере) =================
+  const ACCOUNTS_KEY = 'ideanest_saved_accounts';
+
+  function loadSavedAccounts() {
+    try {
+      const raw = localStorage.getItem(ACCOUNTS_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch { return []; }
+  }
+
+  function persistSavedAccounts(list) {
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list.slice(0, 8)));
+  }
+
+  async function rememberCurrentAccount() {
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session?.user) return;
+      const u = session.user;
+      const entry = {
+        id: u.id,
+        email: u.email || '',
+        username: u.user_metadata?.username || (u.email || '').split('@')[0],
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        updated_at: Date.now()
+      };
+      let list = loadSavedAccounts().filter(a => a.id !== entry.id);
+      list.unshift(entry);
+      persistSavedAccounts(list);
+    } catch (e) { console.warn('remember account', e); }
+  }
+
+  async function switchToSavedAccount(accountId) {
+    const acc = loadSavedAccounts().find(a => a.id === accountId);
+    if (!acc?.access_token || !acc?.refresh_token) {
+      showToast('Сессия аккаунта устарела — войдите снова', true);
+      return;
+    }
+    const { error } = await supabaseClient.auth.setSession({
+      access_token: acc.access_token,
+      refresh_token: acc.refresh_token
+    });
+    if (error) {
+      showToast('Не удалось переключить: ' + error.message, true);
+      return;
+    }
+    await rememberCurrentAccount();
+    showToast('Аккаунт: ' + (acc.username || acc.email));
+    closeProfileDropdown();
+    setTimeout(() => location.reload(), 350);
+  }
+
+  function openAccountSwitcher() {
+    const list = loadSavedAccounts();
+    const currentId = currentUser?.id;
+    if (!list.length) {
+      showToast('Сохранённых аккаунтов пока нет. Войдите в другой — он появится здесь.');
+      return;
+    }
+    document.getElementById('accountSwitchBackdrop')?.remove();
+    const bd = document.createElement('div');
+    bd.id = 'accountSwitchBackdrop';
+    bd.className = 'account-switch-backdrop';
+    bd.innerHTML = `
+      <div class="account-switch-modal" role="dialog">
+        <h3>Переключить аккаунт</h3>
+        <div class="account-switch-list">
+          ${list.map(a => `
+            <button type="button" class="account-switch-item${a.id === currentId ? ' is-current' : ''}" data-acc-id="${a.id}">
+              <span class="account-switch-name">@${a.username || 'user'}</span>
+              <span class="account-switch-email">${a.email || ''}</span>
+              ${a.id === currentId ? '<span class="account-switch-badge">текущий</span>' : ''}
+            </button>
+          `).join('')}
+        </div>
+        <button type="button" class="btn btn-secondary" id="accountSwitchClose" style="width:100%;margin-top:12px;">Закрыть</button>
+      </div>`;
+    document.body.appendChild(bd);
+    requestAnimationFrame(() => bd.classList.add('active'));
+    bd.addEventListener('click', (e) => { if (e.target === bd) bd.remove(); });
+    document.getElementById('accountSwitchClose')?.addEventListener('click', () => bd.remove());
+    bd.querySelectorAll('[data-acc-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.accId;
+        if (id === currentId) { showToast('Уже этот аккаунт'); return; }
+        switchToSavedAccount(id);
+      });
+    });
+  }
+
+  function wireAccountMenuButtons() {
+    document.querySelectorAll('.profile-dropdown .dropdown-item').forEach(el => {
+      const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (text.includes('Текущий аккаунт') && !el.dataset.accWired) {
+        el.dataset.accWired = '1';
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!currentUser) { showToast('Вы не вошли'); return; }
+          const name = currentProfile?.username || currentUser.email || '';
+          showToast('Текущий: ' + name);
+        });
+      }
+      if (text.includes('Добавить аккаунт') && !el.dataset.accWired) {
+        el.dataset.accWired = '1';
+        el.addEventListener('click', async (e) => {
+          e.preventDefault();
+          await rememberCurrentAccount();
+          closeProfileDropdown();
+          await supabaseClient.auth.signOut({ scope: 'local' });
+          currentUser = null;
+          currentProfile = null;
+          if (loginBtn) loginBtn.style.display = '';
+          if (profileWrapper) profileWrapper.style.display = 'none';
+          openAuthModal('signin');
+          showToast('Войдите в другой аккаунт');
+        });
+      }
+      if (text.includes('Переключить аккаунт') && !el.dataset.accWired) {
+        el.dataset.accWired = '1';
+        el.addEventListener('click', (e) => {
+          e.preventDefault();
+          closeProfileDropdown();
+          openAccountSwitcher();
+        });
+      }
+    });
+  }
+  wireAccountMenuButtons();
+
   // ================= Навбар: конфиг + мегаменю =================
   const NAVBAR_LS_KEY = 'ideanest_navbar_desktop';
 
@@ -1009,9 +1150,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // Реагируем на любые изменения сессии: вход, выход, обновление токена
   supabaseClient.auth.onAuthStateChange((event) => {
     updateUserUI();
-    if (event === 'SIGNED_IN') showToast('Вы вошли в аккаунт');
+    if (event === 'SIGNED_IN') {
+      showToast('Вы вошли в аккаунт');
+      rememberCurrentAccount();
+    }
     if (event === 'PASSWORD_RECOVERY') openAuthModal('recovery');
   });
+  // если уже в сессии — запомнить
+  initialUserUIPromise.then(() => { if (currentUser) rememberCurrentAccount(); });
+
 
   const initialUserUIPromise = updateUserUI();
 
@@ -1327,23 +1474,46 @@ document.addEventListener("DOMContentLoaded", () => {
     return idea.title && idea.title.trim() ? idea.title : `Идея №${idea.id_idea}`;
   }
 
+  /** Обложка: cover_url | image_url | banner_url | thumbnail_url */
+  function mediaCoverUrl(row) {
+    if (!row) return '';
+    const u = row.cover_url || row.image_url || row.banner_url || row.thumbnail_url || '';
+    return (typeof u === 'string' && u.trim()) ? u.trim() : '';
+  }
+
+  function escapeAttr(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function renderCardCover(url, fallbackClass) {
+    if (url) {
+      return `<div class="card-cover" style="background-image:url('${escapeAttr(url)}')"></div>`;
+    }
+    return `<div class="card-cover card-cover--fallback ${fallbackClass || ''}"></div>`;
+  }
+
   function renderIdeaCard(idea, { featured } = {}) {
     const len = featured ? 180 : 110;
     const shortText = (idea.pluses || idea.risks || 'Описание пока не заполнено.').slice(0, len);
-    const cls = featured ? 'card card--featured' : 'card';
+    const cls = featured ? 'card card--has-cover card--featured' : 'card card--has-cover';
     const badge = featured
       ? `<span class="card-featured-badge"><i data-lucide="star"></i> Главная идея статьи</span>`
       : '';
+    const cat = (idea.category || 'default').toLowerCase();
+    const cover = renderCardCover(mediaCoverUrl(idea), 'card-cover--idea-' + cat);
     return `
       <div class="${cls}" data-idea-id="${idea.id_idea}">
-        ${badge}
-        <span class="card-tag">${idea.complexity || 'Сложность не указана'}</span>
-        <h3 class="card-title">${ideaTitle(idea)}</h3>
-        <p class="card-desc">${shortText}${shortText.length >= len ? '…' : ''}</p>
-        <div class="card-footer">
-          <span>${formatBudget(idea.budget)}</span>
-          <div class="card-rating">
-            <i data-lucide="star" style="width:14px; height:14px; fill: currentColor;"></i> ${idea.rating != null ? Number(idea.rating).toFixed(1) : '—'}
+        ${cover}
+        <div class="card-body">
+          ${badge}
+          <span class="card-tag">${idea.complexity || idea.category || 'Идея'}</span>
+          <h3 class="card-title">${ideaTitle(idea)}</h3>
+          <p class="card-desc">${shortText}${shortText.length >= len ? '…' : ''}</p>
+          <div class="card-footer">
+            <span>${formatBudget(idea.budget)}</span>
+            <div class="card-rating">
+              <i data-lucide="star" style="width:14px; height:14px; fill: currentColor;"></i> ${idea.rating != null ? Number(idea.rating).toFixed(1) : '—'}
+            </div>
           </div>
         </div>
       </div>`;
@@ -1360,6 +1530,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <span class="idea-pill"><i data-lucide="trending-up"></i> ${idea.potential || '—'}</span>
         <span class="idea-pill"><i data-lucide="star"></i> ${idea.rating != null ? Number(idea.rating).toFixed(1) : '—'}</span>
       </div>
+      <div id="ideaPaybackMount">${renderPaybackCalcHTML(idea.budget || 0, 0)}</div>
       <div class="idea-field-block">
         <h4><i data-lucide="thumbs-up"></i> Плюсы</h4>
         <p>${idea.pluses || 'Не заполнено.'}</p>
@@ -1380,12 +1551,20 @@ document.addEventListener("DOMContentLoaded", () => {
     ideaBackdrop.classList.add('active');
   }
 
+  const isHomePage = !!(
+    document.getElementById('ideasGrid') &&
+    document.getElementById('articlesGrid') &&
+    !document.getElementById('ideaSearchInput')
+  );
+  const HOME_ROW_LIMIT = 6; // ~2 ряда при 3 колонках
+
   function renderIdeasList(list) {
     if (!ideasGrid) return;
+    const shown = isHomePage ? list.slice(0, HOME_ROW_LIMIT) : list;
     ideasGrid.classList.add('grid-fade');
     setTimeout(() => {
-      ideasGrid.innerHTML = list.length
-        ? list.map(idea => renderIdeaCard(idea, {
+      ideasGrid.innerHTML = shown.length
+        ? shown.map(idea => renderIdeaCard(idea, {
             featured: !!(filterArticleId && mainIdeaIdForArticle && Number(idea.id_idea) === mainIdeaIdForArticle)
           })).join('')
         : '<p style="opacity:0.6;">Ничего не найдено по заданным фильтрам.</p>';
@@ -1490,6 +1669,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return { cleaned, blocks };
   }
 
+
   function extractYoutubeId(url) {
     if (!url) return null;
     const m = String(url).match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
@@ -1508,25 +1688,313 @@ document.addEventListener("DOMContentLoaded", () => {
     return s;
   }
 
+
+  function renderCalcHTML(opts) {
+    opts = opts || {};
+    const inv = Math.max(0, Number(opts.invest) || 0);
+    const profit = Number(opts.monthly_profit) || 0;
+    const price = Number(opts.price) || 0;
+    const cost = Number(opts.cost) || 0;
+    const fixed = Number(opts.fixed) || 0;
+    const cac = Number(opts.cac) || 0;
+    const ltv = Number(opts.ltv) || 0;
+    const margin = Number(opts.margin) || 0; // %
+    const mode = (opts.mode || 'payback').toLowerCase();
+    const id = 'calc-' + Math.random().toString(36).slice(2, 9);
+
+    function tab(name, label) {
+      const on = mode === name ? ' is-active' : '';
+      return '<button type="button" class="biz-calc-tab' + on + '" data-calc-tab="' + name + '">' + label + '</button>';
+    }
+
+    return (
+      '<div class="biz-calc" data-calc-id="' + id + '" data-calc-mode="' + mode + '">' +
+        '<div class="biz-calc-header">' +
+          '<i data-lucide="calculator"></i>' +
+          '<div>' +
+            '<div class="biz-calc-title">Бизнес-калькулятор</div>' +
+            '<div class="biz-calc-sub">Окупаемость · безубыточность · unit-экономика</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="biz-calc-tabs">' +
+          tab('payback', 'Окупаемость') +
+          tab('breakeven', 'Безубыточность') +
+          tab('unit', 'Unit-экономика') +
+          tab('budget', 'Бюджет') +
+        '</div>' +
+
+        // PAYBACK
+        '<div class="biz-calc-panel" data-panel="payback">' +
+          '<div class="biz-calc-fields">' +
+            '<label class="biz-calc-field"><span>Стартовые вложения, ₽</span>' +
+              '<input type="number" min="0" step="1000" data-f="invest" value="' + (inv || '') + '" placeholder="300000" /></label>' +
+            '<label class="biz-calc-field"><span>Чистая прибыль / мес, ₽</span>' +
+              '<input type="number" step="1000" data-f="monthly_profit" value="' + (profit || '') + '" placeholder="40000" /></label>' +
+          '</div>' +
+          '<div class="biz-calc-result">' +
+            '<div class="biz-calc-result-main"><span class="biz-calc-result-label">Окупаемость</span><span class="biz-calc-result-value" data-out="payback-months">—</span></div>' +
+            '<div class="biz-calc-result-side">' +
+              '<div><span class="biz-calc-result-label">Прибыль за год</span><span data-out="payback-year">—</span></div>' +
+              '<div><span class="biz-calc-result-label">Доходность</span><span data-out="payback-roi">—</span></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        // BREAKEVEN
+        '<div class="biz-calc-panel" data-panel="breakeven">' +
+          '<div class="biz-calc-fields biz-calc-fields--3">' +
+            '<label class="biz-calc-field"><span>Постоянные расходы / мес, ₽</span>' +
+              '<input type="number" min="0" step="1000" data-f="fixed" value="' + (fixed || '') + '" placeholder="80000" /></label>' +
+            '<label class="biz-calc-field"><span>Цена продажи, ₽</span>' +
+              '<input type="number" min="0" step="10" data-f="price" value="' + (price || '') + '" placeholder="1500" /></label>' +
+            '<label class="biz-calc-field"><span>Себестоимость ед., ₽</span>' +
+              '<input type="number" min="0" step="10" data-f="cost" value="' + (cost || '') + '" placeholder="600" /></label>' +
+          '</div>' +
+          '<div class="biz-calc-result">' +
+            '<div class="biz-calc-result-main"><span class="biz-calc-result-label">Нужно продаж / мес</span><span class="biz-calc-result-value" data-out="be-units">—</span></div>' +
+            '<div class="biz-calc-result-side">' +
+              '<div><span class="biz-calc-result-label">Маржа с ед.</span><span data-out="be-margin">—</span></div>' +
+              '<div><span class="biz-calc-result-label">Выручка в точке</span><span data-out="be-revenue">—</span></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        // UNIT
+        '<div class="biz-calc-panel" data-panel="unit">' +
+          '<div class="biz-calc-fields biz-calc-fields--3">' +
+            '<label class="biz-calc-field"><span>CAC (стоимость клиента), ₽</span>' +
+              '<input type="number" min="0" step="10" data-f="cac" value="' + (cac || '') + '" placeholder="500" /></label>' +
+            '<label class="biz-calc-field"><span>LTV (доход с клиента), ₽</span>' +
+              '<input type="number" min="0" step="10" data-f="ltv" value="' + (ltv || '') + '" placeholder="3000" /></label>' +
+            '<label class="biz-calc-field"><span>Маржа, %</span>' +
+              '<input type="number" min="0" max="100" step="1" data-f="margin" value="' + (margin || '') + '" placeholder="60" /></label>' +
+          '</div>' +
+          '<div class="biz-calc-result">' +
+            '<div class="biz-calc-result-main"><span class="biz-calc-result-label">LTV / CAC</span><span class="biz-calc-result-value" data-out="unit-ratio">—</span></div>' +
+            '<div class="biz-calc-result-side">' +
+              '<div><span class="biz-calc-result-label">Чистый LTV</span><span data-out="unit-net">—</span></div>' +
+              '<div><span class="biz-calc-result-label">Вердикт</span><span data-out="unit-verdict">—</span></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        // BUDGET
+        '<div class="biz-calc-panel" data-panel="budget">' +
+          '<div class="biz-calc-fields biz-calc-fields--3">' +
+            '<label class="biz-calc-field"><span>Оборудование / закуп, ₽</span>' +
+              '<input type="number" min="0" step="1000" data-f="eq" value="' + (Number(opts.eq) || '') + '" placeholder="100000" /></label>' +
+            '<label class="biz-calc-field"><span>Аренда (первый период), ₽</span>' +
+              '<input type="number" min="0" step="1000" data-f="rent" value="' + (Number(opts.rent) || '') + '" placeholder="50000" /></label>' +
+            '<label class="biz-calc-field"><span>Реклама на старт, ₽</span>' +
+              '<input type="number" min="0" step="1000" data-f="ads" value="' + (Number(opts.ads) || '') + '" placeholder="30000" /></label>' +
+            '<label class="biz-calc-field"><span>Фонд зарплат, ₽</span>' +
+              '<input type="number" min="0" step="1000" data-f="payroll" value="' + (Number(opts.payroll) || '') + '" placeholder="80000" /></label>' +
+            '<label class="biz-calc-field"><span>Прочее / подушка, ₽</span>' +
+              '<input type="number" min="0" step="1000" data-f="other" value="' + (Number(opts.other) || '') + '" placeholder="40000" /></label>' +
+          '</div>' +
+          '<div class="biz-calc-result">' +
+            '<div class="biz-calc-result-main"><span class="biz-calc-result-label">Итого на запуск</span><span class="biz-calc-result-value" data-out="budget-total">—</span></div>' +
+            '<div class="biz-calc-result-side">' +
+              '<div><span class="biz-calc-result-label">Доля рекламы</span><span data-out="budget-ads-pct">—</span></div>' +
+              '<div><span class="biz-calc-result-label">Доля подушки</span><span data-out="budget-other-pct">—</span></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<p class="biz-calc-hint">Цифры можно менять — пересчёт сразу. Это оценка, не финансовый совет.</p>' +
+      '</div>'
+    );
+  }
+
+  // backward-compatible alias
+  function renderPaybackCalcHTML(invest, monthlyProfit) {
+    return renderCalcHTML({ invest: invest, monthly_profit: monthlyProfit, mode: 'payback' });
+  }
+
+  function extractCalcBlocks(text) {
+    const blocks = [];
+    // new unified :::calc  and old :::calc-payback
+    const re = /:::(calc-payback|calc)\s*\n?([\s\S]*?)\n?:::/gi;
+    const cleaned = text.replace(re, (_, tag, body) => {
+      const params = {};
+      String(body || '').split('\n').forEach(line => {
+        const m = line.match(/^\s*([\w_]+)\s*:\s*(.+?)\s*$/);
+        if (m) params[m[1].toLowerCase()] = m[2].trim();
+      });
+      const num = (k) => parseFloat(String(params[k] || '0').replace(/\s/g, '').replace(',', '.')) || 0;
+      const opts = {
+        mode: (params.mode || (tag === 'calc-payback' ? 'payback' : 'payback')).toLowerCase(),
+        invest: num('invest') || num('budget'),
+        monthly_profit: num('monthly_profit') || num('profit') || num('monthly'),
+        price: num('price'),
+        cost: num('cost') || num('cogs'),
+        fixed: num('fixed') || num('fixed_costs'),
+        cac: num('cac'),
+        ltv: num('ltv'),
+        margin: num('margin'),
+        eq: num('eq') || num('equipment'),
+        rent: num('rent'),
+        ads: num('ads') || num('marketing'),
+        payroll: num('payroll') || num('salary'),
+        other: num('other') || num('buffer')
+      };
+      const idx = blocks.length;
+      blocks.push(renderCalcHTML(opts));
+      return '\n@@CALCBLOCK' + idx + '@@\n';
+    });
+    return { cleaned, blocks };
+  }
+
+  function fmtMoney(n) {
+    return Number(n || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 }) + ' ₽';
+  }
+  function fmtNum(n, d) {
+    return Number(n || 0).toLocaleString('ru-RU', { maximumFractionDigits: d == null ? 1 : d });
+  }
+
+  function updateBizCalc(root) {
+    if (!root) return;
+    const val = (name) => parseFloat(root.querySelector('[data-f="' + name + '"]') && root.querySelector('[data-f="' + name + '"]').value) || 0;
+    const set = (key, text) => {
+      const el = root.querySelector('[data-out="' + key + '"]');
+      if (el) el.textContent = text;
+    };
+
+    // payback
+    const inv = val('invest');
+    const profit = val('monthly_profit');
+    set('payback-year', fmtMoney(profit * 12));
+    if (profit <= 0) {
+      set('payback-months', profit < 0 ? 'убыток' : '—');
+      set('payback-roi', '—');
+    } else {
+      const months = inv > 0 ? inv / profit : 0;
+      set('payback-months', months < 0.1 ? 'сразу' : (fmtNum(months) + ' мес.'));
+      set('payback-roi', inv > 0 ? (fmtNum((profit * 12 / inv) * 100) + '% / год') : '—');
+    }
+
+    // breakeven
+    const price = val('price');
+    const cost = val('cost');
+    const fixed = val('fixed');
+    const unitMargin = price - cost;
+    set('be-margin', unitMargin > 0 ? fmtMoney(unitMargin) : '—');
+    if (unitMargin <= 0) {
+      set('be-units', 'нет маржи');
+      set('be-revenue', '—');
+    } else {
+      const units = Math.ceil(fixed / unitMargin);
+      set('be-units', units.toLocaleString('ru-RU') + ' шт.');
+      set('be-revenue', fmtMoney(units * price));
+    }
+
+    // unit
+    const cac = val('cac');
+    const ltv = val('ltv');
+    const marginPct = val('margin');
+    const netLtv = marginPct > 0 ? ltv * (marginPct / 100) : ltv;
+    set('unit-net', netLtv > 0 ? fmtMoney(netLtv) : '—');
+    if (cac <= 0) {
+      set('unit-ratio', '—');
+      set('unit-verdict', '—');
+    } else {
+      const ratio = netLtv / cac;
+      set('unit-ratio', fmtNum(ratio, 2) + '×');
+      let verdict = 'слабо';
+      if (ratio >= 3) verdict = 'отлично';
+      else if (ratio >= 2) verdict = 'норма';
+      else if (ratio >= 1) verdict = 'на грани';
+      set('unit-verdict', verdict);
+    }
+
+    // budget
+    const total = val('eq') + val('rent') + val('ads') + val('payroll') + val('other');
+    set('budget-total', fmtMoney(total));
+    set('budget-ads-pct', total > 0 ? (fmtNum(val('ads') / total * 100, 0) + '%') : '—');
+    set('budget-other-pct', total > 0 ? (fmtNum(val('other') / total * 100, 0) + '%') : '—');
+
+    // status coloring on main value of active panel
+    const mode = root.dataset.calcMode || 'payback';
+    root.classList.remove('is-good', 'is-bad');
+    if (mode === 'payback' && profit > 0 && inv > 0) {
+      const m = inv / profit;
+      if (m <= 18) root.classList.add('is-good');
+      if (m > 36) root.classList.add('is-bad');
+    }
+    if (mode === 'unit' && cac > 0) {
+      const ratio = netLtv / cac;
+      if (ratio >= 3) root.classList.add('is-good');
+      if (ratio < 1) root.classList.add('is-bad');
+    }
+  }
+
+  function wirePaybackCalcs(container) {
+    const root = container || document;
+    root.querySelectorAll('.biz-calc, .payback-calc').forEach(calc => {
+      if (calc.dataset.wired) return;
+      calc.dataset.wired = '1';
+      // migrate old class
+      if (calc.classList.contains('payback-calc') && !calc.classList.contains('biz-calc')) {
+        calc.classList.add('biz-calc');
+      }
+      const setMode = (mode) => {
+        calc.dataset.calcMode = mode;
+        calc.querySelectorAll('.biz-calc-tab').forEach(t => {
+          t.classList.toggle('is-active', t.dataset.calcTab === mode);
+        });
+        calc.querySelectorAll('.biz-calc-panel').forEach(p => {
+          p.classList.toggle('is-active', p.dataset.panel === mode);
+        });
+        updateBizCalc(calc);
+      };
+      calc.querySelectorAll('.biz-calc-tab').forEach(tab => {
+        tab.addEventListener('click', () => setMode(tab.dataset.calcTab));
+      });
+      calc.querySelectorAll('input').forEach(inp => {
+        inp.addEventListener('input', () => updateBizCalc(calc));
+        inp.addEventListener('change', () => updateBizCalc(calc));
+      });
+      setMode(calc.dataset.calcMode || 'payback');
+    });
+    if (window.lucide) lucide.createIcons();
+  }
+
   function renderMarkdown(text) {
     if (!text) return '<p>Текст пока не заполнен.</p>';
     const withMedia = preprocessMediaMarkdown(text);
-    const { cleaned, blocks } = extractInfoBlocks(withMedia);
+    const calc = extractCalcBlocks(withMedia);
+    const extracted = extractInfoBlocks(calc.cleaned);
+    const cleaned = extracted.cleaned;
+    const blocks = extracted.blocks;
     let html;
     if (window.marked && window.DOMPurify) {
       html = marked.parse(cleaned, { breaks: true });
     } else {
-      html = `<p style="white-space: pre-line;">${cleaned.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`;
+      html = '<p style="white-space: pre-line;">' + cleaned.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>';
     }
-    blocks.forEach((b, i) => {
-      html = html.replace(new RegExp(`<p>\\s*@@INFOBLOCK${i}@@\\s*</p>|@@INFOBLOCK${i}@@`), b);
+    calc.blocks.forEach((b, i) => {
+      const token = '@@CALCBLOCK' + i + '@@';
+      html = html.split('<p>' + token + '</p>').join(b).split(token).join(b);
     });
-    html = html.replace(/<p>\s*@@YOUTUBE:([\w-]{6,})@@\s*<\/p>|@@YOUTUBE:([\w-]{6,})@@/g, (_, a, b) => {
-      const id = a || b;
+    blocks.forEach((b, i) => {
+      const token = '@@INFOBLOCK' + i + '@@';
+      html = html.split('<p>' + token + '</p>').join(b).split(token).join(b);
+    });
+    // youtube placeholders
+    html = html.replace(/@@YOUTUBE:([\w-]{6,})@@/g, function (_, id) {
       return '<div class="video-embed"><iframe src="https://www.youtube.com/embed/' + id + '" title="YouTube" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>';
     });
+    html = html.replace(/<p>\s*<div class="video-embed">/g, '<div class="video-embed">');
+    html = html.replace(/<\/iframe><\/div>\s*<\/p>/g, '</iframe></div>');
     html = html.replace(/<img /g, '<img class="article-md-img" loading="lazy" ');
-    const purifyCfg = { ADD_TAGS: ['iframe'], ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'src', 'title', 'loading'] };
+    const purifyCfg = {
+      ADD_TAGS: ['iframe', 'input', 'label'],
+      ADD_ATTR: [
+        'allow', 'allowfullscreen', 'frameborder', 'src', 'title', 'loading',
+        'type', 'min', 'max', 'step', 'value', 'placeholder', 'class', 'id',
+        'data-payback-id', 'data-payback-months', 'data-payback-year', 'data-payback-roi'
+      ]
+    };
     return window.DOMPurify ? DOMPurify.sanitize(html, purifyCfg) : html;
   }
 
@@ -1605,18 +2073,22 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderArticleCard(article, { featured } = {}) {
-    const cls = featured ? 'card card--featured' : 'card';
+    const cls = featured ? 'card card--has-cover card--featured' : 'card card--has-cover';
     const badge = featured
       ? `<span class="card-featured-badge"><i data-lucide="star"></i> Главная по идее</span>`
       : '';
+    const cover = renderCardCover(mediaCoverUrl(article), 'card-cover--article');
     return `
       <div class="${cls}" data-article-id="${article.id}">
-        ${badge}
-        <span class="card-tag">${articleAuthor(article)}</span>
-        <h3 class="card-title">${article.title || 'Без названия'}</h3>
-        <p class="card-desc">${articleExcerpt(article, featured ? 180 : 130)}</p>
-        <div class="card-footer">
-          <span>${formatDate(article.created_at)}</span>
+        ${cover}
+        <div class="card-body">
+          ${badge}
+          <span class="card-tag">${articleAuthor(article)}</span>
+          <h3 class="card-title">${article.title || 'Без названия'}</h3>
+          <p class="card-desc">${articleExcerpt(article, featured ? 180 : 130)}</p>
+          <div class="card-footer">
+            <span>${formatDate(article.created_at)}</span>
+          </div>
         </div>
       </div>`;
   }
@@ -1668,8 +2140,11 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (e) { articlesCache.forEach(a => { a._popularity = 0; }); }
         initArticleListControls();
       } else {
-        targetGrid.innerHTML = articlesCache.length
-          ? articlesCache.map(renderArticleCard).join('')
+        const homeArts = (typeof isHomePage !== 'undefined' && isHomePage)
+          ? articlesCache.slice(0, HOME_ROW_LIMIT)
+          : articlesCache;
+        targetGrid.innerHTML = homeArts.length
+          ? homeArts.map(renderArticleCard).join('')
           : '<p style="opacity:0.6;">Пока нет ни одной статьи в базе.</p>';
         if (window.lucide) lucide.createIcons();
         wireArticleCardClicks(targetGrid);
@@ -1975,8 +2450,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     container.innerHTML = `
+      ${mediaCoverUrl(article) ? `
+      <div class="article-hero" style="background-image:url('${escapeAttr(mediaCoverUrl(article))}')">
+        <div class="article-hero-overlay">
+          <span class="card-tag idea-hero-tag">${articleAuthor(article)}</span>
+          <h1 class="idea-hero-title">${article.title || 'Без названия'}</h1>
+        </div>
+      </div>` : `
       <span class="card-tag">${articleAuthor(article)}</span>
       <h1 class="idea-modal-title">${article.title || 'Без названия'}</h1>
+      `}
       <div class="idea-pill-row">
         <span class="idea-pill"><i data-lucide="calendar"></i> ${formatDate(article.created_at) || 'дата не указана'}</span>
       </div>
@@ -1997,6 +2480,7 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
     if (window.lucide) lucide.createIcons();
     wireFaqCard(document.getElementById('articleFaqContainer'));
+    wirePaybackCalcs(document.getElementById('articleBody') || document);
     loadRelatedArticles(article, document.getElementById('articleRelatedContainer'));
     loadRelatedIdeas(articleId, document.getElementById('articleRelatedIdeasContainer'));
 
@@ -2130,6 +2614,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <span class="idea-pill"><i data-lucide="trending-up"></i> ${idea.potential || '—'}</span>
         <span class="idea-pill"><i data-lucide="star"></i> ${idea.rating != null ? Number(idea.rating).toFixed(1) : '—'}</span>
       </div>
+      <div id="ideaPaybackMount">${renderPaybackCalcHTML(idea.budget || 0, 0)}</div>
       <div class="idea-field-block">
         <h4><i data-lucide="thumbs-up"></i> Плюсы</h4>
         <p>${idea.pluses || 'Не заполнено.'}</p>
@@ -2154,6 +2639,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div id="ideaRelatedArticles"></div>
     `;
     if (window.lucide) lucide.createIcons();
+    wirePaybackCalcs(container);
 
     // Главная статья идеи (articles.main_idea_id = эта идея) + остальные связанные
     try {
