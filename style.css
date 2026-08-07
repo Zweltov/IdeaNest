@@ -2965,3 +2965,12 @@ html.nav-as-buttons .nav-link.active::after {
   color: var(--text-muted);
   line-height: 1.4;
 }
+
+
+/* fix: filters clickable */
+.filters-actions { position: relative; z-index: 5; }
+.filters-actions .sort-dropdown.open { z-index: 100; }
+.ideas-filter-sidebar { position: relative; z-index: 4; }
+.sort-dropdown-menu { z-index: 90; }
+.settings-panel.active { display: block !important; }
+.settings-panel:not(.active) { display: none !important; }

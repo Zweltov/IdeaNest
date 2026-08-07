@@ -1148,6 +1148,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Реагируем на любые изменения сессии: вход, выход, обновление токена
+  const initialUserUIPromise = updateUserUI();
+
   supabaseClient.auth.onAuthStateChange((event) => {
     updateUserUI();
     if (event === 'SIGNED_IN') {
@@ -1158,9 +1160,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   // если уже в сессии — запомнить
   initialUserUIPromise.then(() => { if (currentUser) rememberCurrentAccount(); });
-
-
-  const initialUserUIPromise = updateUserUI();
 
   // ================= 4. Тосты (уведомления) =================
   window.showToast = function (message, isError) {
@@ -1351,7 +1350,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setActive();
     if (window.lucide) lucide.createIcons();
 
-    btn.addEventListener('click', (e) => {
+    btn?.addEventListener('click', (e) => {
       e.stopPropagation();
       document.querySelectorAll('.sort-dropdown.open').forEach(el => { if (el !== dropdown) el.classList.remove('open'); });
       dropdown.classList.toggle('open');
@@ -1359,7 +1358,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener('click', (e) => { if (!dropdown.contains(e.target)) dropdown.classList.remove('open'); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dropdown.classList.remove('open'); });
 
-    menu.querySelectorAll('.sort-dropdown-item').forEach(item => {
+    menu?.querySelectorAll('.sort-dropdown-item').forEach(item => {
       item.addEventListener('click', () => {
         currentIdeaSort = item.dataset.sort;
         localStorage.setItem('ideanest_idea_sort', currentIdeaSort);
@@ -2112,46 +2111,79 @@ document.addEventListener("DOMContentLoaded", () => {
     articleBackdrop.classList.add('active');
   }
 
+  function paintArticlesGrid(grid, list) {
+    if (!grid) return;
+    try {
+      grid.innerHTML = list.length
+        ? list.map(a => renderArticleCard(a)).join('')
+        : '<p style="opacity:0.6;">Пока нет ни одной статьи в базе.</p>';
+      if (window.lucide) lucide.createIcons();
+      wireArticleCardClicks(grid);
+    } catch (err) {
+      console.error('Ошибка отрисовки статей:', err);
+      grid.innerHTML = '<p style="opacity:0.6;">Не удалось отобразить статьи.</p>';
+    }
+  }
+
   async function loadArticlesFromSupabase() {
     const articlesPageGrid = document.getElementById('articlesPageGrid');
-    const targetGrid = articlesGrid || articlesPageGrid;
+    const targetGrid = document.getElementById('articlesGrid') || articlesPageGrid;
     if (!targetGrid) return;
     try {
-      // Пробуем подтянуть автора через связь с profiles; если внешний ключ
-      // в Supabase не настроен, откатываемся к обычной выборке без автора.
-      let { data, error } = await supabaseClient
-        .from('articles')
-        .select('*, profiles(username)')
-        .order('created_at', { ascending: false });
-      if (error) {
-        const fallback = await supabaseClient.from('articles').select('*').order('created_at', { ascending: false });
-        data = fallback.data; error = fallback.error;
-        if (error) throw error;
+      // Сначала простой select — без join (join часто ломается без FK и даёт пустой ответ/ошибку)
+      let data = null;
+      let error = null;
+      {
+        const res = await supabaseClient
+          .from('articles')
+          .select('*')
+          .order('created_at', { ascending: false });
+        data = res.data;
+        error = res.error;
       }
+      if (error) throw error;
+
       articlesCache = data || [];
 
-      // Для сортировки "по популярности" считаем апвоуты статей одним запросом
+      // Опционально подтянуть ники (не блокируем список)
+      try {
+        const { data: withAuthors } = await supabaseClient
+          .from('articles')
+          .select('id, profiles(username)')
+          .order('created_at', { ascending: false });
+        if (withAuthors && withAuthors.length) {
+          const map = {};
+          withAuthors.forEach(r => { map[r.id] = r.profiles; });
+          articlesCache.forEach(a => {
+            if (map[a.id]) a.profiles = map[a.id];
+          });
+        }
+      } catch (_) { /* ignore */ }
+
       if (articlesPageGrid) {
         try {
           const { data: upvotes } = await supabaseClient.from('upvotes_articles').select('id_article');
           const counts = {};
           (upvotes || []).forEach(r => { counts[r.id_article] = (counts[r.id_article] || 0) + 1; });
           articlesCache.forEach(a => { a._popularity = counts[a.id] || 0; });
-        } catch (e) { articlesCache.forEach(a => { a._popularity = 0; }); }
-        initArticleListControls();
+        } catch (e) {
+          articlesCache.forEach(a => { a._popularity = 0; });
+        }
+        try {
+          initArticleListControls();
+        } catch (e) {
+          console.error('initArticleListControls:', e);
+          paintArticlesGrid(articlesPageGrid, articlesCache);
+        }
       } else {
         const homeArts = (typeof isHomePage !== 'undefined' && isHomePage)
-          ? articlesCache.slice(0, HOME_ROW_LIMIT)
+          ? articlesCache.slice(0, (typeof HOME_ROW_LIMIT !== 'undefined' ? HOME_ROW_LIMIT : 6))
           : articlesCache;
-        targetGrid.innerHTML = homeArts.length
-          ? homeArts.map(renderArticleCard).join('')
-          : '<p style="opacity:0.6;">Пока нет ни одной статьи в базе.</p>';
-        if (window.lucide) lucide.createIcons();
-        wireArticleCardClicks(targetGrid);
+        paintArticlesGrid(targetGrid, homeArts);
       }
     } catch (e) {
       console.error('Ошибка загрузки статей:', e);
-      targetGrid.innerHTML = '<p style="opacity:0.6;">Не удалось загрузить статьи.</p>';
+      targetGrid.innerHTML = '<p style="opacity:0.6;">Не удалось загрузить статьи. Проверь RLS и таблицу articles.</p>';
     }
   }
 
@@ -2254,6 +2286,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function sortAndRender() {
+      try {
       const query = (searchInput?.value || '').trim().toLowerCase();
       let list = [...articlesCache];
 
@@ -2283,13 +2316,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
       grid.classList.add('grid-fade');
       setTimeout(() => {
-        grid.innerHTML = list.length
-          ? list.map(a => renderArticleCard(a, { featured: isMainForFilter(a) })).join('')
-          : '<p style="opacity:0.6;">Ничего не найдено.</p>';
-        if (window.lucide) lucide.createIcons();
-        wireArticleCardClicks(grid);
+        try {
+          grid.innerHTML = list.length
+            ? list.map(a => renderArticleCard(a, { featured: isMainForFilter(a) })).join('')
+            : '<p style="opacity:0.6;">Ничего не найдено.</p>';
+          if (window.lucide) lucide.createIcons();
+          wireArticleCardClicks(grid);
+        } catch (err) {
+          console.error(err);
+          grid.innerHTML = '<p style="opacity:0.6;">Ошибка отображения статей.</p>';
+        }
         grid.classList.remove('grid-fade');
       }, 190);
+      } catch (err) {
+        console.error('sortAndRender:', err);
+        grid.innerHTML = '<p style="opacity:0.6;">Ошибка фильтрации статей.</p>';
+      }
     }
 
     // UI-выбор идеи для фильтра
@@ -2354,7 +2396,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (filterIdeaId) resolveFilterIdea();
     else sortAndRender();
 
-    btn.addEventListener('click', (e) => {
+    btn?.addEventListener('click', (e) => {
       e.stopPropagation();
       document.querySelectorAll('.sort-dropdown.open').forEach(el => { if (el !== dropdown) el.classList.remove('open'); });
       dropdown.classList.toggle('open');
@@ -2362,7 +2404,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener('click', (e) => { if (!dropdown.contains(e.target)) dropdown.classList.remove('open'); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') dropdown.classList.remove('open'); });
 
-    menu.querySelectorAll('.sort-dropdown-item').forEach(item => {
+    menu?.querySelectorAll('.sort-dropdown-item').forEach(item => {
       item.addEventListener('click', () => {
         currentSort = item.dataset.sort;
         localStorage.setItem('ideanest_article_sort', currentSort);
@@ -2761,17 +2803,28 @@ document.addEventListener("DOMContentLoaded", () => {
   if (settingsNav) {
     const navItems = settingsNav.querySelectorAll('.settings-nav-item');
     navItems.forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const tab = item.getAttribute('data-settings-tab') || item.dataset.settingsTab;
+        const panel = tab ? document.getElementById('settingsPanel-' + tab) : null;
+        if (!panel) {
+          console.warn('Нет панели настроек:', tab);
+          return;
+        }
         navItems.forEach(i => i.classList.remove('active'));
         item.classList.add('active');
         document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
-        document.getElementById(`settingsPanel-${item.dataset.settingsTab}`).classList.add('active');
+        panel.classList.add('active');
       });
     });
+    // навбар-конфиг не зависит от логина
+    try { renderNavbarConfigSettings(); } catch (e) { console.warn(e); }
     initialUserUIPromise.then(() => {
       loadGeneralSettings();
       loadThemeSettings();
       loadPrivacySettings();
+      try { renderNavbarConfigSettings(); } catch (e) { console.warn(e); }
     });
     // навбар-конфиг доступен сразу (localStorage)
     renderNavbarConfigSettings();
