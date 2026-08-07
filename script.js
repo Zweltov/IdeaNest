@@ -320,10 +320,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (!session?.user) return;
       const u = session.user;
+      const username = u.user_metadata?.username || (u.email || '').split('@')[0] || 'user';
+      const fullName = (u.user_metadata?.full_name || '').trim();
+      let avatar = (currentProfile && currentProfile.avatar_url) || u.user_metadata?.avatar_url || '';
+      if (!avatar) {
+        const label = fullName || username;
+        avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=111827&color=fff&bold=true`;
+      }
       const entry = {
         id: u.id,
         email: u.email || '',
-        username: u.user_metadata?.username || (u.email || '').split('@')[0],
+        username,
+        full_name: fullName || '',
+        avatar_url: avatar,
         access_token: session.access_token,
         refresh_token: session.refresh_token,
         updated_at: Date.now()
@@ -334,59 +343,200 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (e) { console.warn('remember account', e); }
   }
 
+  
+  
+  function accountAvatarUrl(acc) {
+    if (!acc) return 'https://ui-avatars.com/api/?name=U&background=111827&color=fff&bold=true';
+    if (acc.avatar_url) return acc.avatar_url;
+    const label = acc.full_name || acc.username || 'U';
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=111827&color=fff&bold=true`;
+  }
+
+
+  function playAccountSwitchCinematic(fromAcc, toAcc) {
+    return new Promise((resolve) => {
+      document.getElementById('accCineOverlay')?.remove();
+      const fromUrl = accountAvatarUrl(fromAcc);
+      const toUrl = accountAvatarUrl(toAcc);
+
+      // ТОЛЬКО аватарка в навбаре справа сверху (#topAvatar) — не dropdown
+      const avatarEl = document.getElementById('topAvatar');
+      if (!avatarEl) {
+        resolve();
+        return;
+      }
+      const rect = avatarEl.getBoundingClientRect();
+      // если элемент скрыт/нулевой — не рисуем «левый» круг
+      if (rect.width < 8 || rect.height < 8) {
+        resolve();
+        return;
+      }
+      const size = Math.max(rect.width, rect.height);
+
+      // прячем только навбарную аву
+      avatarEl.style.opacity = '0';
+
+      const overlay = document.createElement('div');
+      overlay.id = 'accCineOverlay';
+      overlay.className = 'acc-cine acc-cine--inline';
+      overlay.innerHTML = `
+        <div class="acc-cine-inline-wrap" id="accCineWrap"
+          style="position:fixed;width:${size}px;height:${size}px;left:${rect.left}px;top:${rect.top}px;margin:0;">
+          <div class="acc-cine-inline-blob">
+            <img class="acc-cine-face acc-cine-face--from" src="${fromUrl.replace(/"/g, '&quot;')}" alt="" />
+            <img class="acc-cine-face acc-cine-face--to" src="${toUrl.replace(/"/g, '&quot;')}" alt="" />
+          </div>
+          <div class="acc-cine-ring"></div>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      // на всякий случай пересчитать после layout (dropdown мог сдвигать)
+      requestAnimationFrame(() => {
+        const r2 = avatarEl.getBoundingClientRect();
+        const wrap = document.getElementById('accCineWrap');
+        if (wrap && r2.width >= 8) {
+          wrap.style.left = r2.left + 'px';
+          wrap.style.top = r2.top + 'px';
+          wrap.style.width = Math.max(r2.width, r2.height) + 'px';
+          wrap.style.height = Math.max(r2.width, r2.height) + 'px';
+        }
+        overlay.classList.add('is-in');
+      });
+      setTimeout(() => overlay.classList.add('is-swap'), 100);
+      setTimeout(() => overlay.classList.add('is-pulse'), 180);
+      setTimeout(() => {
+        overlay.classList.add('is-out');
+        avatarEl.src = toUrl + (toUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+        avatarEl.style.opacity = '';
+        const drop = document.getElementById('dropdownAvatar');
+        if (drop) drop.src = avatarEl.src;
+        setTimeout(() => {
+          overlay.remove();
+          resolve();
+        }, 260);
+      }, 850);
+    });
+  }
+
   async function switchToSavedAccount(accountId) {
     const acc = loadSavedAccounts().find(a => a.id === accountId);
-    if (!acc?.access_token || !acc?.refresh_token) {
-      showToast('Сессия аккаунта устарела — войдите снова', true);
+    if (!acc) {
+      showToast('Аккаунт не найден в списке', true);
       return;
     }
-    const { error } = await supabaseClient.auth.setSession({
-      access_token: acc.access_token,
-      refresh_token: acc.refresh_token
-    });
-    if (error) {
-      showToast('Не удалось переключить: ' + error.message, true);
+    if (!acc.refresh_token) {
+      persistSavedAccounts(loadSavedAccounts().filter(a => a.id !== accountId));
+      showToast('Сессия не сохранена — войдите в этот аккаунт снова', true);
+      return;
+    }
+
+    const fromAcc = {
+      id: currentUser && currentUser.id,
+      username: (currentProfile && currentProfile.username) || (currentUser && currentUser.user_metadata && currentUser.user_metadata.username) || (currentUser && currentUser.email) || 'user',
+      full_name: (currentProfile && currentProfile.full_name) || (currentUser && currentUser.user_metadata && currentUser.user_metadata.full_name) || '',
+      avatar_url: (currentProfile && currentProfile.avatar_url) || (currentUser && currentUser.user_metadata && currentUser.user_metadata.avatar_url) || ''
+    };
+
+    closeAccountSwitcher();
+    closeProfileDropdown();
+
+    // Анимация и смена сессии параллельно (сессия успеет к концу)
+    const cinePromise = playAccountSwitchCinematic(fromAcc, acc);
+
+    let session = null;
+    let error = null;
+    try {
+      {
+        const res = await supabaseClient.auth.refreshSession({ refresh_token: acc.refresh_token });
+        error = res.error;
+        session = res.data && res.data.session;
+      }
+      if (!session) {
+        const res2 = await supabaseClient.auth.setSession({
+          access_token: acc.access_token || '',
+          refresh_token: acc.refresh_token
+        });
+        error = res2.error;
+        session = res2.data && res2.data.session;
+      }
+    } catch (e) {
+      error = e;
+    }
+
+    await cinePromise;
+
+    if (!session) {
+      persistSavedAccounts(loadSavedAccounts().filter(a => a.id !== accountId));
+      showToast('Сессия истекла — войдите снова' + (error && error.message ? (': ' + error.message) : ''), true);
       return;
     }
     await rememberCurrentAccount();
-    showToast('Аккаунт: ' + (acc.username || acc.email));
-    closeProfileDropdown();
-    setTimeout(() => location.reload(), 350);
+    location.reload();
   }
 
-  function openAccountSwitcher() {
+function closeAccountSwitcher() {
+    const bd = document.getElementById('accountSwitchBackdrop');
+    if (!bd) return;
+    bd.classList.remove('active');
+    setTimeout(() => bd.remove(), 220);
+  }
+
+  function openAccountSwitcher(anchorEl) {
     const list = loadSavedAccounts();
-    const currentId = currentUser?.id;
+    const currentId = currentUser && currentUser.id;
     if (!list.length) {
-      showToast('Сохранённых аккаунтов пока нет. Войдите в другой — он появится здесь.');
+      showToast('Сохранённых аккаунтов пока нет. Нажмите «Добавить аккаунт».');
       return;
     }
     document.getElementById('accountSwitchBackdrop')?.remove();
     const bd = document.createElement('div');
     bd.id = 'accountSwitchBackdrop';
-    bd.className = 'account-switch-backdrop';
-    bd.innerHTML = `
-      <div class="account-switch-modal" role="dialog">
-        <h3>Переключить аккаунт</h3>
-        <div class="account-switch-list">
-          ${list.map(a => `
-            <button type="button" class="account-switch-item${a.id === currentId ? ' is-current' : ''}" data-acc-id="${a.id}">
-              <span class="account-switch-name">@${a.username || 'user'}</span>
-              <span class="account-switch-email">${a.email || ''}</span>
-              ${a.id === currentId ? '<span class="account-switch-badge">текущий</span>' : ''}
-            </button>
-          `).join('')}
-        </div>
-        <button type="button" class="btn btn-secondary" id="accountSwitchClose" style="width:100%;margin-top:12px;">Закрыть</button>
+    bd.className = 'float-pop-backdrop';
+    const pop = document.createElement('div');
+    pop.className = 'float-pop float-pop--acc';
+    pop.setAttribute('role', 'dialog');
+    pop.innerHTML = `
+      <div class="float-pop-title">Аккаунты</div>
+      <div class="float-pop-list">
+        ${list.map(a => {
+          const label = a.full_name || a.username || 'user';
+          const av = a.avatar_url || (`https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=111827&color=fff&bold=true`);
+          return `
+          <button type="button" class="float-pop-item${a.id === currentId ? ' is-current' : ''}" data-acc-id="${a.id}">
+            <img class="float-pop-avatar" src="${av.replace(/"/g, '&quot;')}" alt="" />
+            <span class="float-pop-item-text">
+              <span class="float-pop-item-main">@${a.username || 'user'}</span>
+              <span class="float-pop-item-sub">${a.email || ''}</span>
+            </span>
+          </button>`;
+        }).join('')}
       </div>`;
+    bd.appendChild(pop);
     document.body.appendChild(bd);
+
+    // позиция: вверх-влево от якоря (меню профиля)
+    const place = () => {
+      const r = (anchorEl || document.getElementById('profileBtn') || document.body).getBoundingClientRect();
+      const w = 280;
+      let left = r.left - w + r.width;
+      let top = r.top - 8;
+      left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
+      // открываем вверх — pop снизу привязан к top
+      pop.style.width = w + 'px';
+      pop.style.left = left + 'px';
+      pop.style.top = 'auto';
+      pop.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+      pop.style.transformOrigin = 'bottom right';
+    };
+    place();
     requestAnimationFrame(() => bd.classList.add('active'));
-    bd.addEventListener('click', (e) => { if (e.target === bd) bd.remove(); });
-    document.getElementById('accountSwitchClose')?.addEventListener('click', () => bd.remove());
-    bd.querySelectorAll('[data-acc-id]').forEach(btn => {
+
+    bd.addEventListener('click', (e) => { if (e.target === bd) closeAccountSwitcher(); });
+    pop.querySelectorAll('[data-acc-id]').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.dataset.accId;
         if (id === currentId) { showToast('Уже этот аккаунт'); return; }
+        closeAccountSwitcher();
         switchToSavedAccount(id);
       });
     });
@@ -395,14 +545,10 @@ document.addEventListener("DOMContentLoaded", () => {
   function wireAccountMenuButtons() {
     document.querySelectorAll('.profile-dropdown .dropdown-item').forEach(el => {
       const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
-      if (text.includes('Текущий аккаунт') && !el.dataset.accWired) {
-        el.dataset.accWired = '1';
-        el.addEventListener('click', (e) => {
-          e.preventDefault();
-          if (!currentUser) { showToast('Вы не вошли'); return; }
-          const name = currentProfile?.username || currentUser.email || '';
-          showToast('Текущий: ' + name);
-        });
+      // «Текущий аккаунт» — скрываем
+      if (text.includes('Текущий аккаунт')) {
+        el.style.display = 'none';
+        return;
       }
       if (text.includes('Добавить аккаунт') && !el.dataset.accWired) {
         el.dataset.accWired = '1';
@@ -423,12 +569,14 @@ document.addEventListener("DOMContentLoaded", () => {
         el.dataset.accWired = '1';
         el.addEventListener('click', (e) => {
           e.preventDefault();
-          closeProfileDropdown();
-          openAccountSwitcher();
+          e.stopPropagation();
+          // меню профиля не закрываем
+          openAccountSwitcher(el);
         });
       }
     });
   }
+
   wireAccountMenuButtons();
 
   // ================= Навбар: конфиг + мегаменю =================
@@ -1084,23 +1232,59 @@ document.addEventListener("DOMContentLoaded", () => {
   // Имя (full_name) — только в Auth user_metadata, в profiles его нет.
   async function ensureProfile(user, usernameForNew) {
     try {
+      const username = usernameForNew
+        || user.user_metadata?.username
+        || (user.email ? user.email.split('@')[0] : 'user');
+      const fullName = (user.user_metadata?.full_name || '').trim() || null;
+      const firstName = (user.user_metadata?.first_name || '').trim() || null;
+      const lastName = (user.user_metadata?.last_name || '').trim() || null;
+
       const { data: existing, error: selErr } = await supabaseClient
         .from('profiles')
         .select('*')
         .eq('auth_id', user.id)
         .maybeSingle();
       if (selErr) throw selErr;
-      if (existing) return existing;
 
-      const username = usernameForNew
-        || user.user_metadata?.username
-        || (user.email ? user.email.split('@')[0] : 'user');
+      if (existing) {
+        // Синхронизируем имя из Auth → profiles, чтобы на статьях было видно ФИО
+        const patch = {};
+        if (fullName && existing.full_name !== fullName) patch.full_name = fullName;
+        if (firstName && existing.first_name !== firstName) patch.first_name = firstName;
+        if (lastName && existing.last_name !== lastName) patch.last_name = lastName;
+        if (username && !existing.username) patch.username = username;
+        if (Object.keys(patch).length) {
+          const { data: updated } = await supabaseClient
+            .from('profiles')
+            .update(patch)
+            .eq('id', existing.id)
+            .select()
+            .maybeSingle();
+          return updated || { ...existing, ...patch };
+        }
+        return existing;
+      }
+
+      const row = { auth_id: user.id, username };
+      if (fullName) row.full_name = fullName;
+      if (firstName) row.first_name = firstName;
+      if (lastName) row.last_name = lastName;
+
       const { data: created, error: insErr } = await supabaseClient
         .from('profiles')
-        .insert({ auth_id: user.id, username })
+        .insert(row)
         .select()
         .maybeSingle();
-      if (insErr) throw insErr;
+      if (insErr) {
+        // если колонок full_name ещё нет — пробуем только username
+        const { data: created2, error: insErr2 } = await supabaseClient
+          .from('profiles')
+          .insert({ auth_id: user.id, username })
+          .select()
+          .maybeSingle();
+        if (insErr2) throw insErr2;
+        return created2;
+      }
       return created;
     } catch (e) {
       console.error('Ошибка получения/создания профиля:', e);
@@ -1622,8 +1806,171 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch { return ''; }
   }
 
+  function authorProfile(article) {
+    return article?.profiles || null;
+  }
+
+  /** Имя для показа: full_name (или имя+фамилия) → иначе @username */
+  function articleAuthorName(article) {
+    const p = authorProfile(article);
+    if (!p) return 'Автор не указан';
+    const full = (p.full_name || '').trim();
+    if (full) return full;
+    const composed = [p.last_name, p.first_name].filter(Boolean).join(' ').trim()
+      || [p.first_name, p.last_name].filter(Boolean).join(' ').trim();
+    if (composed) return composed;
+    if (p.username) return p.username;
+    return 'Автор не указан';
+  }
+
   function articleAuthor(article) {
-    return article.profiles?.username || 'Автор не указан';
+    return articleAuthorName(article);
+  }
+
+  function authorAvatarUrl(profile, displayName) {
+    if (profile?.avatar_url) return profile.avatar_url;
+    const n = displayName || profile?.username || 'U';
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=111827&color=fff&bold=true`;
+  }
+
+  
+  function ensureAuthorCardModal() {
+    if (document.getElementById('authorCardBackdrop')) return;
+    const el = document.createElement('div');
+    el.id = 'authorCardBackdrop';
+    el.className = 'float-pop-backdrop';
+    el.innerHTML = `<div class="float-pop float-pop--author" id="authorCardModal" role="dialog" aria-label="Профиль автора"><div id="authorCardBody"></div></div>`;
+    document.body.appendChild(el);
+    el.addEventListener('click', (e) => { if (e.target === el) closeAuthorCard(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && el.classList.contains('active')) closeAuthorCard();
+    });
+  }
+
+  function closeAuthorCard() {
+    const bd = document.getElementById('authorCardBackdrop');
+    if (!bd) return;
+    bd.classList.remove('active');
+  }
+
+  function placeFloatFromAnchor(pop, anchorEl, mode) {
+    // mode: 'down-right' | used for author
+    const r = anchorEl.getBoundingClientRect();
+    const gap = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    pop.style.position = 'fixed';
+    pop.style.right = 'auto';
+    pop.style.bottom = 'auto';
+    let left = r.left;
+    let top = r.bottom + gap;
+    // measure after visible
+    const pw = pop.offsetWidth || 320;
+    const ph = pop.offsetHeight || 280;
+    if (left + pw > vw - 12) left = Math.max(12, vw - pw - 12);
+    if (top + ph > vh - 12) top = Math.max(12, r.top - ph - gap);
+    left = Math.max(12, left);
+    pop.style.left = left + 'px';
+    pop.style.top = top + 'px';
+    pop.style.transformOrigin = 'top left';
+  }
+
+  async function openAuthorCard(profileOrId, fallbackArticle, anchorEl) {
+    ensureAuthorCardModal();
+    const backdrop = document.getElementById('authorCardBackdrop');
+    const modal = document.getElementById('authorCardModal');
+    const body = document.getElementById('authorCardBody');
+    if (!backdrop || !modal || !body) return;
+
+    let profile = typeof profileOrId === 'object' && profileOrId ? { ...profileOrId } : null;
+    let profileId = profile?.id || (typeof profileOrId === 'number' ? profileOrId : null)
+      || fallbackArticle?.id_profile || null;
+
+    body.innerHTML = '<p class="author-card-loading">Загрузка…</p>';
+    if (anchorEl) placeFloatFromAnchor(modal, anchorEl, 'down-right');
+    else {
+      modal.style.left = '50%';
+      modal.style.top = '20%';
+      modal.style.transformOrigin = 'top center';
+    }
+    backdrop.classList.add('active');
+
+    try {
+      if (profileId) {
+        const { data } = await supabaseClient.from('profiles').select('*').eq('id', profileId).maybeSingle();
+        if (data) profile = { ...profile, ...data };
+      }
+      if (!profile) {
+        body.innerHTML = '<p class="author-card-loading">Автор не найден.</p>';
+        return;
+      }
+      profileId = profile.id;
+
+      let articles = [];
+      if (profileId) {
+        const { data: arts } = await supabaseClient
+          .from('articles')
+          .select('*')
+          .eq('id_profile', profileId)
+          .order('created_at', { ascending: false })
+          .limit(12);
+        articles = arts || [];
+      }
+
+      const displayName = articleAuthorName({ profiles: profile });
+      const nick = profile.username ? '@' + profile.username : '';
+      const av = authorAvatarUrl(profile, displayName);
+      const count = articles.length;
+      const countWord = count === 1 ? 'статья' : (count >= 2 && count <= 4 ? 'статьи' : 'статей');
+
+      body.innerHTML = `
+        <div class="author-card-head">
+          <img class="author-card-avatar" src="${escapeAttr(av)}" alt="" />
+          <div class="author-card-identity">
+            <div class="author-card-name">${displayName}</div>
+            ${nick ? `<div class="author-card-nick">${nick}</div>` : ''}
+          </div>
+        </div>
+        <div class="author-card-section-title">Статьи автора · ${count} ${countWord}</div>
+        <div class="author-card-articles">
+          ${articles.length ? articles.map(a => `
+            <a class="author-mini-card" href="${articleHref(a)}">
+              ${mediaCoverUrl(a) ? `<span class="author-mini-cover"><img src="${escapeAttr(mediaCoverUrl(a))}" alt="" /></span>` : `<span class="author-mini-cover author-mini-cover--empty"></span>`}
+              <span class="author-mini-body">
+                <span class="author-mini-title">${a.title || 'Без названия'}</span>
+                <span class="author-mini-date">${formatDate(a.created_at) || ''}</span>
+              </span>
+            </a>`).join('') : '<p class="author-card-empty">Пока нет статей.</p>'}
+        </div>`;
+      if (anchorEl) placeFloatFromAnchor(modal, anchorEl, 'down-right');
+    } catch (e) {
+      console.error(e);
+      body.innerHTML = '<p class="author-card-loading">Не удалось загрузить профиль.</p>';
+    }
+  }
+
+function wireAuthorTagClicks(root) {
+    (root || document).querySelectorAll('.author-tag').forEach(tag => {
+      if (tag.dataset.authorWired) return;
+      tag.dataset.authorWired = '1';
+      tag.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = tag.dataset.profileId ? parseInt(tag.dataset.profileId, 10) : null;
+        const articleId = tag.dataset.articleId ? parseInt(tag.dataset.articleId, 10) : null;
+        const art = articleId && typeof articlesCache !== 'undefined'
+          ? articlesCache.find(a => Number(a.id) === articleId)
+          : null;
+        openAuthorCard(art?.profiles || id, art, tag);
+      });
+    });
+  }
+
+  function authorTagHtml(article) {
+    const name = articleAuthorName(article);
+    const pid = article?.id_profile || article?.profiles?.id || '';
+    const aid = article?.id || '';
+    return `<span class="card-tag author-tag" data-profile-id="${pid}" data-article-id="${aid}" title="Открыть профиль">${name}</span>`;
   }
 
   function articleExcerpt(article, len) {
@@ -2039,7 +2386,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const { data, error } = await supabaseClient
         .from('articles')
-        .select('*, profiles(username)')
+        .select('*, profiles(id, username, full_name, first_name, last_name, avatar_url)')
         .neq('id', currentArticle.id)
         .order('created_at', { ascending: false })
         .limit(3);
@@ -2052,7 +2399,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="related-articles-grid">
             ${list.map(a => `
               <div class="related-article-card" data-article-id="${a.id}"${a.slug ? ` data-article-slug="${a.slug}"` : ''}>
-                <span class="card-tag">${articleAuthor(a)}</span>
+                ${authorTagHtml(a)}
                 <h4>${a.title || 'Без названия'}</h4>
                 <p>${articleExcerpt(a, 90)}</p>
               </div>`).join('')}
@@ -2082,7 +2429,7 @@ document.addEventListener("DOMContentLoaded", () => {
         ${cover}
         <div class="card-body">
           ${badge}
-          <span class="card-tag">${articleAuthor(article)}</span>
+          ${authorTagHtml(article)}
           <h3 class="card-title">${article.title || 'Без названия'}</h3>
           <p class="card-desc">${articleExcerpt(article, featured ? 180 : 130)}</p>
           <div class="card-footer">
@@ -2095,7 +2442,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function openArticlePreview(article) {
     if (!articleBackdrop || !articleModalBody) return;
     articleModalBody.innerHTML = `
-      <span class="card-tag">${articleAuthor(article)}</span>
+      ${authorTagHtml(article)}
       <h2 class="idea-modal-title">${article.title || 'Без названия'}</h2>
       <div class="idea-pill-row">
         <span class="idea-pill"><i data-lucide="calendar"></i> ${formatDate(article.created_at) || 'дата не указана'}</span>
@@ -2119,6 +2466,7 @@ document.addEventListener("DOMContentLoaded", () => {
         : '<p style="opacity:0.6;">Пока нет ни одной статьи в базе.</p>';
       if (window.lucide) lucide.createIcons();
       wireArticleCardClicks(grid);
+      wireAuthorTagClicks(grid);
     } catch (err) {
       console.error('Ошибка отрисовки статей:', err);
       grid.innerHTML = '<p style="opacity:0.6;">Не удалось отобразить статьи.</p>';
@@ -2145,20 +2493,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
       articlesCache = data || [];
 
-      // Опционально подтянуть ники (не блокируем список)
+      // Авторы: join или пакетный select profiles по id_profile
       try {
-        const { data: withAuthors } = await supabaseClient
+        const { data: withAuthors, error: joinErr } = await supabaseClient
           .from('articles')
-          .select('id, profiles(username)')
+          .select('id, id_profile, profiles(id, username, full_name, first_name, last_name, avatar_url)')
           .order('created_at', { ascending: false });
-        if (withAuthors && withAuthors.length) {
+        if (!joinErr && withAuthors && withAuthors.length) {
           const map = {};
-          withAuthors.forEach(r => { map[r.id] = r.profiles; });
+          withAuthors.forEach(r => { if (r.profiles) map[r.id] = r.profiles; });
           articlesCache.forEach(a => {
             if (map[a.id]) a.profiles = map[a.id];
           });
+        } else {
+          // fallback: тянем profiles пачкой
+          const ids = [...new Set(articlesCache.map(a => a.id_profile).filter(Boolean))];
+          if (ids.length) {
+            const { data: profs } = await supabaseClient
+              .from('profiles')
+              .select('id, username, full_name, first_name, last_name, avatar_url')
+              .in('id', ids);
+            const pmap = {};
+            (profs || []).forEach(p => { pmap[p.id] = p; });
+            articlesCache.forEach(a => {
+              if (a.id_profile && pmap[a.id_profile]) a.profiles = pmap[a.id_profile];
+            });
+          }
         }
-      } catch (_) { /* ignore */ }
+      } catch (e) {
+        console.warn('Авторы статей:', e);
+        try {
+          const ids = [...new Set(articlesCache.map(a => a.id_profile).filter(Boolean))];
+          if (ids.length) {
+            const { data: profs } = await supabaseClient
+              .from('profiles')
+              .select('id, username, full_name, first_name, last_name, avatar_url')
+              .in('id', ids);
+            const pmap = {};
+            (profs || []).forEach(p => { pmap[p.id] = p; });
+            articlesCache.forEach(a => {
+              if (a.id_profile && pmap[a.id_profile]) a.profiles = pmap[a.id_profile];
+            });
+          }
+        } catch (_) {}
+      }
 
       if (articlesPageGrid) {
         try {
@@ -2188,7 +2566,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function wireArticleCardClicks(grid) {
-    grid.querySelectorAll('[data-article-id]').forEach(card => {
+    if (!grid) return;
+    grid.querySelectorAll('.card[data-article-id]').forEach(card => {
+      if (card.dataset.clickWired) return;
+      card.dataset.clickWired = '1';
       card.addEventListener('click', () => {
         const article = articlesCache.find(a => a.id === parseInt(card.dataset.articleId, 10));
         if (article) openArticlePreview(article);
@@ -2322,6 +2703,7 @@ document.addEventListener("DOMContentLoaded", () => {
             : '<p style="opacity:0.6;">Ничего не найдено.</p>';
           if (window.lucide) lucide.createIcons();
           wireArticleCardClicks(grid);
+      wireAuthorTagClicks(grid);
         } catch (err) {
           console.error(err);
           grid.innerHTML = '<p style="opacity:0.6;">Ошибка отображения статей.</p>';
@@ -2452,7 +2834,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let article;
     try {
-      const query = supabaseClient.from('articles').select('*, profiles(username)');
+      const query = supabaseClient.from('articles').select('*, profiles(id, username, full_name, first_name, last_name, avatar_url)');
       const { data, error } = slug
         ? await query.eq('slug', slug).maybeSingle()
         : await query.eq('id', legacyId).maybeSingle();
@@ -2495,11 +2877,11 @@ document.addEventListener("DOMContentLoaded", () => {
       ${mediaCoverUrl(article) ? `
       <div class="article-hero" style="background-image:url('${escapeAttr(mediaCoverUrl(article))}')">
         <div class="article-hero-overlay">
-          <span class="card-tag idea-hero-tag">${articleAuthor(article)}</span>
+          ${authorTagHtml(article).replace("card-tag", "card-tag idea-hero-tag")}
           <h1 class="idea-hero-title">${article.title || 'Без названия'}</h1>
         </div>
       </div>` : `
-      <span class="card-tag">${articleAuthor(article)}</span>
+      ${authorTagHtml(article)}
       <h1 class="idea-modal-title">${article.title || 'Без названия'}</h1>
       `}
       <div class="idea-pill-row">
@@ -2521,6 +2903,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div id="articleRelatedContainer"></div>
     `;
     if (window.lucide) lucide.createIcons();
+    wireAuthorTagClicks(container);
     wireFaqCard(document.getElementById('articleFaqContainer'));
     wirePaybackCalcs(document.getElementById('articleBody') || document);
     loadRelatedArticles(article, document.getElementById('articleRelatedContainer'));
@@ -3112,6 +3495,255 @@ document.addEventListener("DOMContentLoaded", () => {
   // ================= Аватар: файл → обрезка → Storage =================
   let avatarCropState = null; // { img, scale, minScale, offsetX, offsetY, dragging, lastX, lastY }
 
+
+
+  const AVATAR_BG_PRESETS = [
+    '#111827', '#1e293b', '#0f766e', '#1d4ed8', '#7c3aed',
+    '#be123c', '#c2410c', '#ca8a04', '#15803d', '#e2e8f0'
+  ];
+  const AVATAR_FG_PRESETS = [
+    '#ffffff', '#f8fafc', '#111827', '#fef3c7', '#a5f3fc', '#fbcfe8'
+  ];
+
+  function openAvatarSourcePicker(anchorEl) {
+    document.getElementById('avatarSourceBackdrop')?.remove();
+    const bd = document.createElement('div');
+    bd.id = 'avatarSourceBackdrop';
+    bd.className = 'float-pop-backdrop avatar-source-backdrop';
+    const pop = document.createElement('div');
+    pop.className = 'float-pop avatar-source-pop';
+    pop.innerHTML = `
+      <div class="avatar-source-title">Аватар</div>
+      <div class="avatar-source-options">
+        <button type="button" class="avatar-source-opt" data-avatar-src="upload">
+          <i data-lucide="upload"></i>
+          <span class="avatar-source-opt-text">
+            <strong>Загрузить фото</strong>
+            <em>Любой размер — сожмём сами</em>
+          </span>
+        </button>
+        <button type="button" class="avatar-source-opt" data-avatar-src="text">
+          <i data-lucide="type"></i>
+          <span class="avatar-source-opt-text">
+            <strong>Из текста</strong>
+            <em>1–2 символа или эмодзи</em>
+          </span>
+        </button>
+        <button type="button" class="avatar-source-opt is-soon" disabled>
+          <i data-lucide="images"></i>
+          <span class="avatar-source-opt-text">
+            <strong>Из галереи</strong>
+            <em>Скоро</em>
+          </span>
+        </button>
+      </div>`;
+    bd.appendChild(pop);
+    document.body.appendChild(bd);
+
+    const place = () => {
+      const r = (anchorEl || document.body).getBoundingClientRect();
+      const w = 280;
+      pop.style.width = w + 'px';
+      let left = r.left + r.width / 2 - w / 2;
+      left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
+      pop.style.left = left + 'px';
+      pop.style.top = (r.bottom + 10) + 'px';
+      pop.style.transformOrigin = 'top center';
+    };
+    place();
+    requestAnimationFrame(() => bd.classList.add('active'));
+    if (window.lucide) lucide.createIcons();
+
+    const close = () => {
+      bd.classList.remove('active');
+      setTimeout(() => bd.remove(), 220);
+    };
+    bd.addEventListener('click', (e) => { if (e.target === bd) close(); });
+
+    pop.querySelector('[data-avatar-src="upload"]')?.addEventListener('click', () => {
+      close();
+      setTimeout(() => openAvatarPicker(), 160);
+    });
+    pop.querySelector('[data-avatar-src="text"]')?.addEventListener('click', () => {
+      close();
+      setTimeout(() => openTextAvatarWindow(), 180);
+    });
+  }
+
+  function ensureTextAvatarWindow() {
+    if (document.getElementById('textAvatarBackdrop')) return;
+    const backdrop = document.createElement('div');
+    backdrop.id = 'textAvatarBackdrop';
+    backdrop.className = 'text-avatar-backdrop';
+    const win = document.createElement('div');
+    win.id = 'textAvatarWindow';
+    win.className = 'text-avatar-window';
+    win.setAttribute('role', 'dialog');
+    win.setAttribute('aria-modal', 'true');
+    win.innerHTML = `
+      <button type="button" class="text-avatar-close" id="textAvatarClose" aria-label="Закрыть">
+        <i data-lucide="x"></i>
+      </button>
+      <div class="text-avatar-layout">
+        <div class="text-avatar-preview-col">
+          <canvas id="avatarTextPreview" width="200" height="200"></canvas>
+          <p class="text-avatar-hint">Превью</p>
+        </div>
+        <div class="text-avatar-controls">
+          <h2 class="text-avatar-title">Аватар из текста</h2>
+          <p class="text-avatar-sub">Один–два символа или эмодзи по центру</p>
+          <label class="avatar-text-field">
+            <span>Символы</span>
+            <input type="text" id="avatarTextInput" maxlength="4" placeholder="AB / 🚀" autocomplete="off" />
+          </label>
+          <div class="avatar-text-colors">
+            <div>
+              <div class="avatar-text-colors-label">Фон</div>
+              <div class="avatar-swatches" id="avatarBgSwatches"></div>
+            </div>
+            <div>
+              <div class="avatar-text-colors-label">Текст</div>
+              <div class="avatar-swatches" id="avatarFgSwatches"></div>
+            </div>
+          </div>
+          <div class="text-avatar-actions">
+            <button type="button" class="btn btn-secondary" id="textAvatarCancel">Отмена</button>
+            <button type="button" class="btn btn-primary" id="avatarTextApply">Сохранить</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    document.body.appendChild(win);
+    backdrop.addEventListener('click', closeTextAvatarWindow);
+    document.getElementById('textAvatarClose').addEventListener('click', closeTextAvatarWindow);
+    document.getElementById('textAvatarCancel').addEventListener('click', closeTextAvatarWindow);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && win.classList.contains('active')) closeTextAvatarWindow();
+    });
+  }
+
+  function closeTextAvatarWindow() {
+    document.getElementById('textAvatarWindow')?.classList.remove('active');
+    document.getElementById('textAvatarBackdrop')?.classList.remove('active');
+  }
+
+  function openTextAvatarWindow() {
+    ensureTextAvatarWindow();
+    const win = document.getElementById('textAvatarWindow');
+    const backdrop = document.getElementById('textAvatarBackdrop');
+    backdrop.classList.add('active');
+    void win.offsetWidth;
+    win.classList.add('active');
+    if (window.lucide) lucide.createIcons();
+
+    let bg = AVATAR_BG_PRESETS[0];
+    let fg = AVATAR_FG_PRESETS[0];
+
+    const preview = () => {
+      const c = document.getElementById('avatarTextPreview');
+      if (!c) return;
+      const ctx = c.getContext('2d');
+      let text = (document.getElementById('avatarTextInput')?.value || '').trim();
+      text = [...text].slice(0, 2).join('') || '?';
+      const s = c.width;
+      ctx.clearRect(0, 0, s, s);
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      ctx.arc(s / 2, s / 2, s / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = fg;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const isEmoji = /\p{Extended_Pictographic}/u.test(text);
+      ctx.font = isEmoji
+        ? Math.round(s * 0.48) + 'px "Segoe UI Emoji","Apple Color Emoji",sans-serif'
+        : '700 ' + Math.round(s * 0.42) + 'px Inter,system-ui,sans-serif';
+      ctx.fillText(text, s / 2, isEmoji ? s / 2 + 6 : s / 2 + 4);
+    };
+
+    const fillSwatches = (el, colors, kind) => {
+      if (!el) return;
+      el.innerHTML = colors.map(c =>
+        `<button type="button" class="avatar-swatch" data-c="${c}" style="background:${c}"></button>`
+      ).join('');
+      const sync = () => {
+        el.querySelectorAll('.avatar-swatch').forEach(b => {
+          b.classList.toggle('is-on', b.dataset.c === (kind === 'bg' ? bg : fg));
+        });
+      };
+      el.querySelectorAll('.avatar-swatch').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (kind === 'bg') bg = btn.dataset.c; else fg = btn.dataset.c;
+          sync();
+          preview();
+        });
+      });
+      sync();
+    };
+
+    fillSwatches(document.getElementById('avatarBgSwatches'), AVATAR_BG_PRESETS, 'bg');
+    fillSwatches(document.getElementById('avatarFgSwatches'), AVATAR_FG_PRESETS, 'fg');
+    const input = document.getElementById('avatarTextInput');
+    if (input) {
+      input.value = '';
+      input.oninput = preview;
+      setTimeout(() => input.focus(), 50);
+    }
+    preview();
+
+    const applyBtn = document.getElementById('avatarTextApply');
+    applyBtn.onclick = async () => {
+      let text = (document.getElementById('avatarTextInput')?.value || '').trim();
+      text = [...text].slice(0, 2).join('') || '?';
+      const SIZE = 512;
+      const c = document.createElement('canvas');
+      c.width = SIZE; c.height = SIZE;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, SIZE, SIZE);
+      ctx.fillStyle = fg;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const isEmoji = /\p{Extended_Pictographic}/u.test(text);
+      ctx.font = isEmoji
+        ? '280px "Segoe UI Emoji","Apple Color Emoji",sans-serif'
+        : '700 220px Inter,system-ui,sans-serif';
+      ctx.fillText(text, SIZE / 2, isEmoji ? SIZE / 2 + 18 : SIZE / 2 + 10);
+      const blob = await new Promise((resolve, reject) => {
+        c.toBlob(b => b ? resolve(b) : reject(new Error('blob')), 'image/jpeg', 0.92);
+      });
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Сохраняем…';
+      try {
+        const profileId = await getProfileId();
+        if (!profileId || !currentUser) throw new Error('Нет профиля');
+        const path = `${currentUser.id}/${profileId}_${Date.now()}.jpg`;
+        const { data: signed, error: signErr } = await supabaseClient.storage.from('avatars').createSignedUploadUrl(path);
+        if (signErr) throw signErr;
+        const up = await fetch(signed.signedUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+        if (!up.ok) throw new Error('upload ' + up.status);
+        const { data: pub } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+        const publicUrl = pub && pub.publicUrl;
+        if (!publicUrl) throw new Error('no url');
+        await supabaseClient.from('profiles').update({ avatar_url: publicUrl }).eq('id', profileId);
+        if (currentProfile) currentProfile.avatar_url = publicUrl;
+        document.querySelectorAll('img#profilePageAvatar, img#dropdownAvatar, img#navbarAvatar, img.profile-avatar, img.dropdown-avatar').forEach(img => {
+          img.src = publicUrl + '?t=' + Date.now();
+        });
+        await rememberCurrentAccount();
+        closeTextAvatarWindow();
+        showToast('Аватар обновлён');
+        if (document.getElementById('profileWindowBody')) renderProfileWindow();
+      } catch (err) {
+        console.error(err);
+        showToast('Не удалось сохранить: ' + (err.message || err), true);
+      } finally {
+        applyBtn.disabled = false;
+        applyBtn.textContent = 'Сохранить';
+      }
+    };
+  }
+
   function openAvatarPicker() {
     if (!currentUser) {
       document.getElementById('loginBtn')?.click();
@@ -3288,8 +3920,8 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.textContent = 'Сохраняем…';
 
     try {
-      // 256×256 JPEG (меньше файл → стабильнее upload)
-      const SIZE = 256;
+      // Любой размер → 512×512 JPEG (сайт сжимает сам)
+      const SIZE = 512;
       const out = document.createElement('canvas');
       out.width = SIZE;
       out.height = SIZE;
@@ -3306,7 +3938,7 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       const blob = await new Promise((resolve, reject) => {
-        out.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.82);
+        out.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.88);
       });
 
       const profileId = await getProfileId();
@@ -3566,8 +4198,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (window.lucide) lucide.createIcons();
 
-    document.getElementById('profileAvatarEditBtn')?.addEventListener('click', () => {
-      openAvatarPicker();
+    document.getElementById('profileAvatarEditBtn')?.addEventListener('click', (e) => {
+      openAvatarSourcePicker(e.currentTarget);
     });
 
     // --- Редактирование имени / ника ---
