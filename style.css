@@ -1616,61 +1616,86 @@ body > .profile-dropdown.active {
 .related-article-card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
 
 /* ==========================================================================
-   МОБИЛЬНЫЙ — нижняя навигационная панель (bottom nav)
-   На десктопе скрыта; на мобильном заменяет ссылки и аватар верхнего навбара.
+   МОБИЛЬНЫЙ — нижняя капсула (как у Supabase Studio)
+   Только mobile; десктоп без изменений.
    ========================================================================== */
 .bottom-nav { display: none; }
 
 @media (max-width: 760px) {
   .nav-links { display: none; }
-  /* Скрываем кнопку "Войти" и аватар из верхнего навбара —
-     .profile-dropdown остаётся в DOM: на мобильном это bottom sheet. */
   .navbar-actions #loginBtn,
   .navbar-actions .avatar-img { display: none !important; }
 
-  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  body { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 
   .bottom-nav {
     display: flex;
-    align-items: stretch;
-    justify-content: space-around;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 50%;
+    right: auto;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
     z-index: 95;
-    background: color-mix(in srgb, var(--surface-color) 88%, transparent);
-    backdrop-filter: blur(16px) saturate(160%);
-    -webkit-backdrop-filter: blur(16px) saturate(160%);
-    border-top: 1px solid var(--border-color);
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.04);
+    width: auto;
+    max-width: calc(100vw - 32px);
+    padding: 8px 10px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.04),
+      0 8px 28px rgba(0, 0, 0, 0.08),
+      0 0 0 0.5px rgba(255, 255, 255, 0.8) inset;
   }
 
   .bottom-nav-item {
-    flex: 1;
+    flex: 0 0 auto;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 6px 2px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    margin: 0;
     border: none;
-    background: none;
+    background: transparent;
     font-family: inherit;
     text-decoration: none;
-    color: var(--text-muted);
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    border-radius: var(--radius-sm);
+    color: #64748b;
+    border-radius: 50%;
     cursor: pointer;
-    transition: color 0.2s var(--ease-smooth), transform 0.15s var(--ease-spring);
+    transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
     -webkit-tap-highlight-color: transparent;
   }
-  .bottom-nav-item i { width: 21px; height: 21px; }
-  .bottom-nav-item.active { color: var(--accent-primary); }
-  .bottom-nav-item:active { transform: scale(0.92); }
+  .bottom-nav-item span { display: none; } /* только иконки, как в капсуле */
+  .bottom-nav-item i { width: 20px; height: 20px; stroke-width: 1.75; }
+  .bottom-nav-item.active {
+    color: #0f172a;
+    background: rgba(15, 23, 42, 0.06);
+  }
+  .bottom-nav-item:active { transform: scale(0.9); }
+
+  /* тёмная тема */
+  [data-theme="dark"] .bottom-nav,
+  .theme-dark .bottom-nav {
+    background: rgba(30, 32, 38, 0.92);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.2),
+      0 10px 32px rgba(0, 0, 0, 0.35);
+  }
+  [data-theme="dark"] .bottom-nav-item,
+  .theme-dark .bottom-nav-item { color: #94a3b8; }
+  [data-theme="dark"] .bottom-nav-item.active,
+  .theme-dark .bottom-nav-item.active {
+    color: #f8fafc;
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 
 /* ================= Чип фильтра по идее (страница статей) ================= */
