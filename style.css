@@ -25,6 +25,12 @@
   --ease-smooth: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
+/* Браузерные контролы (скролл, инпуты) подстраиваются под тему */
+:root { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="light"],
+[data-theme="colorful"] { color-scheme: light; }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -40,9 +46,11 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border-color);
+  /* Стекло от surface — автоматически светлое/тёмное */
+  background: color-mix(in srgb, var(--surface-color) 72%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 85%, transparent);
   padding: 0 24px;
 }
 
@@ -431,17 +439,28 @@ body > .profile-dropdown.active {
   justify-content: center;
   isolation: isolate;
   overflow: hidden;
-  /* слои: верхний fade → белый, нижний fade → белый, лёгкая вуаль, фото */
+  /* слои: верхний fade, нижний fade, вуаль, фото */
   background-color: var(--bg-color);
   background-image:
-    linear-gradient(to bottom, var(--bg-color) 0%, rgba(255,255,255,0) 28%),
-    linear-gradient(to top, var(--bg-color) 0%, rgba(255,255,255,0) 32%),
+    linear-gradient(to bottom, var(--bg-color) 0%, transparent 28%),
+    linear-gradient(to top, var(--bg-color) 0%, transparent 32%),
     linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0.72) 100%),
     var(--hero-image);
   background-size: cover, cover, cover, cover;
   background-position: center, center, center, center;
   background-repeat: no-repeat;
 }
+
+/* Тёмная тема: другая картинка + тёмная вуаль */
+[data-theme="dark"] .hero {
+  --hero-image: url('https://i.ibb.co/DyVb76P/pngtree-black-abstract-abstract-wave-animation-picture-image-2674413.png');
+  background-image:
+    linear-gradient(to bottom, var(--bg-color) 0%, transparent 28%),
+    linear-gradient(to top, var(--bg-color) 0%, transparent 32%),
+    linear-gradient(180deg, rgba(14,14,19,0.72) 0%, rgba(14,14,19,0.45) 50%, rgba(14,14,19,0.72) 100%),
+    var(--hero-image);
+}
+
 .hero-content {
   position: relative;
   z-index: 1;
@@ -452,7 +471,7 @@ body > .profile-dropdown.active {
   gap: 24px;
 }
 .badge {
-  background: rgba(255,255,255,0.85);
+  background: color-mix(in srgb, var(--surface-color) 85%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: var(--text-main);
@@ -468,7 +487,7 @@ body > .profile-dropdown.active {
   line-height: 1.1;
   letter-spacing: -0.04em;
   color: var(--text-main);
-  text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--bg-color) 60%, transparent);
 }
 .hero-subtitle {
   font-size: 1.2rem;
@@ -482,9 +501,16 @@ body > .profile-dropdown.active {
   .hero {
     padding: 88px 20px 72px;
     background-image:
-      linear-gradient(to bottom, var(--bg-color) 0%, rgba(255,255,255,0) 22%),
-      linear-gradient(to top, var(--bg-color) 0%, rgba(255,255,255,0) 26%),
+      linear-gradient(to bottom, var(--bg-color) 0%, transparent 22%),
+      linear-gradient(to top, var(--bg-color) 0%, transparent 26%),
       linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.62) 50%, rgba(255,255,255,0.78) 100%),
+      var(--hero-image);
+  }
+  [data-theme="dark"] .hero {
+    background-image:
+      linear-gradient(to bottom, var(--bg-color) 0%, transparent 22%),
+      linear-gradient(to top, var(--bg-color) 0%, transparent 26%),
+      linear-gradient(180deg, rgba(14,14,19,0.82) 0%, rgba(14,14,19,0.6) 50%, rgba(14,14,19,0.82) 100%),
       var(--hero-image);
   }
   .hero-title { font-size: 2.4rem; }
@@ -626,7 +652,7 @@ body > .profile-dropdown.active {
   font-size: 0.9rem; font-weight: 500; color: var(--text-main);
   cursor: pointer; transition: background-color 200ms ease;
 }
-.sort-dropdown-btn:hover { background: #fafafa; }
+.sort-dropdown-btn:hover { background: var(--accent-light); }
 .sort-dropdown-btn i { width: 16px; height: 16px; color: var(--text-muted); transition: transform 200ms ease; flex-shrink: 0; }
 .sort-dropdown.open .sort-dropdown-btn .sort-chevron { transform: rotate(180deg); }
 
@@ -959,11 +985,11 @@ body > .profile-dropdown.active {
 }
 .ideas-search-wrap:hover:not(:focus-within) {
   border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--border-color));
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.035);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 10%, transparent);
 }
 .ideas-search-wrap:focus-within {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 18%, transparent);
 }
 .ideas-search-wrap i { width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0; }
 .ideas-search-wrap input {
@@ -973,6 +999,7 @@ body > .profile-dropdown.active {
   width: 100%;
   font-family: inherit;
   color: var(--text-main);
+  background: transparent;
 }
 
 @media (max-width: 760px) {
@@ -1283,13 +1310,13 @@ body > .profile-dropdown.active {
 .form-group textarea:hover:not(:focus):not(:disabled),
 .form-group select:hover:not(:focus):not(:disabled) {
   border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--border-color));
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.035);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 10%, transparent);
 }
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary) 18%, transparent);
 }
 .form-group input:disabled,
 .form-group textarea:disabled,
@@ -1623,8 +1650,6 @@ body > .profile-dropdown.active {
 
 @media (max-width: 760px) {
   .nav-links { display: none; }
-  .navbar-actions #loginBtn,
-  .navbar-actions .avatar-img { display: none !important; }
 
   body { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 
@@ -1643,9 +1668,10 @@ body > .profile-dropdown.active {
     max-width: calc(100vw - 32px);
     padding: 8px 10px;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    /* Светлая: почти как была — белое стекло */
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     border: 1px solid rgba(0, 0, 0, 0.06);
     box-shadow:
       0 2px 8px rgba(0, 0, 0, 0.04),
@@ -1666,7 +1692,7 @@ body > .profile-dropdown.active {
     background: transparent;
     font-family: inherit;
     text-decoration: none;
-    color: #64748b;
+    color: var(--text-muted);
     border-radius: 50%;
     cursor: pointer;
     transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
@@ -1675,26 +1701,24 @@ body > .profile-dropdown.active {
   .bottom-nav-item span { display: none; } /* только иконки, как в капсуле */
   .bottom-nav-item i { width: 20px; height: 20px; stroke-width: 1.75; }
   .bottom-nav-item.active {
-    color: #0f172a;
-    background: rgba(15, 23, 42, 0.06);
+    color: var(--text-main);
+    background: color-mix(in srgb, var(--text-main) 8%, transparent);
   }
   .bottom-nav-item:active { transform: scale(0.9); }
 
-  /* тёмная тема */
-  [data-theme="dark"] .bottom-nav,
-  .theme-dark .bottom-nav {
-    background: rgba(30, 32, 38, 0.92);
-    border-color: rgba(255, 255, 255, 0.08);
+  /* Тёмная тема: чуть затемнить, чуть прозрачнее */
+  [data-theme="dark"] .bottom-nav {
+    background: rgba(24, 24, 30, 0.55);
+    border-color: rgba(255, 255, 255, 0.1);
     box-shadow:
-      0 2px 8px rgba(0, 0, 0, 0.2),
-      0 10px 32px rgba(0, 0, 0, 0.35);
+      0 2px 8px rgba(0, 0, 0, 0.25),
+      0 10px 28px rgba(0, 0, 0, 0.3),
+      0 0 0 0.5px rgba(255, 255, 255, 0.06) inset;
   }
-  [data-theme="dark"] .bottom-nav-item,
-  .theme-dark .bottom-nav-item { color: #94a3b8; }
-  [data-theme="dark"] .bottom-nav-item.active,
-  .theme-dark .bottom-nav-item.active {
+  [data-theme="dark"] .bottom-nav-item { color: #94a3b8; }
+  [data-theme="dark"] .bottom-nav-item.active {
     color: #f8fafc;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.1);
   }
 }
 

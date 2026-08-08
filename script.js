@@ -216,9 +216,6 @@ document.addEventListener("DOMContentLoaded", () => {
           <a class="mobile-menu-link" href="${root}settings/settings.html"><i data-lucide="settings"></i> Настройки</a>
           <button type="button" class="mobile-menu-link" id="mobileMenuProfileBtn"><i data-lucide="user"></i> Профиль</button>
         </nav>
-        <div class="mobile-menu-footer">
-          <button type="button" class="btn btn-secondary" id="mobileMenuAuthBtn" style="width:100%;"></button>
-        </div>
       </div>`;
     document.body.appendChild(backdrop);
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeMobileMenu(); });
@@ -227,19 +224,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!currentUser) { loginBtn?.click(); return; }
       openProfileWindow();
     });
-    document.getElementById('mobileMenuAuthBtn')?.addEventListener('click', async () => {
-      closeMobileMenu();
-      if (currentUser) {
-        await supabaseClient.auth.signOut({ scope: 'global' });
-        showToast('Вы вышли');
-        setTimeout(() => location.reload(), 400);
-      } else loginBtn?.click();
-    });
   }
   function openMobileMenu() {
     ensureMobileMenu();
-    const authBtn = document.getElementById('mobileMenuAuthBtn');
-    if (authBtn) authBtn.textContent = currentUser ? 'Выйти' : 'Войти';
     document.getElementById('mobileMenuBackdrop')?.classList.add('active');
     document.getElementById('mobileMenuSheet')?.classList.add('active');
     document.getElementById('bottomNav')?.classList.add('behind-sheet');
@@ -3309,9 +3296,28 @@ function wireAuthorTagClicks(root) {
     }
   };
 
-  function applyThemeColors(colors) {
+  function isDarkBg(hex) {
+    if (!hex || typeof hex !== 'string' || hex[0] !== '#') return false;
+    const h = hex.slice(1);
+    const full = h.length === 3 ? h[0]+h[0]+h[1]+h[1]+h[2]+h[2] : h;
+    if (full.length < 6) return false;
+    const r = parseInt(full.slice(0, 2), 16);
+    const g = parseInt(full.slice(2, 4), 16);
+    const b = parseInt(full.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 140;
+  }
+
+  function applyThemeColors(colors, themeKey) {
     const root = document.documentElement.style;
     Object.keys(colors).forEach(k => root.setProperty('--' + k, colors[k]));
+    // data-theme: 'dark' если встроенная dark или фон тёмный (кастомные темы)
+    let mode = 'light';
+    if (themeKey === 'dark') mode = 'dark';
+    else if (themeKey === 'light' || themeKey === 'colorful') mode = themeKey;
+    else if (isDarkBg(colors['bg-color'])) mode = 'dark';
+    else if (themeKey && themeKey.startsWith('custom:')) mode = 'custom';
+    else if (themeKey) mode = themeKey;
+    document.documentElement.setAttribute('data-theme', mode);
   }
 
   function saveThemeLocally(themeKey, colors) {
@@ -3373,7 +3379,7 @@ function wireAuthorTagClicks(root) {
           colors = BUILTIN_THEMES[key].colors;
         }
         if (!colors) return;
-        applyThemeColors(colors);
+        applyThemeColors(colors, key);
         saveThemeLocally(key, colors);
         if (profileId) await supabaseClient.from('profiles').update({ active_theme: key }).eq('id', profileId);
         if (currentProfile) currentProfile.active_theme = key;
@@ -3390,7 +3396,7 @@ function wireAuthorTagClicks(root) {
         if (!confirm('Удалить эту тему?')) return;
         await supabaseClient.from('custom_themes').delete().eq('id', themeId);
         if (activeTheme === key) {
-          applyThemeColors(BUILTIN_THEMES.light.colors);
+          applyThemeColors(BUILTIN_THEMES.light.colors, 'light');
           saveThemeLocally('light', BUILTIN_THEMES.light.colors);
           if (profileId) await supabaseClient.from('profiles').update({ active_theme: 'light' }).eq('id', profileId);
           if (currentProfile) currentProfile.active_theme = 'light';
