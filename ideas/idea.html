@@ -47,18 +47,12 @@
               </div>
             </div>
             <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
+                        <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
             <a href="../settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
-            <a href="#" class="dropdown-item"><i data-lucide="lightbulb"></i> Мои идеи</a>
-            <a href="#" class="dropdown-item"><i data-lucide="book-open"></i> Мои статьи</a>
-            <a href="#" class="dropdown-item"><i data-lucide="bell"></i> Уведомления</a>
             <div class="dropdown-divider"></div>
-            <div class="dropdown-section-title">Аккаунты</div>
-<a href="#" class="dropdown-item"><i data-lucide="plus"></i> Добавить аккаунт</a>
-            <a href="#" class="dropdown-item"><i data-lucide="refresh-cw"></i> Переключить аккаунт</a>
-            <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item danger" id="logoutBtn"><i data-lucide="log-out"></i> Выйти</a>
-          </div>
+            <button type="button" class="dropdown-item" id="hubContentBtn"><i data-lucide="layout-grid"></i> Мой контент</button>
+            <button type="button" class="dropdown-item" id="hubAccountBtn"><i data-lucide="shield"></i> Аккаунт</button>
+</div>
         </div>
       </div>
     </div>
@@ -98,7 +92,7 @@
             <span class="nickname-status" id="nicknameStatus"></span>
           </div>
           <div class="nickname-hint" id="nicknameHint">От 5 до 15 символов: латиница в нижнем регистре, цифры, _</div>
-        </div>
+</div>
         <div class="form-group" id="identifierGroup">
           <label for="authEmail" id="authEmailLabel">Email</label>
           <input type="text" id="authEmail" placeholder="you@example.com" required autocomplete="email" />
