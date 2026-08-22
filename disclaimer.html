@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Дисклеймер — IdeaNest</title>
+  <meta name="description" content="Дисклеймер IdeaNest: информационный характер материалов, отсутствие гарантий дохода и профессиональных консультаций." />
+  <link rel="icon" href="assets/logo-dark.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});var key=t.key||"light",mode=key;if(key==="dark")mode="dark";else if(key==="light"||key==="colorful")mode=key;else{var bg=(t.colors["bg-color"]||"#ffffff").replace("#","");if(bg.length===3)bg=bg[0]+bg[0]+bg[1]+bg[1]+bg[2]+bg[2];var n=parseInt(bg,16);if(!isNaN(n)){var R=(n>>16)&255,G=(n>>8)&255,B=n&255;mode=(0.299*R+0.587*G+0.114*B)<140?"dark":"light";}}document.documentElement.setAttribute("data-theme",mode);}}catch(e){}})();</script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="profile-blur-overlay" id="profileBlurOverlay"></div>
+  <header class="navbar">
+    <div class="navbar-container">
+      <a class="brand" href="index.html">
+        <img src="assets/logo-dark.png" class="brand-logo" alt="IdeaNest" /> IdeaNest
+      </a>
+      <nav class="nav-links">
+        <a href="ideas/all.html" class="nav-link">Идеи</a>
+        <a href="articles/index.html" class="nav-link">Статьи</a>
+      </nav>
+      <div class="navbar-actions">
+        <button class="btn btn-secondary" id="loginBtn" style="display:none;">Войти</button>
+        <div class="profile-wrapper" id="profileWrapper" style="display:none;">
+          <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="topAvatar" class="avatar-img" alt="Профиль">
+          <div class="profile-dropdown" id="profileDropdown">
+            <div class="dropdown-header">
+              <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="dropdownAvatar" class="dropdown-avatar" alt="Профиль">
+              <div class="user-info">
+                <span class="user-name" id="userName">Пользователь</span>
+                <span class="user-email" id="userEmail">user@ideanest.com</span>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
+            <a href="settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item" id="hubContentBtn"><i data-lucide="layout-grid"></i> Мой контент</button>
+            <button type="button" class="dropdown-item" id="hubAccountBtn"><i data-lucide="shield"></i> Аккаунт</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="detail-main detail-main--article legal-page">
+    <nav class="breadcrumbs">
+      <a href="index.html">Главная</a>
+      <span class="bc-sep">/</span>
+      <span class="bc-current">Дисклеймер</span>
+    </nav>
+    <h1 class="section-title legal-page-title">Дисклеймер IdeaNest</h1>
+    <article class="legal-doc">
+
+      <p>Материалы IdeaNest предназначены исключительно для информационных и образовательных целей.</p>
+      <p>Информация о бизнес-идеях, вложениях, расходах, выручке, прибыли, окупаемости, спросе и других экономических показателях может основываться на расчетах, открытых данных, предположениях и оценках.</p>
+      <p>Указанные значения не являются гарантией получения соответствующего дохода или прибыли.</p>
+      <p>Фактические результаты предпринимательской деятельности могут существенно отличаться в зависимости от региона, цен, конкуренции, спроса, выбранной бизнес-модели, качества управления, налогов, расходов, количества клиентов и других обстоятельств.</p>
+      <p>Калькуляторы IdeaNest используют введенные пользователем данные и предусмотренные алгоритмы. Полученный результат является расчетным и не является финансовой гарантией.</p>
+      <p>Информация IdeaNest не является индивидуальной финансовой, инвестиционной, юридической, налоговой или иной профессиональной консультацией.</p>
+      <p>Перед принятием существенных финансовых или предпринимательских решений рекомендуется самостоятельно проверить актуальность информации и при необходимости обратиться к соответствующему специалисту.</p>
+      <p>Использование материалов IdeaNest не означает заключения между пользователем и IdeaNest договора на оказание профессиональных консультационных услуг.</p>
+
+    </article>
+    <p class="legal-back"><a href="index.html" class="btn btn-secondary">← На главную</a></p>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

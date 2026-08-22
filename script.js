@@ -14,18 +14,256 @@ function siteRootPrefix() {
   return /\/(ideas|articles|settings|profile)\//.test(window.location.pathname) ? '../' : '';
 }
 
-// Ссылка на статью: всегда обычная articles/article.html?id=... — сама страница
-// статьи после загрузки тихо подменяет адрес на красивый (см. initArticleDetailPage).
+function isFileProtocol() {
+  return window.location.protocol === 'file:';
+}
+
+// Красивые ссылки (Vercel rewrite → article.html / idea.html).
+// На file:// — обычные query-URL, чтобы локально тоже открывалось.
 function articleHref(article) {
-  return siteRootPrefix() + 'articles/article.html?id=' + article.id;
+  if (!article) return '#';
+  const id = article.id;
+  const slug = article.slug;
+  if (isFileProtocol()) {
+    const root = siteRootPrefix();
+    if (slug) return root + 'articles/article.html?slug=' + encodeURIComponent(slug);
+    return root + 'articles/article.html?id=' + id;
+  }
+  if (slug) return '/articles/' + encodeURIComponent(slug);
+  return '/articles/article.html?id=' + id;
+}
+
+function ideaHref(idea) {
+  const id = idea && (idea.id_idea != null ? idea.id_idea : idea.id);
+  if (id == null || id === '') return '#';
+  if (isFileProtocol()) return siteRootPrefix() + 'ideas/idea.html?id=' + id;
+  return '/ideas/' + id;
 }
 
 let currentUser = null;   // объект пользователя из supabase.auth
 let currentProfile = null; // строка из таблицы profiles (id, username, auth_id, created_at)
 
+  /** Уникальный дефолт-аватар (градиент по нику), без внешних сервисов */
+  const AVATAR_GRADIENTS = [
+    ['#6366f1', '#ec4899'], ['#0ea5e9', '#6366f1'], ['#10b981', '#0ea5e9'],
+    ['#f59e0b', '#ef4444'], ['#8b5cf6', '#d946ef'], ['#14b8a6', '#22c55e'],
+    ['#f43f5e', '#fb923c'], ['#3b82f6', '#06b6d4'], ['#a855f7', '#6366f1'],
+    ['#e11d48', '#7c3aed'], ['#059669', '#0ea5e9'], ['#ca8a04', '#ea580c']
+  ];
+  function hashStr(s) {
+    let h = 2166136261;
+    const str = String(s || 'U');
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function initialsFromName(name) {
+    const s = String(name || 'U').trim();
+    if (!s) return 'U';
+    const parts = s.replace(/[@._-]+/g, ' ').split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return s.slice(0, 2).toUpperCase();
+  }
+  function defaultAvatarUrl(name, size) {
+    size = size || 128;
+    const h = hashStr(name);
+    const [c1, c2] = AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length];
+    const letters = initialsFromName(name);
+    const rot = h % 360;
+    const gid = 'ag' + h.toString(36);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 128 128">
+      <defs>
+        <linearGradient id="${gid}" x1="0%" y1="0%" x2="100%" y2="100%" gradientTransform="rotate(${rot} 64 64)">
+          <stop offset="0%" stop-color="${c1}"/>
+          <stop offset="100%" stop-color="${c2}"/>
+        </linearGradient>
+      </defs>
+      <circle cx="64" cy="64" r="64" fill="url(#${gid})"/>
+      <circle cx="40" cy="36" r="28" fill="rgba(255,255,255,0.12)"/>
+      <text x="64" y="72" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="44" font-weight="700" fill="#fff">${letters}</text>
+    </svg>`;
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+  /** Готовые аватарки галереи (абстрактные градиенты) */
+  function galleryAvatarDataUrl(index, size) {
+    size = size || 128;
+    const presets = [
+      ['#111827', '#4f46e5', '✦'], ['#0f172a', '#06b6d4', '◇'],
+      ['#1e1b4b', '#c026d3', '◈'], ['#14532d', '#22c55e', '◆'],
+      ['#7c2d12', '#f97316', '●'], ['#1e3a5f', '#38bdf8', '▲'],
+      ['#4c0519', '#fb7185', '★'], ['#022c22', '#2dd4bf', '◎'],
+      ['#3b0764', '#a78bfa', '▣'], ['#172554', '#60a5fa', '○'],
+      ['#431407', '#fdba74', '◐'], ['#083344', '#67e8f9', '◑']
+    ];
+    const p = presets[index % presets.length];
+    const gid = 'gal' + index;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 128 128">
+      <defs><linearGradient id="${gid}" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${p[0]}"/><stop offset="100%" stop-color="${p[1]}"/>
+      </linearGradient></defs>
+      <circle cx="64" cy="64" r="64" fill="url(#${gid})"/>
+      <text x="64" y="78" text-anchor="middle" font-size="42" fill="rgba(255,255,255,0.9)">${p[2]}</text>
+    </svg>`;
+    return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  }
+
+
 document.addEventListener("DOMContentLoaded", () => {
   // Инициализация иконок Lucide
   lucide.createIcons();
+
+  (function syncBrandLogo() {
+    const apply = () => {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.querySelectorAll('img.brand-logo').forEach(img => {
+        const src = img.getAttribute('src') || '';
+        if (dark) {
+          // светлый вариант на тёмном фоне
+          if (src.includes('logo-dark') && !img.dataset.orig) img.dataset.orig = src;
+          // SVG light if available
+          const light = (img.dataset.orig || src).replace('logo-dark.png', 'logo-light.svg').replace('logo-dark.svg', 'logo-light.svg');
+          // keep filter CSS as backup
+        }
+      });
+    };
+    apply();
+    new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  })();
+
+  // ================= Navbar: поиск + тема =================
+  (function injectNavbarTools() {
+    const actions = document.querySelector('.navbar-actions');
+    if (!actions || document.getElementById('navSearchBtn')) return;
+    const tools = document.createElement('div');
+    tools.className = 'navbar-tools';
+    tools.innerHTML = `
+      <button type="button" class="nav-icon-btn" id="navSearchBtn" aria-label="Поиск" title="Поиск">
+        <i data-lucide="search"></i>
+      </button>
+      <button type="button" class="nav-icon-btn" id="navThemeBtn" aria-label="Тема" title="Тема">
+        <i data-lucide="sun-moon"></i>
+      </button>`;
+    actions.insertBefore(tools, actions.firstChild);
+    if (window.lucide) lucide.createIcons();
+
+    document.getElementById('navSearchBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openNavSearchPop(e.currentTarget);
+    });
+    document.getElementById('navThemeBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openNavThemePop(e.currentTarget);
+    });
+  })();
+
+  function openNavSearchPop(anchor) {
+    document.getElementById('navSearchBackdrop')?.remove();
+    const bd = document.createElement('div');
+    bd.id = 'navSearchBackdrop';
+    bd.className = 'profile-hub-backdrop active';
+    const pop = document.createElement('div');
+    pop.className = 'profile-hub-pop profile-dropdown nav-search-pop';
+    pop.style.cssText = 'opacity:1;visibility:visible;pointer-events:auto;transform:none;position:fixed;';
+    pop.innerHTML = `
+      <div class="profile-hub-title">Поиск</div>
+      <input type="search" id="navSearchInput" class="nav-search-input" placeholder="Идеи или статьи…" autocomplete="off" />
+      <div class="nav-search-actions">
+        <button type="button" class="dropdown-item" data-go="ideas"><i data-lucide="lightbulb"></i> Искать в идеях</button>
+        <button type="button" class="dropdown-item" data-go="articles"><i data-lucide="book-open"></i> Искать в статьях</button>
+      </div>`;
+    bd.appendChild(pop);
+    document.body.appendChild(bd);
+    const place = () => {
+      const r = anchor.getBoundingClientRect();
+      const w = 300;
+      let left = r.right - w;
+      left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
+      pop.style.left = left + 'px';
+      pop.style.top = (r.bottom + 8) + 'px';
+      pop.style.width = w + 'px';
+    };
+    place();
+    if (window.lucide) lucide.createIcons();
+    const input = document.getElementById('navSearchInput');
+    input?.focus();
+    const go = (kind) => {
+      const q = (input?.value || '').trim();
+      const root = siteRootPrefix();
+      if (kind === 'ideas') location.href = root + 'ideas/all.html' + (q ? '?q=' + encodeURIComponent(q) : '');
+      else location.href = root + 'articles/index.html' + (q ? '?q=' + encodeURIComponent(q) : '');
+    };
+    pop.querySelectorAll('[data-go]').forEach(btn => {
+      btn.addEventListener('click', () => go(btn.dataset.go));
+    });
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') go('ideas');
+    });
+    bd.addEventListener('click', (e) => { if (e.target === bd) bd.remove(); });
+  }
+
+  function openNavThemePop(anchor) {
+    document.getElementById('navThemeBackdrop')?.remove();
+    const bd = document.createElement('div');
+    bd.id = 'navThemeBackdrop';
+    bd.className = 'profile-hub-backdrop active';
+    const pop = document.createElement('div');
+    pop.className = 'profile-hub-pop profile-dropdown';
+    pop.style.cssText = 'opacity:1;visibility:visible;pointer-events:auto;transform:none;position:fixed;';
+    const current = (() => {
+      try { return JSON.parse(localStorage.getItem('ideanest_theme') || '{}').key || 'light'; }
+      catch { return 'light'; }
+    })();
+    const themes = [
+      { key: 'light', label: 'Светлая', icon: 'sun' },
+      { key: 'dark', label: 'Тёмная', icon: 'moon' },
+      { key: 'colorful', label: 'Цветная', icon: 'palette' }
+    ];
+    pop.innerHTML = `<div class="profile-hub-title">Тема</div>` + themes.map(th =>
+      `<button type="button" class="dropdown-item${current === th.key ? ' active-account' : ''}" data-theme-pick="${th.key}"><i data-lucide="${th.icon}"></i> ${th.label}</button>`
+    ).join('') + `<a class="dropdown-item" href="${siteRootPrefix()}settings/settings.html"><i data-lucide="settings"></i> Все настройки</a>`;
+    bd.appendChild(pop);
+    document.body.appendChild(bd);
+    const r = anchor.getBoundingClientRect();
+    const w = 240;
+    let left = r.right - w;
+    left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
+    pop.style.left = left + 'px';
+    pop.style.top = (r.bottom + 8) + 'px';
+    pop.style.width = w + 'px';
+    if (window.lucide) lucide.createIcons();
+    pop.querySelectorAll('[data-theme-pick]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.themePick;
+        const preset = (typeof BUILTIN_THEMES !== 'undefined' && BUILTIN_THEMES[key])
+          ? BUILTIN_THEMES[key]
+          : null;
+        const colors = preset && (preset.colors || preset);
+        if (colors && typeof applyThemeColors === 'function') {
+          applyThemeColors(colors, key);
+          saveThemeLocally(key, colors);
+        } else {
+          // fallback
+          const map = {
+            light: { 'bg-color': '#ffffff', 'bg-muted': '#f9fafb', 'surface-color': '#ffffff', 'text-main': '#111827', 'text-muted': '#6b7280', 'border-color': '#e5e7eb', 'accent-primary': '#4f46e5', 'accent-hover': '#1f2937', 'accent-light': '#f3f4f6' },
+            dark: { 'bg-color': '#0f0f12', 'bg-muted': '#18181c', 'surface-color': '#1c1c22', 'text-main': '#f3f4f6', 'text-muted': '#9ca3af', 'border-color': '#2e2e36', 'accent-primary': '#818cf8', 'accent-hover': '#a5b4fc', 'accent-light': '#27272a' },
+            colorful: { 'bg-color': '#faf5ff', 'bg-muted': '#f3e8ff', 'surface-color': '#ffffff', 'text-main': '#1e1b4b', 'text-muted': '#6b7280', 'border-color': '#e9d5ff', 'accent-primary': '#7c3aed', 'accent-hover': '#6d28d9', 'accent-light': '#ede9fe' }
+          };
+          const c = map[key] || map.light;
+          Object.entries(c).forEach(([k, v]) => document.documentElement.style.setProperty('--' + k, v));
+          document.documentElement.setAttribute('data-theme', key === 'dark' ? 'dark' : key);
+          localStorage.setItem('ideanest_theme', JSON.stringify({ key, colors: c }));
+        }
+        bd.remove();
+        showToast('Тема: ' + (key === 'dark' ? 'тёмная' : key === 'colorful' ? 'цветная' : 'светлая'));
+      });
+    });
+    bd.addEventListener('click', (e) => { if (e.target === bd) bd.remove(); });
+  }
+
+
 
   // ================= 1. Логика Меню Профиля (Dropdown) =================
   const profileWrapper = document.getElementById('profileWrapper');
@@ -263,6 +501,12 @@ document.addEventListener("DOMContentLoaded", () => {
             <a href="#" data-footer-soon="contacts">Контакты</a>
           </div>
           <div class="site-footer-col">
+            <div class="site-footer-heading">Правовая информация</div>
+            <a href="${root}privacy.html">Политика обработки персональных данных</a>
+            <a href="${root}terms.html">Пользовательское соглашение</a>
+            <a href="${root}disclaimer.html">Дисклеймер</a>
+          </div>
+          <div class="site-footer-col">
             <div class="site-footer-heading">Ссылки</div>
             <a href="https://t.me/" target="_blank" rel="noopener noreferrer">Telegram</a>
             <a href="https://github.com/" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -279,13 +523,68 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
+
+  (function homeJumpBar() {
+    if (!document.getElementById('ideas') || !document.querySelector('.hero')) return;
+    const bar = document.createElement('div');
+    bar.className = 'home-jump-bar';
+    bar.innerHTML = `<a href="#ideas"><i data-lucide="arrow-down"></i> К идеям</a>`;
+    document.body.appendChild(bar);
+    if (window.lucide) lucide.createIcons();
+    const hero = document.querySelector('.hero');
+    const onScroll = () => {
+      const past = window.scrollY > (hero.offsetHeight * 0.55);
+      bar.classList.toggle('visible', past && window.scrollY < (document.getElementById('ideas')?.offsetTop || 0) - 80);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+
   // Hero CTA на главной
   document.getElementById('heroStartBtn')?.addEventListener('click', () => {
-    document.getElementById('ideas')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    location.href = siteRootPrefix() + 'ideas/match.html';
   });
   document.getElementById('heroHowBtn')?.addEventListener('click', () => {
-    document.getElementById('articles')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    openHowItWorksWindow();
   });
+
+  function openHowItWorksWindow() {
+    document.getElementById('howItWorksBackdrop')?.remove();
+    const bd = document.createElement('div');
+    bd.id = 'howItWorksBackdrop';
+    bd.className = 'how-it-works-backdrop';
+    const win = document.createElement('div');
+    win.className = 'how-it-works-window';
+    win.innerHTML = `
+      <button type="button" class="how-it-works-close" aria-label="Закрыть"><i data-lucide="x"></i></button>
+      <h2>Как это работает</h2>
+      <p class="how-lead">IdeaNest помогает выбрать бизнес-идею и разобраться в ней через статьи.</p>
+      <div class="how-steps">
+        <div class="how-step"><div class="how-step-num">1</div><div><strong>Задай критерии</strong><span>Бюджет, категория, сложность — в подборке идей.</span></div></div>
+        <div class="how-step"><div class="how-step-num">2</div><div><strong>Смотри идеи</strong><span>Рейтинг, риски, плюсы и минусы в карточках.</span></div></div>
+        <div class="how-step"><div class="how-step-num">3</div><div><strong>Читай статьи</strong><span>Гайды, калькуляторы и разборы по темам.</span></div></div>
+        <div class="how-step"><div class="how-step-num">4</div><div><strong>Сохраняй своё</strong><span>Профиль, избранное и настройки под тебя.</span></div></div>
+      </div>
+      <button type="button" class="btn btn-primary" id="howGoMatch" style="width:100%;margin-top:18px;">Открыть подборку</button>`;
+    bd.appendChild(win);
+    document.body.appendChild(bd);
+    requestAnimationFrame(() => {
+      bd.classList.add('active');
+      win.classList.add('active');
+    });
+    if (window.lucide) lucide.createIcons();
+    const close = () => {
+      win.classList.remove('active');
+      bd.classList.remove('active');
+      setTimeout(() => bd.remove(), 250);
+    };
+    bd.addEventListener('click', (e) => { if (e.target === bd) close(); });
+    win.querySelector('.how-it-works-close')?.addEventListener('click', close);
+    document.getElementById('howGoMatch')?.addEventListener('click', () => {
+      location.href = siteRootPrefix() + 'ideas/match.html';
+    });
+  }
+
 
   // ================= Мультиаккаунт (локально в браузере) =================
   const ACCOUNTS_KEY = 'ideanest_saved_accounts';
@@ -312,7 +611,7 @@ document.addEventListener("DOMContentLoaded", () => {
       let avatar = (currentProfile && currentProfile.avatar_url) || u.user_metadata?.avatar_url || '';
       if (!avatar) {
         const label = fullName || username;
-        avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=111827&color=fff&bold=true`;
+        avatar = defaultAvatarUrl(label);
       }
       const entry = {
         id: u.id,
@@ -333,10 +632,10 @@ document.addEventListener("DOMContentLoaded", () => {
   
   
   function accountAvatarUrl(acc) {
-    if (!acc) return 'https://ui-avatars.com/api/?name=U&background=111827&color=fff&bold=true';
+    if (!acc) return defaultAvatarUrl('U');
     if (acc.avatar_url) return acc.avatar_url;
     const label = acc.full_name || acc.username || 'U';
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=111827&color=fff&bold=true`;
+    return defaultAvatarUrl(label);
   }
 
 
@@ -487,7 +786,7 @@ function closeAccountSwitcher() {
       <div class="float-pop-list">
         ${list.map(a => {
           const label = a.full_name || a.username || 'user';
-          const av = a.avatar_url || (`https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=111827&color=fff&bold=true`);
+          const av = a.avatar_url || (defaultAvatarUrl(label));
           return `
           <button type="button" class="float-pop-item${a.id === currentId ? ' is-current' : ''}" data-acc-id="${a.id}">
             <img class="float-pop-avatar" src="${av.replace(/"/g, '&quot;')}" alt="" />
@@ -529,10 +828,156 @@ function closeAccountSwitcher() {
     });
   }
 
+  function closeProfileHub() {
+    const bd = document.getElementById('profileHubBackdrop');
+    if (!bd) return;
+    bd.classList.remove('active');
+    setTimeout(() => bd.remove(), 200);
+  }
+
+  function openProfileHub(anchorEl, title, items) {
+    closeProfileHub();
+    const bd = document.createElement('div');
+    bd.id = 'profileHubBackdrop';
+    bd.className = 'profile-hub-backdrop';
+    const pop = document.createElement('div');
+    pop.className = 'profile-hub-pop profile-dropdown';
+    pop.style.opacity = '1';
+    pop.style.visibility = 'visible';
+    pop.style.pointerEvents = 'auto';
+    pop.style.transform = 'none';
+    pop.style.position = 'fixed';
+
+    pop.innerHTML = `<div class="profile-hub-title">${title}</div>` + items.map((it, i) => {
+      if (it.href) {
+        return `<a class="dropdown-item${it.danger ? ' danger' : ''}" href="${it.href}" data-hub-i="${i}"><i data-lucide="${it.icon}"></i> ${it.label}</a>`;
+      }
+      return `<button type="button" class="dropdown-item${it.danger ? ' danger' : ''}" data-hub-i="${i}"><i data-lucide="${it.icon}"></i> ${it.label}</button>`;
+    }).join('');
+    bd.appendChild(pop);
+    document.body.appendChild(bd);
+
+    const place = () => {
+      const r = (anchorEl || document.getElementById('topAvatar') || document.body).getBoundingClientRect();
+      const w = 260;
+      let left = r.right - w;
+      left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
+      let top = r.bottom + 8;
+      pop.style.left = left + 'px';
+      pop.style.top = top + 'px';
+      pop.style.width = w + 'px';
+    };
+    place();
+    requestAnimationFrame(() => bd.classList.add('active'));
+    if (window.lucide) lucide.createIcons();
+
+    bd.addEventListener('click', (e) => { if (e.target === bd) closeProfileHub(); });
+    pop.querySelectorAll('[data-hub-i]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        const it = items[parseInt(el.dataset.hubI, 10)];
+        if (!it) return;
+        if (it.href) {
+          closeProfileHub();
+          closeProfileDropdown();
+          return;
+        }
+        e.preventDefault();
+        closeProfileHub();
+        if (it.action) it.action();
+      });
+    });
+  }
+
+  async function openMyIdeasHub() {
+    closeProfileDropdown();
+    const pId = await getProfileId();
+    if (!pId) { openAuthModal('signin'); return; }
+    location.href = siteRootPrefix() + 'ideas/all.html?mine=1';
+  }
+
+  async function openMyArticlesHub() {
+    closeProfileDropdown();
+    const pId = await getProfileId();
+    if (!pId) { openAuthModal('signin'); return; }
+    location.href = siteRootPrefix() + 'articles/index.html?mine=1';
+  }
+
+  function openNotificationsWindow() {
+    closeProfileDropdown();
+    document.getElementById('notifBackdrop')?.remove();
+    const bd = document.createElement('div');
+    bd.id = 'notifBackdrop';
+    bd.className = 'how-it-works-backdrop';
+    const win = document.createElement('div');
+    win.className = 'how-it-works-window';
+    let list = [];
+    try {
+      list = JSON.parse(localStorage.getItem('ideanest_notifications') || '[]');
+      if (!Array.isArray(list)) list = [];
+    } catch { list = []; }
+    if (!list.length) {
+      list = [{
+        title: 'Добро пожаловать в IdeaNest',
+        body: 'Здесь будут апвоуты, ответы и системные сообщения. Пока можете открыть подборку идей.'
+      }];
+    }
+
+    win.innerHTML = `
+      <button type="button" class="how-it-works-close" aria-label="Закрыть"><i data-lucide="x"></i></button>
+      <h2>Уведомления</h2>
+      <p class="how-lead">Ответы, апвоуты и важные события по аккаунту.</p>
+      <div id="notifList"></div>`;
+    bd.appendChild(win);
+    document.body.appendChild(bd);
+    const box = win.querySelector('#notifList');
+    if (false) {
+      box.innerHTML = `<div class="notif-empty">Пока тихо.</div>`;
+    } else {
+      box.innerHTML = list.map(n => `
+        <div class="notif-item">
+          <strong>${n.title || 'Уведомление'}</strong>
+          <span>${n.body || ''}</span>
+        </div>`).join('');
+    }
+    requestAnimationFrame(() => {
+      bd.classList.add('active');
+      win.classList.add('active');
+    });
+    if (window.lucide) lucide.createIcons();
+    const close = () => {
+      win.classList.remove('active');
+      bd.classList.remove('active');
+      setTimeout(() => bd.remove(), 250);
+    };
+    bd.addEventListener('click', (e) => { if (e.target === bd) close(); });
+    win.querySelector('.how-it-works-close')?.addEventListener('click', close);
+  }
+
+  async function addAnotherAccount() {
+    await rememberCurrentAccount();
+    closeProfileDropdown();
+    await supabaseClient.auth.signOut({ scope: 'local' });
+    currentUser = null;
+    currentProfile = null;
+    if (loginBtn) loginBtn.style.display = '';
+    if (profileWrapper) profileWrapper.style.display = 'none';
+    openAuthModal('signin');
+    showToast('Войдите в другой аккаунт');
+  }
+
+  async function doLogout() {
+    closeProfileDropdown();
+    await supabaseClient.auth.signOut();
+    currentUser = null;
+    currentProfile = null;
+    if (loginBtn) loginBtn.style.display = '';
+    if (profileWrapper) profileWrapper.style.display = 'none';
+    showToast('Вы вышли');
+  }
+
   function wireAccountMenuButtons() {
     document.querySelectorAll('.profile-dropdown .dropdown-item').forEach(el => {
       const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
-      // «Текущий аккаунт» — скрываем
       if (text.includes('Текущий аккаунт')) {
         el.style.display = 'none';
         return;
@@ -541,15 +986,7 @@ function closeAccountSwitcher() {
         el.dataset.accWired = '1';
         el.addEventListener('click', async (e) => {
           e.preventDefault();
-          await rememberCurrentAccount();
-          closeProfileDropdown();
-          await supabaseClient.auth.signOut({ scope: 'local' });
-          currentUser = null;
-          currentProfile = null;
-          if (loginBtn) loginBtn.style.display = '';
-          if (profileWrapper) profileWrapper.style.display = 'none';
-          openAuthModal('signin');
-          showToast('Войдите в другой аккаунт');
+          await addAnotherAccount();
         });
       }
       if (text.includes('Переключить аккаунт') && !el.dataset.accWired) {
@@ -557,11 +994,41 @@ function closeAccountSwitcher() {
         el.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          // меню профиля не закрываем
           openAccountSwitcher(el);
         });
       }
     });
+
+    const contentBtn = document.getElementById('hubContentBtn');
+    if (contentBtn && !contentBtn.dataset.hubWired) {
+      contentBtn.dataset.hubWired = '1';
+      contentBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openProfileHub(contentBtn, 'Мой контент', [
+          { label: 'Мои идеи', icon: 'lightbulb', action: () => openMyIdeasHub() },
+          { label: 'Мои статьи', icon: 'book-open', action: () => openMyArticlesHub() },
+          { label: 'Подборка идей', icon: 'sparkles', href: siteRootPrefix() + 'ideas/match.html' },
+          { label: 'Все идеи', icon: 'grid-2x2', href: siteRootPrefix() + 'ideas/all.html' },
+          { label: 'Все статьи', icon: 'library', href: siteRootPrefix() + 'articles/index.html' }
+        ]);
+      });
+    }
+
+    const accBtn = document.getElementById('hubAccountBtn');
+    if (accBtn && !accBtn.dataset.hubWired) {
+      accBtn.dataset.hubWired = '1';
+      accBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openProfileHub(accBtn, 'Аккаунт', [
+          { label: 'Уведомления', icon: 'bell', action: () => openNotificationsWindow() },
+          { label: 'Добавить аккаунт', icon: 'plus', action: () => addAnotherAccount() },
+          { label: 'Переключить аккаунт', icon: 'refresh-cw', action: () => openAccountSwitcher(accBtn) },
+          { label: 'Выйти', icon: 'log-out', danger: true, action: () => doLogout() }
+        ]);
+      });
+    }
   }
 
   wireAccountMenuButtons();
@@ -844,7 +1311,7 @@ function closeAccountSwitcher() {
           const html = list.length
             ? '<div class="mega-menu-label">Свежие</div>' + list.map(i => {
                 const title = (i.title && i.title.trim()) ? i.title : ('Идея №' + i.id_idea);
-                return `<a class="mega-menu-item mega-menu-item--compact" href="${root}ideas/idea.html?id=${i.id_idea}">
+                return `<a class="mega-menu-item mega-menu-item--compact" href="${ideaHref(i)}">
                   <span><strong>${title}</strong><small>${i.category || ''}${i.rating != null ? ' · ★ ' + Number(i.rating).toFixed(1) : ''}</small></span>
                 </a>`;
               }).join('')
@@ -961,7 +1428,65 @@ function closeAccountSwitcher() {
   const recoveryPassword = document.getElementById('recoveryPassword');
   const recoveryPasswordToggleBtn = document.getElementById('recoveryPasswordToggleBtn');
   const authError = document.getElementById('authError');
+
   const authSubmitBtn = document.getElementById('authSubmitBtn');
+
+  // ---- Юридические согласия при регистрации (два независимых checkbox) ----
+  function ensureAuthConsentUI() {
+    const form = document.getElementById('authForm');
+    if (!form || document.getElementById('authConsentGroup')) return;
+    const root = (typeof siteRootPrefix === 'function') ? siteRootPrefix() : '';
+    const group = document.createElement('div');
+    group.id = 'authConsentGroup';
+    group.className = 'auth-consent-group';
+    group.hidden = true;
+    group.innerHTML =
+      '<label class="auth-consent-item">' +
+        '<input type="checkbox" id="authAcceptTerms" class="auth-consent-input" autocomplete="off" />' +
+        '<span class="auth-consent-box" aria-hidden="true"><span class="auth-consent-fill"></span><svg class="auth-consent-check" viewBox="0 0 16 16" fill="none"><path d="M3.5 8.2L6.6 11.2L12.5 4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' +
+        '<span class="auth-consent-text">Я ознакомился и принимаю <a href="' + root + 'terms.html" target="_blank" rel="noopener noreferrer">Пользовательское соглашение</a>.</span>' +
+      '</label>' +
+      '<label class="auth-consent-item">' +
+        '<input type="checkbox" id="authAcceptPrivacy" class="auth-consent-input" autocomplete="off" />' +
+        '<span class="auth-consent-box" aria-hidden="true"><span class="auth-consent-fill"></span><svg class="auth-consent-check" viewBox="0 0 16 16" fill="none"><path d="M3.5 8.2L6.6 11.2L12.5 4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' +
+        '<span class="auth-consent-text">Я даю согласие на обработку моих персональных данных в соответствии с <a href="' + root + 'privacy.html" target="_blank" rel="noopener noreferrer">Политикой обработки персональных данных</a>.</span>' +
+      '</label>';
+    const errEl = document.getElementById('authError');
+    if (errEl) form.insertBefore(group, errEl);
+    else form.insertBefore(group, authSubmitBtn);
+    group.querySelectorAll('a').forEach(a => {
+      a.addEventListener('click', (e) => e.stopPropagation());
+    });
+    group.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', syncAuthConsentState);
+    });
+  }
+
+  function resetAuthConsent() {
+    const t = document.getElementById('authAcceptTerms');
+    const p = document.getElementById('authAcceptPrivacy');
+    if (t) t.checked = false;
+    if (p) p.checked = false;
+  }
+
+  function bothConsentsAccepted() {
+    const t = document.getElementById('authAcceptTerms');
+    const p = document.getElementById('authAcceptPrivacy');
+    return !!(t && p && t.checked && p.checked);
+  }
+
+  function syncAuthConsentState() {
+    if (!authSubmitBtn) return;
+    const group = document.getElementById('authConsentGroup');
+    const isSignup = (typeof authMode !== 'undefined' && authMode === 'signup');
+    if (group) group.hidden = !isSignup;
+    if (isSignup) {
+      authSubmitBtn.disabled = !bothConsentsAccepted();
+    }
+  }
+
+  ensureAuthConsentUI();
+
   const authCloseBtn = document.getElementById('authCloseBtn');
   let authMode = 'signin'; // 'signin' | 'signup' | 'reset' | 'recovery'
   let nicknameCheckTimer = null;
@@ -1049,6 +1574,7 @@ function closeAccountSwitcher() {
     authTabs.forEach(t => t.classList.toggle('active', t.dataset.authTab === authMode));
 
     usernameGroup.classList.toggle('expanded', authMode === 'signup');
+    /* phone registration removed — no verification */
     identifierGroup.style.display = isRecovery ? 'none' : '';
     authEmail.required = !isRecovery;
     passwordGroup.style.display = (isReset || isRecovery) ? 'none' : '';
@@ -1059,6 +1585,18 @@ function closeAccountSwitcher() {
     if (isRecovery) authSubmitBtn.textContent = 'Сохранить новый пароль';
     else if (isReset) authSubmitBtn.textContent = 'Отправить письмо';
     else authSubmitBtn.textContent = authMode === 'signup' ? 'Создать аккаунт' : 'Войти';
+    ensureAuthConsentUI();
+    if (authMode === 'signup') {
+      /* не сбрасываем галочки при каждом открытии вкладки только если уже signup? сбрасываем всегда для чистоты */
+      resetAuthConsent();
+    } else {
+      resetAuthConsent();
+    }
+    syncAuthConsentState();
+    if (authMode !== 'signup' && authMode !== 'reset' && authMode !== 'recovery') {
+      authSubmitBtn.disabled = false;
+    }
+
 
     if (authMode === 'signup') {
       authEmailLabel.textContent = 'Email';
@@ -1165,6 +1703,10 @@ function closeAccountSwitcher() {
       if (nicknameState === 'checking') { authError.textContent = 'Подождите, проверяем никнейм...'; return; }
       if (!looksLikeEmail(identifier)) { authError.textContent = 'Введите корректный email.'; return; }
       if (password.length < 6) { authError.textContent = 'Пароль должен быть не короче 6 символов.'; return; }
+      if (!bothConsentsAccepted()) {
+        authError.textContent = 'Примите Пользовательское соглашение и Политику обработки персональных данных.';
+        return;
+      }
     }
 
     authSubmitBtn.disabled = true;
@@ -1175,16 +1717,29 @@ function closeAccountSwitcher() {
         const fullName = authFullName.value.trim();
         const username = authUsername.value.trim();
         // full_name хранится в Auth user_metadata, не в таблице profiles
+        const acceptedAt = new Date().toISOString();
+        const consentMeta = {
+          full_name: fullName,
+          username,
+          accepted_terms: true,
+          accepted_privacy: true,
+          terms_accepted_at: acceptedAt,
+          privacy_accepted_at: acceptedAt
+        };
         const { data, error } = await supabaseClient.auth.signUp({
           email: identifier,
           password,
-          options: { data: { full_name: fullName, username } }
+          options: { data: consentMeta }
         });
         if (error) throw error;
-        // Если у проекта включено подтверждение по email, сессии ещё не будет —
-        // профиль создадим сразу же, как только появится сессия (см. onAuthStateChange).
+        // Согласия сохраняем только после успешного signUp (не при ошибке).
         if (data.user) {
-          await ensureProfile(data.user, username);
+          await ensureProfile(data.user, username, {
+            accepted_terms: true,
+            accepted_privacy: true,
+            terms_accepted_at: acceptedAt,
+            privacy_accepted_at: acceptedAt
+          });
         }
         if (!data.session) {
           showToast('Проверьте почту — нужно подтвердить регистрацию.');
@@ -1201,8 +1756,9 @@ function closeAccountSwitcher() {
     } catch (err) {
       authError.textContent = translateAuthError(err.message);
     } finally {
-      authSubmitBtn.disabled = false;
       authSubmitBtn.textContent = authMode === 'signup' ? 'Создать аккаунт' : 'Войти';
+      if (authMode === 'signup') syncAuthConsentState();
+      else authSubmitBtn.disabled = false;
     }
   });
 
@@ -1217,7 +1773,7 @@ function closeAccountSwitcher() {
   // Находит (или создаёт) запись в таблице profiles для текущего пользователя.
   // Схема: profiles(id, created_at, username, auth_id -> auth.users.id)
   // Имя (full_name) — только в Auth user_metadata, в profiles его нет.
-  async function ensureProfile(user, usernameForNew) {
+  async function ensureProfile(user, usernameForNew, consentFields) {
     try {
       const username = usernameForNew
         || user.user_metadata?.username
@@ -1225,6 +1781,14 @@ function closeAccountSwitcher() {
       const fullName = (user.user_metadata?.full_name || '').trim() || null;
       const firstName = (user.user_metadata?.first_name || '').trim() || null;
       const lastName = (user.user_metadata?.last_name || '').trim() || null;
+      const meta = user.user_metadata || {};
+      const consent = consentFields || {};
+      if (consent.accepted_terms == null && meta.accepted_terms) {
+        consent.accepted_terms = !!meta.accepted_terms;
+        consent.accepted_privacy = !!meta.accepted_privacy;
+        consent.terms_accepted_at = meta.terms_accepted_at || null;
+        consent.privacy_accepted_at = meta.privacy_accepted_at || null;
+      }
 
       const { data: existing, error: selErr } = await supabaseClient
         .from('profiles')
@@ -1240,13 +1804,35 @@ function closeAccountSwitcher() {
         if (firstName && existing.first_name !== firstName) patch.first_name = firstName;
         if (lastName && existing.last_name !== lastName) patch.last_name = lastName;
         if (username && !existing.username) patch.username = username;
+        const phone = (user.user_metadata?.phone || '').trim();
+        if (phone && existing.phone !== phone) patch.phone = phone;
+        // согласия: пишем только если ещё не зафиксированы и пришли с регистрации
+        if (consent.accepted_terms && !existing.accepted_terms) {
+          patch.accepted_terms = true;
+          if (consent.terms_accepted_at) patch.terms_accepted_at = consent.terms_accepted_at;
+        }
+        if (consent.accepted_privacy && !existing.accepted_privacy) {
+          patch.accepted_privacy = true;
+          if (consent.privacy_accepted_at) patch.privacy_accepted_at = consent.privacy_accepted_at;
+        }
         if (Object.keys(patch).length) {
-          const { data: updated } = await supabaseClient
+          const { data: updated, error: upErr } = await supabaseClient
             .from('profiles')
             .update(patch)
             .eq('id', existing.id)
             .select()
             .maybeSingle();
+          if (upErr) {
+            // колонок согласий может ещё не быть — пробуем без них
+            const safe = { ...patch };
+            delete safe.accepted_terms; delete safe.accepted_privacy;
+            delete safe.terms_accepted_at; delete safe.privacy_accepted_at;
+            if (Object.keys(safe).length) {
+              const { data: updated2 } = await supabaseClient.from('profiles').update(safe).eq('id', existing.id).select().maybeSingle();
+              return updated2 || { ...existing, ...safe };
+            }
+            return existing;
+          }
           return updated || { ...existing, ...patch };
         }
         return existing;
@@ -1256,6 +1842,16 @@ function closeAccountSwitcher() {
       if (fullName) row.full_name = fullName;
       if (firstName) row.first_name = firstName;
       if (lastName) row.last_name = lastName;
+      const phoneNew = (user.user_metadata?.phone || '').trim();
+      if (phoneNew) row.phone = phoneNew;
+      if (consent.accepted_terms) {
+        row.accepted_terms = true;
+        if (consent.terms_accepted_at) row.terms_accepted_at = consent.terms_accepted_at;
+      }
+      if (consent.accepted_privacy) {
+        row.accepted_privacy = true;
+        if (consent.privacy_accepted_at) row.privacy_accepted_at = consent.privacy_accepted_at;
+      }
 
       const { data: created, error: insErr } = await supabaseClient
         .from('profiles')
@@ -1263,7 +1859,7 @@ function closeAccountSwitcher() {
         .select()
         .maybeSingle();
       if (insErr) {
-        // если колонок full_name ещё нет — пробуем только username
+        // если колонок согласий/full_name ещё нет — пробуем только username
         const { data: created2, error: insErr2 } = await supabaseClient
           .from('profiles')
           .insert({ auth_id: user.id, username })
@@ -1295,7 +1891,7 @@ function closeAccountSwitcher() {
     const quickName = currentUser.user_metadata?.username
       || currentUser.user_metadata?.full_name
       || (currentUser.email ? currentUser.email.split('@')[0] : 'U');
-    const quickAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(quickName)}&background=111827&color=fff&bold=true`;
+    const quickAvatar = defaultAvatarUrl(quickName);
     const topAv = document.getElementById('topAvatar');
     const dropAv = document.getElementById('dropdownAvatar');
     if (topAv) topAv.src = quickAvatar;
@@ -1312,7 +1908,7 @@ function closeAccountSwitcher() {
     if (!currentUser) return; // разлогинились пока ждали
     const displayName = currentProfile?.username || quickName;
     const avatarUrl = currentProfile?.avatar_url
-      || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=111827&color=fff&bold=true`;
+      || defaultAvatarUrl(displayName);
     if (topAv) topAv.src = avatarUrl;
     if (dropAv) dropAv.src = avatarUrl;
     if (nameEl) nameEl.textContent = displayName;
@@ -1601,22 +2197,61 @@ function closeAccountSwitcher() {
   })();
 
 
+
+  function renderActiveIdeaFilterChips() {
+    let bar = document.getElementById('activeIdeaFilters');
+    const host = document.querySelector('.filters-container') || document.getElementById('ideasGrid')?.previousElementSibling;
+    if (!host && !document.getElementById('ideasGrid')) return;
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'activeIdeaFilters';
+      bar.className = 'active-filters-bar';
+      const grid = document.getElementById('ideasGrid');
+      if (grid) grid.parentNode.insertBefore(bar, grid);
+      else return;
+    }
+    const chips = [];
+    const cat = document.querySelector('.filter-btn.active')?.dataset.filter;
+    if (cat && cat !== 'all') chips.push({ key: 'cat', label: 'Категория: ' + cat });
+    const ratingSlider = document.getElementById('ratingSlider');
+    if (ratingSlider && parseFloat(ratingSlider.value) > 0) chips.push({ key: 'rating', label: 'Рейтинг ≥ ' + ratingSlider.value });
+    const q = document.getElementById('ideaSearch')?.value?.trim();
+    if (q) chips.push({ key: 'q', label: 'Поиск: ' + q });
+    if (filterArticleId) chips.push({ key: 'article', label: 'Связь со статьёй' });
+    if (new URLSearchParams(location.search).get('mine') === '1') chips.push({ key: 'mine', label: 'Только мои' });
+    bar.innerHTML = chips.map(c => `<span class="filter-chip-active">${c.label} <button type="button" data-chip="${c.key}" aria-label="Убрать">×</button></span>`).join('');
+    bar.querySelectorAll('[data-chip]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const k = btn.dataset.chip;
+        if (k === 'cat') document.querySelector('.filter-btn[data-filter="all"]')?.click();
+        if (k === 'rating' && ratingSlider) { ratingSlider.value = 0; ratingSlider.dispatchEvent(new Event('input')); }
+        if (k === 'q') { const s = document.getElementById('ideaSearch'); if (s) { s.value = ''; s.dispatchEvent(new Event('input')); } }
+        if (k === 'article' || k === 'mine') location.href = siteRootPrefix() + 'ideas/all.html';
+        applyIdeaFilters();
+        renderActiveIdeaFilterChips();
+      });
+    });
+  }
+
   function applyIdeaFilters() {
     const activeBtn = document.querySelector('.filter-btn.active');
     const category = activeBtn ? activeBtn.dataset.filter : 'all';
     const minRating = ratingSlider ? parseFloat(ratingSlider.value) : 0;
     const searchQuery = ideaSearchInput ? ideaSearchInput.value.trim().toLowerCase() : '';
+    const urlMine = new URLSearchParams(location.search).get('mine') === '1';
 
     const filtered = ideasCache.filter(idea => {
       const matchesArticle = !filterArticleId || relatedIdeaIds.has(Number(idea.id_idea));
       const matchesCategory = category === 'all' || idea.category === category;
       const matchesRating = idea.rating == null ? minRating === 0 : Number(idea.rating) >= minRating;
+      const matchesMine = !urlMine || (currentProfile && Number(idea.id_profile) === Number(currentProfile.id));
       const matchesSearch = !searchQuery || [idea.title, idea.pluses, idea.minuses, idea.risks, idea.potential]
         .some(field => (field || '').toLowerCase().includes(searchQuery));
-      return matchesArticle && matchesCategory && matchesRating && matchesSearch;
+      return matchesArticle && matchesCategory && matchesRating && matchesMine && matchesSearch;
     });
 
     renderIdeasList(sortIdeas(filtered));
+    renderActiveIdeaFilterChips();
   }
 
   // ================= 7. Идеи из Supabase (карточки + окно предпросмотра) =================
@@ -1713,7 +2348,7 @@ function closeAccountSwitcher() {
         <h4><i data-lucide="alert-triangle"></i> Риски</h4>
         <p>${idea.risks || 'Не заполнено.'}</p>
       </div>
-      <a class="btn btn-primary idea-open-btn" href="ideas/idea.html?id=${idea.id_idea}">
+      <a class="btn btn-primary idea-open-btn" href="${ideaHref(idea)}">
         <i data-lucide="maximize-2"></i> Открыть
       </a>
     `;
@@ -1733,11 +2368,21 @@ function closeAccountSwitcher() {
     const shown = isHomePage ? list.slice(0, HOME_ROW_LIMIT) : list;
     ideasGrid.classList.add('grid-fade');
     setTimeout(() => {
-      ideasGrid.innerHTML = shown.length
-        ? shown.map(idea => renderIdeaCard(idea, {
+      const urlMine = new URLSearchParams(location.search).get('mine') === '1';
+      if (!shown.length) {
+        ideasGrid.innerHTML = urlMine
+          ? `<div class="empty-state"><h3>Пока нет ваших идей</h3><p>Когда опубликуете идею — она появится здесь.</p>
+             <a class="btn btn-primary" href="${siteRootPrefix()}ideas/match.html">Подобрать идеи</a></div>`
+          : `<div class="empty-state"><h3>Ничего не найдено</h3><p>Попробуйте сбросить фильтры или изменить запрос.</p>
+             <button type="button" class="btn btn-secondary" id="resetIdeaFiltersBtn">Сбросить фильтры</button></div>`;
+      } else {
+        ideasGrid.innerHTML = shown.map(idea => renderIdeaCard(idea, {
             featured: !!(filterArticleId && mainIdeaIdForArticle && Number(idea.id_idea) === mainIdeaIdForArticle)
-          })).join('')
-        : '<p style="opacity:0.6;">Ничего не найдено по заданным фильтрам.</p>';
+          })).join('');
+      }
+      document.getElementById('resetIdeaFiltersBtn')?.addEventListener('click', () => {
+        location.href = siteRootPrefix() + 'ideas/all.html';
+      });
       if (window.lucide) lucide.createIcons();
       ideasGrid.querySelectorAll('[data-idea-id]').forEach(card => {
         card.addEventListener('click', () => {
@@ -1751,6 +2396,7 @@ function closeAccountSwitcher() {
 
   async function loadIdeasFromSupabase() {
     if (!ideasGrid) return;
+    ideasGrid.innerHTML = '<div class="skeleton-grid">' + Array(6).fill('<div class="skeleton-card"></div>').join('') + '</div>';
     try {
       const { data, error } = await supabaseClient
         .from('ideas')
@@ -1772,6 +2418,101 @@ function closeAccountSwitcher() {
   }
 
   loadIdeasFromSupabase();
+
+
+  // ================= Подборка идей (ideas/match.html) =================
+  async function initIdeaMatchPage() {
+    const form = document.getElementById('ideaMatchForm');
+    const grid = document.getElementById('matchResultsGrid');
+    if (!form || !grid) return;
+
+    const status = document.getElementById('matchStatus');
+    status.textContent = 'Загрузка идей…';
+
+    let ideas = [];
+    try {
+      const { data, error } = await supabaseClient
+        .from('ideas')
+        .select('*')
+        .order('rating', { ascending: false });
+      if (error) throw error;
+      ideas = data || [];
+      status.textContent = ideas.length ? `В базе ${ideas.length} идей. Задай критерии и нажми «Подобрать».` : 'Идей пока нет.';
+    } catch (e) {
+      console.error(e);
+      status.textContent = 'Не удалось загрузить идеи.';
+      return;
+    }
+
+    function normComplexity(v) {
+      const s = String(v || '').toLowerCase();
+      if (/низк|low|лёгк|легк|просто/.test(s)) return 'low';
+      if (/средн|medium|сред/.test(s)) return 'medium';
+      if (/высок|high|сложн/.test(s)) return 'high';
+      return s;
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const budgetRaw = document.getElementById('matchBudget').value;
+      const budgetMax = budgetRaw === '' ? null : Number(budgetRaw);
+      const category = document.getElementById('matchCategory').value;
+      const complexity = document.getElementById('matchComplexity').value;
+      const minRating = Number(document.getElementById('matchRating').value) || 0;
+
+      let list = ideas.slice();
+      if (budgetMax != null && !Number.isNaN(budgetMax)) {
+        list = list.filter(i => i.budget == null || Number(i.budget) <= budgetMax);
+      }
+      if (category !== 'all') {
+        list = list.filter(i => (i.category || '').toLowerCase() === category);
+      }
+      if (complexity !== 'all') {
+        list = list.filter(i => normComplexity(i.complexity) === complexity || normComplexity(i.complexity).includes(complexity));
+      }
+      if (minRating > 0) {
+        list = list.filter(i => i.rating != null && Number(i.rating) >= minRating);
+      }
+
+      status.textContent = list.length
+        ? `Найдено: ${list.length}`
+        : 'Ничего не подошло — ослабь фильтры.';
+      grid.innerHTML = list.length
+        ? list.map(i => renderIdeaCard(i)).join('')
+        : '';
+      if (window.lucide) lucide.createIcons();
+      grid.querySelectorAll('[data-idea-id]').forEach(card => {
+        card.addEventListener('click', () => {
+          const idea = list.find(x => String(x.id_idea) === String(card.dataset.ideaId));
+          if (idea && typeof openIdeaPreview === 'function') openIdeaPreview(idea);
+        });
+      });
+    });
+  }
+  initIdeaMatchPage();
+
+  (function injectMatchLink() {
+    const header = document.querySelector('.section-header, main .section-title');
+    if (!header) return;
+    if (document.getElementById('ideaMatchCta')) return;
+    const path = (location.pathname || '').toLowerCase();
+    if (!path.includes('/ideas/')) return;
+    const root = siteRootPrefix();
+    const a = document.createElement('a');
+    a.id = 'ideaMatchCta';
+    a.href = root + 'ideas/match.html';
+    a.className = 'btn btn-secondary';
+    a.style.marginLeft = '12px';
+    a.innerHTML = '<i data-lucide="sparkles"></i> Подборка';
+    if (header.classList && header.classList.contains('section-header')) {
+      header.appendChild(a);
+    } else {
+      header.parentNode?.insertBefore(a, header.nextSibling);
+    }
+    if (window.lucide) lucide.createIcons();
+  })();
+
+
 
   // ================= 7б. Статьи из Supabase (карточки + окно предпросмотра) =================
   // Схема таблицы articles: id, id_profile, title, text, created_at.
@@ -1817,7 +2558,7 @@ function closeAccountSwitcher() {
   function authorAvatarUrl(profile, displayName) {
     if (profile?.avatar_url) return profile.avatar_url;
     const n = displayName || profile?.username || 'U';
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(n)}&background=111827&color=fff&bold=true`;
+    return defaultAvatarUrl(n);
   }
 
   
@@ -1956,8 +2697,10 @@ function wireAuthorTagClicks(root) {
   function authorTagHtml(article) {
     const name = articleAuthorName(article);
     const pid = article?.id_profile || article?.profiles?.id || '';
+    const uname = article?.profiles?.username || '';
     const aid = article?.id || '';
-    return `<span class="card-tag author-tag" data-profile-id="${pid}" data-article-id="${aid}" title="Открыть профиль">${name}</span>`;
+    const pub = uname ? ` data-public-profile="${uname}"` : '';
+    return `<span class="card-tag author-tag" data-profile-id="${pid}" data-article-id="${aid}"${pub} title="Открыть профиль">${name}</span>`;
   }
 
   function articleExcerpt(article, len) {
@@ -1981,8 +2724,10 @@ function wireAuthorTagClicks(root) {
   // остальной текст спокойно прошёл через обычный Markdown-рендер.
   function extractInfoBlocks(text) {
     const blocks = [];
-    const cleaned = text.replace(/:::(tip|warning|note|success|danger|pros|cons|checklist)\s*\n([\s\S]*?)\n:::/g, (m, type, body) => {
+    // Интерактив: spoiler / accordion / tabs + старые типы
+    const cleaned = text.replace(/:::(tip|warning|note|success|danger|pros|cons|checklist|spoiler|accordion|tabs|steps)\s*(?:\[([^\]]*)\])?\s*\n([\s\S]*?)\n:::/g, (m, type, titleArg, body) => {
       const idx = blocks.length;
+      const title = (titleArg || '').trim();
       if (type === 'pros' || type === 'cons') {
         const isPros = type === 'pros';
         const items = body.split('\n').map(l => l.trim()).filter(Boolean)
@@ -1990,8 +2735,84 @@ function wireAuthorTagClicks(root) {
         blocks.push(`<ul class="proscons-list ${type}">${items}</ul>`);
       } else if (type === 'checklist') {
         const items = body.split('\n').map(l => l.trim()).filter(Boolean)
-          .map(l => `<li><i data-lucide="square"></i> ${l}</li>`).join('');
-        blocks.push(`<ul class="checklist-list">${items}</ul>`);
+          .map(l => {
+            const checked = /^\[x\]/i.test(l);
+            const text = l.replace(/^\[[ xX]\]\s*/, '');
+            return `<li class="checklist-item${checked ? ' is-checked' : ''}" data-check><span class="checklist-box" aria-hidden="true"></span><span class="checklist-text">${text}</span></li>`;
+          }).join('');
+        blocks.push(`<ul class="checklist-list is-interactive">${items}</ul>`);
+      } else if (type === 'spoiler') {
+        const label = title || 'Показать подробности';
+        const bodyHtml = window.marked ? marked.parse(body.trim(), { breaks: true }) : `<p>${body.trim()}</p>`;
+        blocks.push(`<details class="md-spoiler"><summary class="md-spoiler-summary"><i data-lucide="chevron-right"></i><span>${label}</span></summary><div class="md-spoiler-body">${bodyHtml}</div></details>`);
+      } else if (type === 'accordion') {
+        // секции: ### Заголовок\nтекст
+        const parts = body.split(/\n(?=###\s)/);
+        let itemsHtml = '';
+        parts.forEach(part => {
+          const lines = part.trim().split('\n');
+          if (!lines.length) return;
+          let head = lines[0].replace(/^###\s*/, '').trim();
+          if (!head) return;
+          const rest = lines.slice(1).join('\n').trim();
+          const bodyHtml = window.marked ? marked.parse(rest, { breaks: true }) : `<p>${rest}</p>`;
+          itemsHtml += `<div class="md-acc-item"><button type="button" class="md-acc-head"><i data-lucide="chevron-right"></i><span>${head}</span></button><div class="md-acc-body">${bodyHtml}</div></div>`;
+        });
+        blocks.push(`<div class="md-accordion">${itemsHtml}</div>`);
+      } else if (type === 'tabs') {
+        // секции: ### Вкладка\nтекст
+        const parts = body.split(/\n(?=###\s)/);
+        const tabs = [];
+        parts.forEach(part => {
+          const lines = part.trim().split('\n');
+          if (!lines.length) return;
+          let head = lines[0].replace(/^###\s*/, '').trim();
+          if (!head) return;
+          const rest = lines.slice(1).join('\n').trim();
+          const bodyHtml = window.marked ? marked.parse(rest, { breaks: true }) : `<p>${rest}</p>`;
+          tabs.push({ head, bodyHtml });
+        });
+        if (!tabs.length) {
+          blocks.push('');
+        } else {
+          const btns = tabs.map((tab, i) => `<button type="button" class="md-tab-btn${i === 0 ? ' active' : ''}" data-tab="${i}">${tab.head}</button>`).join('');
+          const panes = tabs.map((tab, i) => `<div class="md-tab-pane${i === 0 ? ' active' : ''}" data-tab-pane="${i}">${tab.bodyHtml}</div>`).join('');
+          blocks.push(`<div class="md-tabs"><div class="md-tab-list">${btns}</div><div class="md-tab-panes">${panes}</div></div>`);
+        }
+
+      } else if (type === 'steps') {
+        const parts = body.split(/\n(?=###\s)/);
+        const steps = [];
+        parts.forEach(part => {
+          const lines = part.trim().split('\n');
+          if (!lines.length) return;
+          let head = lines[0].replace(/^###\s*/, '').trim();
+          if (!head) return;
+          const rest = lines.slice(1).join('\n').trim();
+          const bodyHtml = window.marked ? marked.parse(rest, { breaks: true }) : `<p>${rest}</p>`;
+          steps.push({ head, bodyHtml });
+        });
+        if (!steps.length) {
+          blocks.push('');
+        } else {
+          const nav = steps.map((s, i) =>
+            `<button type="button" class="md-step-dot${i === 0 ? ' active' : ''}" data-step="${i}" aria-label="Шаг ${i + 1}">${i + 1}</button>`
+          ).join('');
+          const panes = steps.map((s, i) =>
+            `<div class="md-step-pane${i === 0 ? ' active' : ''}" data-step-pane="${i}"><h4 class="md-step-title">${s.head}</h4><div class="md-step-body">${s.bodyHtml}</div></div>`
+          ).join('');
+          blocks.push(
+            `<div class="md-steps" data-step-total="${steps.length}">` +
+            `<div class="md-steps-header"><span class="md-steps-label">${title || 'Пошагово'}</span>` +
+            `<span class="md-steps-counter"><span data-step-current>1</span> / ${steps.length}</span></div>` +
+            `<div class="md-steps-dots">${nav}</div>` +
+            `<div class="md-steps-panes">${panes}</div>` +
+            `<div class="md-steps-actions">` +
+            `<button type="button" class="btn btn-secondary md-step-prev" disabled>Назад</button>` +
+            `<button type="button" class="btn btn-primary md-step-next">Далее</button>` +
+            `</div></div>`
+          );
+        }
       } else {
         const meta = INFO_BLOCK_TYPES[type];
         const bodyHtml = window.marked ? marked.parse(body.trim(), { breaks: true }) : `<p>${body.trim()}</p>`;
@@ -2001,7 +2822,6 @@ function wireAuthorTagClicks(root) {
     });
     return { cleaned, blocks };
   }
-
 
   function extractYoutubeId(url) {
     if (!url) return null;
@@ -2292,6 +3112,116 @@ function wireAuthorTagClicks(root) {
     if (window.lucide) lucide.createIcons();
   }
 
+
+  function wireArticleBodyInteractivity(root) {
+    if (!root || root.dataset.interactiveWired === '1') return;
+    root.dataset.interactiveWired = '1';
+
+    // Checklist
+    root.querySelectorAll('.checklist-list.is-interactive .checklist-item').forEach(li => {
+      li.addEventListener('click', () => {
+        li.classList.toggle('is-checked');
+      });
+    });
+
+    // Accordion
+    root.querySelectorAll('.md-acc-head').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = btn.closest('.md-acc-item');
+        const acc = btn.closest('.md-accordion');
+        const open = item.classList.contains('open');
+        acc.querySelectorAll('.md-acc-item.open').forEach(i => i.classList.remove('open'));
+        if (!open) item.classList.add('open');
+      });
+    });
+
+
+    // Steps wizard
+    root.querySelectorAll('.md-steps').forEach(box => {
+      const total = Number(box.dataset.stepTotal || 1);
+      let cur = 0;
+      const setStep = (n) => {
+        cur = Math.max(0, Math.min(total - 1, n));
+        box.querySelectorAll('.md-step-dot').forEach((d, i) => d.classList.toggle('active', i === cur));
+        box.querySelectorAll('.md-step-pane').forEach((p, i) => p.classList.toggle('active', i === cur));
+        const counter = box.querySelector('[data-step-current]');
+        if (counter) counter.textContent = String(cur + 1);
+        const prev = box.querySelector('.md-step-prev');
+        const next = box.querySelector('.md-step-next');
+        if (prev) prev.disabled = cur === 0;
+        if (next) {
+          next.textContent = cur >= total - 1 ? 'Готово' : 'Далее';
+          next.disabled = false;
+        }
+      };
+      box.querySelectorAll('.md-step-dot').forEach(d => {
+        d.addEventListener('click', () => setStep(Number(d.dataset.step)));
+      });
+      box.querySelector('.md-step-prev')?.addEventListener('click', () => setStep(cur - 1));
+      box.querySelector('.md-step-next')?.addEventListener('click', () => {
+        if (cur >= total - 1) setStep(0);
+        else setStep(cur + 1);
+      });
+    });
+
+    // Tabs
+    root.querySelectorAll('.md-tabs').forEach(tabs => {
+      tabs.querySelectorAll('.md-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const i = btn.dataset.tab;
+          tabs.querySelectorAll('.md-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+          tabs.querySelectorAll('.md-tab-pane').forEach(p => p.classList.toggle('active', p.dataset.tabPane === i));
+        });
+      });
+    });
+
+    // Sortable tables
+    root.querySelectorAll('table').forEach(table => {
+      if (table.dataset.sortable === '0') return;
+      table.classList.add('md-sortable-table');
+      const thead = table.querySelector('thead');
+      const headers = thead ? thead.querySelectorAll('th') : table.querySelectorAll('tr:first-child th, tr:first-child td');
+      headers.forEach((th, colIdx) => {
+        th.classList.add('md-sortable-th');
+        th.tabIndex = 0;
+        th.addEventListener('click', () => {
+          const tbody = table.tBodies[0] || table;
+          const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !r.querySelector('th'));
+          const asc = th.dataset.sortDir !== 'asc';
+          headers.forEach(h => { delete h.dataset.sortDir; h.classList.remove('sort-asc', 'sort-desc'); });
+          th.dataset.sortDir = asc ? 'asc' : 'desc';
+          th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+          rows.sort((a, b) => {
+            const ta = (a.children[colIdx]?.textContent || '').trim();
+            const tb = (b.children[colIdx]?.textContent || '').trim();
+            const na = parseFloat(ta.replace(/\s/g, '').replace(',', '.'));
+            const nb = parseFloat(tb.replace(/\s/g, '').replace(',', '.'));
+            let cmp;
+            if (!isNaN(na) && !isNaN(nb)) cmp = na - nb;
+            else cmp = ta.localeCompare(tb, 'ru', { sensitivity: 'base' });
+            return asc ? cmp : -cmp;
+          });
+          rows.forEach(r => tbody.appendChild(r));
+        });
+      });
+    });
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+
+
+  function renderBreadcrumbs(items) {
+    if (!items || !items.length) return '';
+    const parts = items.map((it, i) => {
+      if (i === items.length - 1 || !it.href) {
+        return `<span class="bc-current">${it.label}</span>`;
+      }
+      return `<a href="${it.href}">${it.label}</a><span class="bc-sep">/</span>`;
+    });
+    return `<nav class="breadcrumbs" aria-label="Навигация">${parts.join('')}</nav>`;
+  }
+
   function renderMarkdown(text) {
     if (!text) return '<p>Текст пока не заполнен.</p>';
     const withMedia = preprocessMediaMarkdown(text);
@@ -2321,11 +3251,12 @@ function wireAuthorTagClicks(root) {
     html = html.replace(/<\/iframe><\/div>\s*<\/p>/g, '</iframe></div>');
     html = html.replace(/<img /g, '<img class="article-md-img" loading="lazy" ');
     const purifyCfg = {
-      ADD_TAGS: ['iframe', 'input', 'label'],
+      ADD_TAGS: ['iframe', 'input', 'label', 'details', 'summary', 'button'],
       ADD_ATTR: [
         'allow', 'allowfullscreen', 'frameborder', 'src', 'title', 'loading',
         'type', 'min', 'max', 'step', 'value', 'placeholder', 'class', 'id',
-        'data-payback-id', 'data-payback-months', 'data-payback-year', 'data-payback-roi'
+        'data-payback-id', 'data-payback-months', 'data-payback-year', 'data-payback-roi',
+        'data-check', 'data-tab', 'data-tab-pane', 'data-step', 'data-step-pane', 'data-step-total', 'data-step-current', 'open', 'disabled'
       ]
     };
     return window.DOMPurify ? DOMPurify.sanitize(html, purifyCfg) : html;
@@ -2448,9 +3379,15 @@ function wireAuthorTagClicks(root) {
   function paintArticlesGrid(grid, list) {
     if (!grid) return;
     try {
-      grid.innerHTML = list.length
-        ? list.map(a => renderArticleCard(a)).join('')
-        : '<p style="opacity:0.6;">Пока нет ни одной статьи в базе.</p>';
+      const urlMine = new URLSearchParams(location.search).get('mine') === '1';
+      if (!list.length) {
+        grid.innerHTML = urlMine
+          ? `<div class="empty-state"><h3>Пока нет ваших статей</h3><p>Когда напишете статью — она появится здесь.</p>
+             <a class="btn btn-primary" href="${siteRootPrefix()}articles/index.html">Смотреть все статьи</a></div>`
+          : `<div class="empty-state"><h3>Статей не найдено</h3><p>Измените фильтры или загляните позже.</p></div>`;
+      } else {
+        grid.innerHTML = list.map(a => renderArticleCard(a)).join('');
+      }
       if (window.lucide) lucide.createIcons();
       wireArticleCardClicks(grid);
       wireAuthorTagClicks(grid);
@@ -2464,6 +3401,7 @@ function wireAuthorTagClicks(root) {
     const articlesPageGrid = document.getElementById('articlesPageGrid');
     const targetGrid = document.getElementById('articlesGrid') || articlesPageGrid;
     if (!targetGrid) return;
+    targetGrid.innerHTML = '<div class="skeleton-grid">' + Array(6).fill('<div class="skeleton-card"></div>').join('') + '</div>';
     try {
       // Сначала простой select — без join (join часто ломается без FK и даёт пустой ответ/ошибку)
       let data = null;
@@ -2657,6 +3595,10 @@ function wireAuthorTagClicks(root) {
       try {
       const query = (searchInput?.value || '').trim().toLowerCase();
       let list = [...articlesCache];
+      const urlMine = new URLSearchParams(location.search).get('mine') === '1';
+      if (urlMine && currentProfile) {
+        list = list.filter(a => Number(a.id_profile) === Number(currentProfile.id));
+      }
 
       if (filterIdeaId) {
         list = list.filter(a =>
@@ -2860,7 +3802,14 @@ function wireAuthorTagClicks(root) {
       isUpvoted = !!upRow;
     }
 
+    const rootBc = siteRootPrefix();
+    const bc = renderBreadcrumbs([
+      { label: 'Главная', href: rootBc + 'index.html' },
+      { label: 'Статьи', href: rootBc + 'articles/index.html' },
+      { label: article.title || 'Статья' }
+    ]);
     container.innerHTML = `
+      ${bc}
       ${mediaCoverUrl(article) ? `
       <div class="article-hero" style="background-image:url('${escapeAttr(mediaCoverUrl(article))}')">
         <div class="article-hero-overlay">
@@ -2892,7 +3841,9 @@ function wireAuthorTagClicks(root) {
     if (window.lucide) lucide.createIcons();
     wireAuthorTagClicks(container);
     wireFaqCard(document.getElementById('articleFaqContainer'));
-    wirePaybackCalcs(document.getElementById('articleBody') || document);
+    const articleBodyEl = container.querySelector('.article-body');
+    if (articleBodyEl) wireArticleBodyInteractivity(articleBodyEl);
+    wirePaybackCalcs(document.getElementById('articleBody') || container || document);
     loadRelatedArticles(article, document.getElementById('articleRelatedContainer'));
     loadRelatedIdeas(articleId, document.getElementById('articleRelatedIdeasContainer'));
 
@@ -2958,7 +3909,7 @@ function wireAuthorTagClicks(root) {
         <div class="idea-field-block" style="margin-top:20px;">
           <h4><i data-lucide="lightbulb"></i> Идеи из статьи</h4>
           <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
-            ${list.map(r => `<a class="btn btn-secondary idea-open-btn" href="../ideas/idea.html?id=${r.ideas.id_idea}">${r.ideas.title || 'Идея №' + r.ideas.id_idea}</a>`).join('')}
+            ${list.map(r => `<a class="btn btn-secondary idea-open-btn" href="${ideaHref(r.ideas)}">${r.ideas.title || 'Идея №' + r.ideas.id_idea}</a>`).join('')}
           </div>
         </div>`;
       if (window.lucide) lucide.createIcons();
@@ -2973,7 +3924,17 @@ function wireAuthorTagClicks(root) {
   }
 
   async function initIdeaDetailPage(container) {
-    const ideaId = parseInt(new URLSearchParams(window.location.search).get('id'), 10);
+    const params = new URLSearchParams(window.location.search);
+    let ideaId = parseInt(params.get('id'), 10);
+    const onLegacyFile = /\/idea\.html$/.test(window.location.pathname);
+
+    // Красивый путь /ideas/123 (Vercel rewrite) — берём id из pathname
+    if (!ideaId) {
+      const match = window.location.pathname.match(/\/ideas\/([^/?#]+)\/?$/);
+      if (match && match[1] && match[1] !== 'all.html' && match[1] !== 'match.html' && match[1] !== 'idea.html') {
+        ideaId = parseInt(match[1], 10);
+      }
+    }
     if (!ideaId) { container.innerHTML = '<p>Идея не найдена — не указан id.</p>'; return; }
 
     let idea;
@@ -2990,6 +3951,11 @@ function wireAuthorTagClicks(root) {
       console.error('Ошибка загрузки идеи:', e);
       container.innerHTML = '<p>Не удалось загрузить идею. Попробуйте обновить страницу.</p>';
       return;
+    }
+
+    // Старый URL idea.html?id=... → красивый /ideas/ID (на хостинге)
+    if (onLegacyFile && window.location.protocol !== 'file:') {
+      window.history.replaceState(null, '', '/ideas/' + ideaId);
     }
 
     document.title = `${ideaTitle(idea)} — IdeaNest`;
@@ -3013,7 +3979,13 @@ function wireAuthorTagClicks(root) {
       ? (' style="background-image:url(\'' + String(coverUrl).replace(/'/g, '%27') + '\');"')
       : '';
 
+    const rootIdea = siteRootPrefix();
     container.innerHTML = `
+      ${renderBreadcrumbs([
+        { label: 'Главная', href: rootIdea + 'index.html' },
+        { label: 'Идеи', href: rootIdea + 'ideas/all.html' },
+        { label: ideaTitle(idea) }
+      ])}
       <div class="idea-hero${coverClass}"${coverStyle}>
         <div class="idea-hero-overlay">
           <span class="card-tag idea-hero-tag">${idea.complexity || idea.category || 'Идея'}</span>
@@ -3273,7 +4245,7 @@ function wireAuthorTagClicks(root) {
     light: {
       name: 'Светлая',
       colors: {
-        'accent-primary': '#000000', 'accent-hover': '#374151', 'accent-light': '#f3f4f6',
+        'accent-primary': '#4f46e5', 'accent-hover': '#4338ca', 'accent-light': '#eef2ff',
         'bg-color': '#ffffff', 'bg-muted': '#f9fafb', 'surface-color': '#ffffff',
         'text-main': '#111827', 'text-muted': '#6b7280', 'border-color': '#e5e7eb'
       }
@@ -3281,7 +4253,7 @@ function wireAuthorTagClicks(root) {
     dark: {
       name: 'Тёмная',
       colors: {
-        'accent-primary': '#6366f1', 'accent-hover': '#818cf8', 'accent-light': '#25252f',
+        'accent-primary': '#818cf8', 'accent-hover': '#a5b4fc', 'accent-light': '#25252f',
         'bg-color': '#0e0e13', 'bg-muted': '#16161d', 'surface-color': '#1a1a22',
         'text-main': '#f3f4f6', 'text-muted': '#9ca3af', 'border-color': '#2a2a35'
       }
@@ -3292,6 +4264,34 @@ function wireAuthorTagClicks(root) {
         'accent-primary': '#0891b2', 'accent-hover': '#0e7490', 'accent-light': '#ecfeff',
         'bg-color': '#f8fdff', 'bg-muted': '#eafaff', 'surface-color': '#ffffff',
         'text-main': '#0c2733', 'text-muted': '#4b7a89', 'border-color': '#cdeef7'
+      }
+    },
+    /* Глобальные «шкуры» сайта */
+    ink: {
+      name: 'Ink Editorial',
+      skin: true,
+      colors: {
+        'accent-primary': '#14110f', 'accent-hover': '#000000', 'accent-light': '#e8e4dc',
+        'bg-color': '#f7f5f0', 'bg-muted': '#efece6', 'surface-color': '#fffcf7',
+        'text-main': '#14110f', 'text-muted': '#6a635c', 'border-color': '#d4cdc3'
+      }
+    },
+    clay: {
+      name: 'Clay Soft',
+      skin: true,
+      colors: {
+        'accent-primary': '#c45c26', 'accent-hover': '#a34a1c', 'accent-light': '#fce8dc',
+        'bg-color': '#faf6f1', 'bg-muted': '#f3ebe3', 'surface-color': '#ffffff',
+        'text-main': '#3d2c29', 'text-muted': '#8a736c', 'border-color': '#eadfd6'
+      }
+    },
+    neon: {
+      name: 'Neon Terminal',
+      skin: true,
+      colors: {
+        'accent-primary': '#00f0ff', 'accent-hover': '#7dffff', 'accent-light': '#0a2a33',
+        'bg-color': '#070b10', 'bg-muted': '#0d1219', 'surface-color': '#0a1018',
+        'text-main': '#e6f7ff', 'text-muted': '#6b8a9e', 'border-color': '#1a3344'
       }
     }
   };
@@ -3310,14 +4310,38 @@ function wireAuthorTagClicks(root) {
   function applyThemeColors(colors, themeKey) {
     const root = document.documentElement.style;
     Object.keys(colors).forEach(k => root.setProperty('--' + k, colors[k]));
-    // data-theme: 'dark' если встроенная dark или фон тёмный (кастомные темы)
+    if (colors['accent-primary']) root.setProperty('--accent', colors['accent-primary']);
+    // data-theme
     let mode = 'light';
-    if (themeKey === 'dark') mode = 'dark';
-    else if (themeKey === 'light' || themeKey === 'colorful') mode = themeKey;
+    if (themeKey === 'dark' || themeKey === 'neon') mode = 'dark';
+    else if (themeKey === 'light' || themeKey === 'colorful' || themeKey === 'ink' || themeKey === 'clay') mode = themeKey === 'colorful' ? 'colorful' : 'light';
     else if (isDarkBg(colors['bg-color'])) mode = 'dark';
     else if (themeKey && themeKey.startsWith('custom:')) mode = 'custom';
     else if (themeKey) mode = themeKey;
     document.documentElement.setAttribute('data-theme', mode);
+    // глобальные шкуры
+    const skins = ['ink', 'clay', 'neon'];
+    if (skins.includes(themeKey)) document.documentElement.setAttribute('data-skin', themeKey);
+    else document.documentElement.removeAttribute('data-skin');
+    try { ensureSkinFonts(themeKey); } catch (e) {}
+  }
+
+  function ensureSkinFonts(themeKey) {
+    const id = 'ideanest-skin-fonts';
+    let link = document.getElementById(id);
+    const hrefs = {
+      ink: 'https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap',
+      clay: 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap',
+      neon: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap'
+    };
+    if (!hrefs[themeKey]) return;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    link.href = hrefs[themeKey];
   }
 
   function saveThemeLocally(themeKey, colors) {
@@ -3504,7 +4528,7 @@ function wireAuthorTagClicks(root) {
 
 
   const AVATAR_BG_PRESETS = [
-    '#111827', '#1e293b', '#0f766e', '#1d4ed8', '#7c3aed',
+    '#111827', '#1e293b', '#4f46e5', '#1d4ed8', '#7c3aed',
     '#be123c', '#c2410c', '#ca8a04', '#15803d', '#e2e8f0'
   ];
   const AVATAR_FG_PRESETS = [
@@ -3535,11 +4559,11 @@ function wireAuthorTagClicks(root) {
             <em>1–2 символа или эмодзи</em>
           </span>
         </button>
-        <button type="button" class="avatar-source-opt is-soon" disabled>
+        <button type="button" class="avatar-source-opt" data-avatar-src="gallery">
           <i data-lucide="images"></i>
           <span class="avatar-source-opt-text">
             <strong>Из галереи</strong>
-            <em>Скоро</em>
+            <em>Готовые стильные аватарки</em>
           </span>
         </button>
       </div>`;
@@ -3574,7 +4598,112 @@ function wireAuthorTagClicks(root) {
       close();
       setTimeout(() => openTextAvatarWindow(), 180);
     });
+    pop.querySelector('[data-avatar-src="gallery"]')?.addEventListener('click', () => {
+      close();
+      setTimeout(() => openGalleryAvatarWindow(), 180);
+    });
   }
+
+  async function uploadAvatarBlob(blob, mime) {
+    mime = mime || 'image/jpeg';
+    const profileId = await getProfileId();
+    if (!profileId || !currentUser) throw new Error('Нет профиля');
+    const ext = mime.includes('png') ? 'png' : 'jpg';
+    const path = `${currentUser.id}/${profileId}_${Date.now()}.${ext}`;
+    const { data: signed, error: signErr } = await supabaseClient.storage.from('avatars').createSignedUploadUrl(path);
+    if (signErr) throw signErr;
+    const up = await fetch(signed.signedUrl, { method: 'PUT', headers: { 'Content-Type': mime }, body: blob });
+    if (!up.ok) throw new Error('upload ' + up.status);
+    const { data: pub } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+    const publicUrl = pub && pub.publicUrl;
+    if (!publicUrl) throw new Error('no url');
+    await supabaseClient.from('profiles').update({ avatar_url: publicUrl }).eq('id', profileId);
+    if (currentProfile) currentProfile.avatar_url = publicUrl;
+    document.querySelectorAll('img#profilePageAvatar, img#dropdownAvatar, img#topAvatar, img#navbarAvatar, img.profile-avatar, img.dropdown-avatar, img.avatar-img').forEach(img => {
+      img.src = publicUrl + '?t=' + Date.now();
+    });
+    await rememberCurrentAccount();
+    return publicUrl;
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    return fetch(dataUrl).then(r => r.blob());
+  }
+
+  function ensureGalleryAvatarWindow() {
+    if (document.getElementById('galleryAvatarBackdrop')) return;
+    const backdrop = document.createElement('div');
+    backdrop.id = 'galleryAvatarBackdrop';
+    backdrop.className = 'text-avatar-backdrop';
+    const win = document.createElement('div');
+    win.id = 'galleryAvatarWindow';
+    win.className = 'text-avatar-window gallery-avatar-window';
+    win.innerHTML = `
+      <button type="button" class="text-avatar-close" id="galleryAvatarClose" aria-label="Закрыть">
+        <i data-lucide="x"></i>
+      </button>
+      <h2 class="text-avatar-title" style="margin-bottom:6px;">Галерея аватаров</h2>
+      <p class="text-avatar-sub">Выбери готовый стиль — без загрузки фото</p>
+      <div class="gallery-avatar-grid" id="galleryAvatarGrid"></div>`;
+    document.body.appendChild(backdrop);
+    document.body.appendChild(win);
+    backdrop.addEventListener('click', closeGalleryAvatarWindow);
+    document.getElementById('galleryAvatarClose').addEventListener('click', closeGalleryAvatarWindow);
+  }
+
+  function closeGalleryAvatarWindow() {
+    document.getElementById('galleryAvatarWindow')?.classList.remove('active');
+    document.getElementById('galleryAvatarBackdrop')?.classList.remove('active');
+  }
+
+  function openGalleryAvatarWindow() {
+    ensureGalleryAvatarWindow();
+    const win = document.getElementById('galleryAvatarWindow');
+    const backdrop = document.getElementById('galleryAvatarBackdrop');
+    const grid = document.getElementById('galleryAvatarGrid');
+    backdrop.classList.add('active');
+    void win.offsetWidth;
+    win.classList.add('active');
+    if (window.lucide) lucide.createIcons();
+
+    grid.innerHTML = '';
+    for (let i = 0; i < 12; i++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'gallery-avatar-item';
+      btn.innerHTML = `<img src="${galleryAvatarDataUrl(i, 128)}" alt="Аватар ${i + 1}" />`;
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          showToast('Сохраняем аватар…');
+          const dataUrl = galleryAvatarDataUrl(i, 512);
+          const blob = await dataUrlToBlob(dataUrl);
+          // SVG blob — storage may prefer png; convert via canvas to jpeg
+          const img = new Image();
+          const url = URL.createObjectURL(blob);
+          await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl; });
+          const c = document.createElement('canvas');
+          c.width = 512; c.height = 512;
+          c.getContext('2d').drawImage(img, 0, 0, 512, 512);
+          URL.revokeObjectURL(url);
+          const jpeg = await new Promise((resolve, reject) => {
+            c.toBlob(b => b ? resolve(b) : reject(new Error('blob')), 'image/jpeg', 0.92);
+          });
+          await uploadAvatarBlob(jpeg, 'image/jpeg');
+          closeGalleryAvatarWindow();
+          showToast('Аватар обновлён');
+          if (document.getElementById('profileWindowBody')) renderProfileWindow();
+        } catch (err) {
+          console.error(err);
+          showToast('Не удалось сохранить: ' + (err.message || err), true);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+      grid.appendChild(btn);
+    }
+  }
+
 
   function ensureTextAvatarWindow() {
     if (document.getElementById('textAvatarBackdrop')) return;
@@ -4081,7 +5210,7 @@ function wireAuthorTagClicks(root) {
     const username = profile?.username || currentUser.user_metadata?.username || '';
     const email = currentUser.email || '';
     const avatarUrl = profile?.avatar_url
-      || `https://ui-avatars.com/api/?name=${encodeURIComponent(username || fullName || 'U')}&background=111827&color=fff&bold=true&size=256`;
+      || defaultAvatarUrl(username || fullName || 'U', 256);
     const created = profile?.created_at
       ? new Date(profile.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
       : '—';
@@ -4319,7 +5448,7 @@ function wireAuthorTagClicks(root) {
         if (nameNav) nameNav.textContent = newNick || newName || nameNav.textContent;
 
         const avUrl = currentProfile?.avatar_url
-          || `https://ui-avatars.com/api/?name=${encodeURIComponent(newNick || newName || 'U')}&background=111827&color=fff&bold=true`;
+          || defaultAvatarUrl(newNick || newName || 'U');
         if (!currentProfile?.avatar_url) {
           ['topAvatar', 'dropdownAvatar', 'profilePageAvatar'].forEach(id => {
             const el = document.getElementById(id);
@@ -4449,25 +5578,35 @@ function wireAuthorTagClicks(root) {
         const profileId = await getProfileId();
         if (!profileId) throw new Error('Профиль не найден');
 
-        // soft-delete: флаг + время; auth-пользователь остаётся (полное удаление — Edge Function)
-        const { error } = await supabaseClient.from('profiles').update({
-          is_deleted: true,
-          deleted_at: new Date().toISOString()
-        }).eq('id', profileId);
-        if (error) {
-          // если колонки deleted_at нет — только is_deleted
-          if (/deleted_at|column/i.test(error.message || '')) {
-            const { error: e2 } = await supabaseClient.from('profiles').update({ is_deleted: true }).eq('id', profileId);
-            if (e2) throw e2;
-          } else {
-            throw error;
+        // Сначала пробуем Edge Function полного удаления
+        let hardOk = false;
+        try {
+          const { data: fnData, error: fnErr } = await supabaseClient.functions.invoke('delete-account', {
+            body: { profile_id: profileId, confirm_username: (currentProfile?.username || '') }
+          });
+          if (!fnErr && fnData && !fnData.error) hardOk = true;
+          if (fnErr) console.warn('delete-account function:', fnErr);
+        } catch (fnE) {
+          console.warn('Edge Function недоступна, soft-delete', fnE);
+        }
+
+        if (!hardOk) {
+          const { error } = await supabaseClient.from('profiles').update({
+            is_deleted: true,
+            deleted_at: new Date().toISOString()
+          }).eq('id', profileId);
+          if (error) {
+            if (/deleted_at|column/i.test(error.message || '')) {
+              const { error: e2 } = await supabaseClient.from('profiles').update({ is_deleted: true }).eq('id', profileId);
+              if (e2) throw e2;
+            } else throw error;
           }
         }
 
         await supabaseClient.auth.signOut({ scope: 'global' });
         close();
         closeProfileWindow();
-        showToast('Аккаунт деактивирован');
+        showToast(hardOk ? 'Аккаунт удалён' : 'Аккаунт деактивирован');
         setTimeout(() => {
           const root = siteRootPrefix();
           window.location.href = root + 'index.html';
@@ -4483,6 +5622,69 @@ function wireAuthorTagClicks(root) {
     input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doDelete(); } });
   }
 
+
+
+  // ================= Публичный профиль =================
+  async function initPublicProfilePage() {
+    const mount = document.getElementById('publicProfileMount');
+    if (!mount) return;
+    const params = new URLSearchParams(location.search);
+    const username = params.get('u') || params.get('username');
+    const id = params.get('id');
+    mount.innerHTML = '<div class="skeleton-card" style="height:120px"></div>';
+    try {
+      let q = supabaseClient.from('profiles').select('id, username, full_name, first_name, last_name, avatar_url, created_at');
+      if (id) q = q.eq('id', id);
+      else if (username) q = q.eq('username', username);
+      else { mount.innerHTML = '<p>Профиль не указан</p>'; return; }
+      const { data: profile, error } = await q.maybeSingle();
+      if (error) throw error;
+      if (!profile) { mount.innerHTML = '<p>Пользователь не найден</p>'; return; }
+      const name = profile.full_name || [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.username || 'Пользователь';
+      const av = profile.avatar_url || defaultAvatarUrl(name, 256);
+      const [{ count: ideasCount }, { data: arts }] = await Promise.all([
+        supabaseClient.from('ideas').select('id_idea', { count: 'exact', head: true }).eq('id_profile', profile.id),
+        supabaseClient.from('articles').select('id, title, created_at, slug').eq('id_profile', profile.id).order('created_at', { ascending: false }).limit(24)
+      ]);
+      const articles = arts || [];
+      const root = siteRootPrefix();
+      mount.innerHTML = `
+        ${renderBreadcrumbs([{ label: 'Главная', href: root + 'index.html' }, { label: name }])}
+        <div class="public-profile-hero">
+          <img src="${av}" alt="" />
+          <div>
+            <h1 style="margin:0 0 4px;font-size:1.6rem;">${name}</h1>
+            <div style="color:var(--text-muted)">@${profile.username || 'user'}</div>
+            <div class="public-profile-stats">
+              <span><strong>${ideasCount || 0}</strong> идей</span>
+              <span><strong>${articles.length}</strong> статей</span>
+            </div>
+          </div>
+        </div>
+        <h2 class="section-title" style="font-size:1.2rem;margin-bottom:12px;">Статьи автора</h2>
+        <div class="grid" id="publicAuthorArticles">
+          ${articles.length ? articles.map(a => `
+            <a class="card" href="${articleHref(a)}" style="text-decoration:none;color:inherit;padding:16px;">
+              <h3 class="card-title">${a.title || 'Без названия'}</h3>
+              <div class="card-footer"><span>${formatDate(a.created_at)}</span></div>
+            </a>`).join('') : '<div class="empty-state"><p>Пока нет статей</p></div>'}
+        </div>`;
+      if (window.lucide) lucide.createIcons();
+    } catch (e) {
+      console.error(e);
+      mount.innerHTML = '<p>Не удалось загрузить профиль</p>';
+    }
+  }
+  initPublicProfilePage();
+
+  // Ссылки автора → публичный профиль (если есть username)
+  document.addEventListener('click', (e) => {
+    const tag = e.target.closest('[data-public-profile]');
+    if (!tag) return;
+    e.preventDefault();
+    const u = tag.getAttribute('data-public-profile');
+    if (u) location.href = siteRootPrefix() + 'profile/user.html?u=' + encodeURIComponent(u);
+  });
 
   // Пункт «Профиль» в меню / любые .profile-open-link
   document.querySelectorAll('#profilePageLink, a.dropdown-item').forEach(el => {

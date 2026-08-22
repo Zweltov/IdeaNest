@@ -10,17 +10,6 @@
   <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});var key=t.key||"light",mode=key;if(key==="dark")mode="dark";else if(key==="light"||key==="colorful")mode=key;else{var bg=(t.colors["bg-color"]||"#ffffff").replace("#","");if(bg.length===3)bg=bg[0]+bg[0]+bg[1]+bg[1]+bg[2]+bg[2];var n=parseInt(bg,16);if(!isNaN(n)){var R=(n>>16)&255,G=(n>>8)&255,B=n&255;mode=(0.299*R+0.587*G+0.114*B)<140?"dark":"light";}}document.documentElement.setAttribute("data-theme",mode);}}catch(e){}})();</script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-JTMZCXC0H1"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-JTMZCXC0H1');
-</script>
-
 </head>
 <body>
 
@@ -51,18 +40,12 @@
               </div>
             </div>
             <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
+                        <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
             <a href="settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
-            <a href="#" class="dropdown-item" id="myIdeasBtn"><i data-lucide="lightbulb"></i> Мои идеи</a>
-            <a href="#" class="dropdown-item" id="myArticlesBtn"><i data-lucide="book-open"></i> Мои статьи</a>
-            <a href="#" class="dropdown-item"><i data-lucide="bell"></i> Уведомления</a>
             <div class="dropdown-divider"></div>
-            <div class="dropdown-section-title">Аккаунты</div>
-<a href="#" class="dropdown-item"><i data-lucide="plus"></i> Добавить аккаунт</a>
-            <a href="#" class="dropdown-item"><i data-lucide="refresh-cw"></i> Переключить аккаунт</a>
-            <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item danger" id="logoutBtn"><i data-lucide="log-out"></i> Выйти</a>
-          </div>
+            <button type="button" class="dropdown-item" id="hubContentBtn"><i data-lucide="layout-grid"></i> Мой контент</button>
+            <button type="button" class="dropdown-item" id="hubAccountBtn"><i data-lucide="shield"></i> Аккаунт</button>
+</div>
         </div>
       </div>
     </div>
@@ -157,7 +140,7 @@
             <span class="nickname-status" id="nicknameStatus"></span>
           </div>
           <div class="nickname-hint" id="nicknameHint">От 5 до 15 символов: латиница в нижнем регистре, цифры, _</div>
-        </div>
+</div>
         <div class="form-group" id="identifierGroup">
           <label for="authEmail" id="authEmailLabel">Email</label>
           <input type="text" id="authEmail" placeholder="you@example.com" required autocomplete="email" />

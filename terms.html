@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Пользовательское соглашение — IdeaNest</title>
+  <meta name="description" content="Пользовательское соглашение сервиса IdeaNest: условия использования, регистрация, ответственность и ограничения." />
+  <link rel="icon" href="assets/logo-dark.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});var key=t.key||"light",mode=key;if(key==="dark")mode="dark";else if(key==="light"||key==="colorful")mode=key;else{var bg=(t.colors["bg-color"]||"#ffffff").replace("#","");if(bg.length===3)bg=bg[0]+bg[0]+bg[1]+bg[1]+bg[2]+bg[2];var n=parseInt(bg,16);if(!isNaN(n)){var R=(n>>16)&255,G=(n>>8)&255,B=n&255;mode=(0.299*R+0.587*G+0.114*B)<140?"dark":"light";}}document.documentElement.setAttribute("data-theme",mode);}}catch(e){}})();</script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="profile-blur-overlay" id="profileBlurOverlay"></div>
+  <header class="navbar">
+    <div class="navbar-container">
+      <a class="brand" href="index.html">
+        <img src="assets/logo-dark.png" class="brand-logo" alt="IdeaNest" /> IdeaNest
+      </a>
+      <nav class="nav-links">
+        <a href="ideas/all.html" class="nav-link">Идеи</a>
+        <a href="articles/index.html" class="nav-link">Статьи</a>
+      </nav>
+      <div class="navbar-actions">
+        <button class="btn btn-secondary" id="loginBtn" style="display:none;">Войти</button>
+        <div class="profile-wrapper" id="profileWrapper" style="display:none;">
+          <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="topAvatar" class="avatar-img" alt="Профиль">
+          <div class="profile-dropdown" id="profileDropdown">
+            <div class="dropdown-header">
+              <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="dropdownAvatar" class="dropdown-avatar" alt="Профиль">
+              <div class="user-info">
+                <span class="user-name" id="userName">Пользователь</span>
+                <span class="user-email" id="userEmail">user@ideanest.com</span>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
+            <a href="settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
+            <div class="dropdown-divider"></div>
+            <button type="button" class="dropdown-item" id="hubContentBtn"><i data-lucide="layout-grid"></i> Мой контент</button>
+            <button type="button" class="dropdown-item" id="hubAccountBtn"><i data-lucide="shield"></i> Аккаунт</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="detail-main detail-main--article legal-page">
+    <nav class="breadcrumbs">
+      <a href="index.html">Главная</a>
+      <span class="bc-sep">/</span>
+      <span class="bc-current">Пользовательское соглашение</span>
+    </nav>
+    <h1 class="section-title legal-page-title">Пользовательское соглашение</h1>
+    <article class="legal-doc">
+
+      <p class="legal-meta">Дата публикации: 17.08.2026</p>
+      <p class="legal-subtitle">сервиса IdeaNest</p>
+
+      <h2>1. Общие положения</h2>
+      <p>Настоящее Пользовательское соглашение регулирует использование интернет-сервиса IdeaNest, расположенного по адресу:</p>
+      <p><a href="https://ideanest.ru">https://ideanest.ru</a></p>
+      <p>Используя IdeaNest, пользователь подтверждает, что ознакомился с настоящим Соглашением и принимает его условия.</p>
+
+      <h2>2. О сервисе</h2>
+      <p>IdeaNest предоставляет информационные материалы и инструменты, связанные с:</p>
+      <ul>
+        <li>бизнесом;</li>
+        <li>предпринимательством;</li>
+        <li>бизнес-идеями;</li>
+        <li>расчетами;</li>
+        <li>анализом бизнес-моделей;</li>
+        <li>запуском и развитием бизнеса;</li>
+        <li>другими связанными темами.</li>
+      </ul>
+      <p>Функциональность сервиса может изменяться, расширяться или сокращаться.</p>
+
+      <h2>3. Регистрация</h2>
+      <p>Для использования отдельных функций может потребоваться регистрация.</p>
+      <p>При регистрации пользователь обязуется предоставлять достоверную информацию в пределах запрашиваемых сервисом данных.</p>
+      <p>Пользователь несет ответственность за сохранение доступа к своей учетной записи и не должен передавать данные авторизации третьим лицам.</p>
+
+      <h2>4. Пользовательский контент</h2>
+      <p>Если IdeaNest позволяет пользователю размещать материалы, пользователь сохраняет права на принадлежащий ему контент.</p>
+      <p>Размещая контент в IdeaNest, пользователь подтверждает, что имеет необходимые права на его размещение.</p>
+      <p>Пользователь не должен размещать материалы, нарушающие законодательство Российской Федерации или права третьих лиц.</p>
+
+      <h2>5. Интеллектуальная собственность</h2>
+      <p>Материалы IdeaNest, включая дизайн, программный код, структуру страниц, тексты, графические элементы и иные элементы сервиса, принадлежат соответствующим правообладателям.</p>
+      <p>Запрещается копировать, распространять или использовать материалы способом, нарушающим права правообладателей, без соответствующего разрешения, если иное не предусмотрено законом.</p>
+
+      <h2>6. Информационный характер сервиса</h2>
+      <p>Материалы IdeaNest предназначены для информационных целей.</p>
+      <p>Публикация бизнес-идеи не означает рекомендацию обязательно запускать соответствующий бизнес.</p>
+      <p>Пользователь самостоятельно принимает решения, связанные с предпринимательской деятельностью.</p>
+
+      <h2>7. Работа калькуляторов</h2>
+      <p>Результаты калькуляторов и иных автоматизированных инструментов являются расчетными.</p>
+      <p>Результат зависит от введенных пользователем данных, используемых формул, предположений и иных факторов.</p>
+      <p>Расчет не является гарантией получения указанного дохода, прибыли или срока окупаемости.</p>
+
+      <h2>8. AI-функции</h2>
+      <p>Если в IdeaNest используются функции искусственного интеллекта, результаты их работы могут содержать ошибки, неточности или устаревшую информацию.</p>
+      <p>Пользователь должен самостоятельно проверять существенную информацию перед принятием решений.</p>
+
+      <h2>9. Ограничение ответственности</h2>
+      <p>Оператор стремится поддерживать актуальность и работоспособность сервиса, однако не гарантирует:</p>
+      <ul>
+        <li>отсутствие ошибок;</li>
+        <li>бесперебойную работу;</li>
+        <li>абсолютную точность всех материалов;</li>
+        <li>достижение пользователем конкретного финансового результата;</li>
+        <li>соответствие сервиса индивидуальным потребностям каждого пользователя.</li>
+      </ul>
+
+      <h2>10. Изменение сервиса</h2>
+      <p>Оператор вправе изменять, добавлять или удалять функции IdeaNest.</p>
+      <p>Отдельные функции могут быть временно недоступны в связи с техническими работами.</p>
+
+      <h2>11. Нарушения</h2>
+      <p>Запрещается использовать IdeaNest для:</p>
+      <ul>
+        <li>нарушения законодательства;</li>
+        <li>нарушения прав третьих лиц;</li>
+        <li>распространения вредоносного программного обеспечения;</li>
+        <li>попыток получить несанкционированный доступ к системам;</li>
+        <li>нарушения нормальной работы сервиса;</li>
+        <li>иных действий, запрещенных законодательством Российской Федерации.</li>
+      </ul>
+
+      <h2>12. Изменение соглашения</h2>
+      <p>Оператор вправе обновлять настоящее Соглашение.</p>
+      <p>Актуальная версия размещается на сайте IdeaNest.</p>
+
+      <h2>13. Контакты</h2>
+      <p>Email: <a href="mailto:daniel.waltern@outlook.com">daniel.waltern@outlook.com</a></p>
+
+    </article>
+    <p class="legal-back"><a href="index.html" class="btn btn-secondary">← На главную</a></p>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
