@@ -497,7 +497,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div class="site-footer-col">
             <div class="site-footer-heading">О проекте</div>
-            <a href="#" data-footer-soon="about">Об авторе</a>
+            <a href="${root}about.html">Об авторе</a>
             <a href="#" data-footer-soon="contacts">Контакты</a>
           </div>
           <div class="site-footer-col">

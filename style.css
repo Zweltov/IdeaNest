@@ -33,12 +33,28 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+  height: 100%;
+}
 body {
   font-family: 'Inter', sans-serif;
   background-color: var(--bg-color);
   color: var(--text-main);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+/* Контент растягивается, футер прижимается к низу экрана на коротких страницах */
+body > main,
+body > .detail-main {
+  flex: 1 0 auto;
+}
+.site-footer {
+  flex-shrink: 0;
+  margin-top: auto;
 }
 
 /* Выделение текста — под акцент темы */
@@ -1262,7 +1278,7 @@ button.dropdown-item {
   position: relative;
   border-radius: 20px;
   overflow: hidden;
-  min-height: 240px;
+  min-height: 320px;
   margin-bottom: 24px;
   background-size: cover;
   background-position: center;
@@ -1273,14 +1289,34 @@ button.dropdown-item {
   inset: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  padding: 28px 24px;
-  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0.08) 100%);
+  justify-content: space-between; /* автор сверху, заголовок снизу — ничего не обрезается */
+  padding: 20px 24px 28px;
+  gap: 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.28) 50%, rgba(0,0,0,0.22) 100%);
+}
+.article-hero-overlay .idea-hero-tag,
+.article-hero-overlay .author-tag {
+  align-self: flex-start;
+  margin: 0;
+  flex-shrink: 0;
+  max-width: calc(100% - 8px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.article-hero-overlay .idea-hero-title {
+  margin: 0;
+  flex-shrink: 1;
+  /* длинный заголовок не выталкивает бейдж за край */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 @media (max-width: 640px) {
   .card-cover { height: 200px; min-height: 200px; }
-  .article-hero { min-height: 180px; border-radius: 16px; }
-  .article-hero-overlay { padding: 20px 16px; }
+  .article-hero { min-height: 260px; border-radius: 16px; }
+  .article-hero-overlay { padding: 16px 16px 20px; gap: 12px; }
 }
 
 /* ================= Навбар: кнопка входа ================= */
@@ -2511,7 +2547,7 @@ html.nav-as-buttons .nav-link.active::after {
 .site-footer {
   background: #111827;
   color: #e5e7eb;
-  margin-top: 64px;
+  margin-top: auto;
   padding: 48px 24px 28px;
 }
 .site-footer-inner {
@@ -2566,7 +2602,7 @@ html.nav-as-buttons .nav-link.active::after {
   color: #6b7280;
 }
 @media (max-width: 760px) {
-  .site-footer { padding: 36px 20px 100px; margin-top: 40px; }
+  .site-footer { padding: 36px 20px 100px; margin-top: auto; }
   .site-footer-inner { grid-template-columns: 1fr; gap: 28px; }
   .site-footer-cols { grid-template-columns: 1fr 1fr; gap: 20px; }
 }
@@ -2642,7 +2678,7 @@ html.nav-as-buttons .nav-link.active::after {
   position: relative;
   border-radius: 20px;
   overflow: hidden;
-  min-height: 220px;
+  min-height: 280px;
   margin-bottom: 24px;
   background-size: cover;
   background-position: center;
@@ -2657,9 +2693,10 @@ html.nav-as-buttons .nav-link.active::after {
   inset: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  padding: 28px 24px;
-  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0.1) 100%);
+  justify-content: space-between;
+  padding: 20px 24px 28px;
+  gap: 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0.18) 100%);
 }
 .idea-hero-title {
   color: #fff !important;
@@ -2667,19 +2704,29 @@ html.nav-as-buttons .nav-link.active::after {
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.15;
-  margin: 8px 0 0;
+  margin: 0;
   text-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .idea-hero-tag {
   align-self: flex-start;
+  flex-shrink: 0;
+  margin: 0;
   background: rgba(255,255,255,0.15) !important;
   color: #fff !important;
   border-color: rgba(255,255,255,0.25) !important;
   backdrop-filter: blur(8px);
+  max-width: calc(100% - 8px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 @media (max-width: 640px) {
-  .idea-hero { min-height: 180px; border-radius: 16px; }
-  .idea-hero-overlay { padding: 20px 16px; }
+  .idea-hero { min-height: 240px; border-radius: 16px; }
+  .idea-hero-overlay { padding: 16px 16px 20px; gap: 12px; }
 }
 
 /* ================= Медиа в статьях ================= */
@@ -4777,3 +4824,73 @@ html[data-skin="ink"] .brand { letter-spacing: -0.02em; }
     max-height: min(94vh, 100%) !important;
   }
 }
+
+
+/* ================= Об авторе ================= */
+.about-hero {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  margin: 28px 0 36px;
+  flex-wrap: wrap;
+}
+.about-avatar {
+  width: 112px;
+  height: 112px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #111827 0%, #374151 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+.about-hero-text h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+.about-role {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+.about-hero-text p {
+  margin: 0 0 10px;
+  max-width: 560px;
+}
+.about-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 16px;
+  font-size: 0.92rem;
+}
+.about-contacts a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+.about-contacts a:hover { text-decoration: underline; }
+.about-section {
+  margin-bottom: 28px;
+}
+.about-section h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+.about-section p, .about-section li {
+  color: var(--text-main);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+.about-section ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.about-section li { margin-bottom: 6px; }

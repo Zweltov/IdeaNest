@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Об авторе — IdeaNest</title>
+  <meta name="description" content="Об авторе проекта IdeaNest — Дмитрюк Даниил Анатольевич. Каталог бизнес-идей и статей." />
+  <link rel="icon" href="favicon.ico" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});var key=t.key||"light",mode=key;if(key==="dark")mode="dark";else if(key==="light"||key==="colorful")mode=key;else{var bg=(t.colors["bg-color"]||"#ffffff").replace("#","");if(bg.length===3)bg=bg[0]+bg[0]+bg[1]+bg[1]+bg[2]+bg[2];var n=parseInt(bg,16);if(!isNaN(n)){var R=(n>>16)&255,G=(n>>8)&255,B=n&255;mode=(0.299*R+0.587*G+0.114*B)<140?"dark":"light";}}document.documentElement.setAttribute("data-theme",mode);}}catch(e){}})();</script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <div class="profile-blur-overlay" id="profileBlurOverlay"></div>
+
+  <header class="navbar">
+    <div class="navbar-container">
+      <a class="brand" href="index.html">
+        <img src="assets/logo-dark.png" class="brand-logo" alt="IdeaNest" /> IdeaNest
+      </a>
+      <nav class="nav-links">
+        <a href="ideas/all.html" class="nav-link">Идеи</a>
+        <a href="articles/index.html" class="nav-link">Статьи</a>
+      </nav>
+      <div class="navbar-actions">
+        <button class="btn btn-secondary" id="loginBtn" style="display:none;">Войти</button>
+        <div class="profile-wrapper" id="profileWrapper" style="display:none;">
+          <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="topAvatar" class="avatar-img" alt="Профиль">
+          <div class="profile-dropdown" id="profileDropdown">
+            <div class="dropdown-header">
+              <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="dropdownAvatar" class="dropdown-avatar" alt="Профиль">
+              <div class="user-info">
+                <span class="user-name" id="userName">Пользователь</span>
+                <span class="user-email" id="userEmail">user@ideanest.com</span>
+              </div>
+            </div>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
+            <a href="settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item danger" id="logoutBtn"><i data-lucide="log-out"></i> Выйти</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="detail-main detail-main--article legal-page about-page">
+    <nav class="breadcrumbs">
+      <a href="index.html">Главная</a>
+      <span class="bc-sep">/</span>
+      <span class="bc-current">Об авторе</span>
+    </nav>
+
+    <div class="about-hero">
+      <div class="about-avatar" aria-hidden="true">ДД</div>
+      <div class="about-hero-text">
+        <h1>Дмитрюк Даниил Анатольевич</h1>
+        <p class="about-role">Автор и оператор проекта IdeaNest</p>
+        <p>
+          IdeaNest — каталог бизнес-идей и статей о запуске дела в России.
+          Материалы собираются и редактируются так, чтобы было проще оценить
+          вложения, сложность и риски до старта, без обещаний «лёгких денег».
+        </p>
+        <div class="about-contacts">
+          <a href="mailto:daniel.waltern@outlook.com"><i data-lucide="mail" style="width:14px;height:14px;vertical-align:-2px;"></i> daniel.waltern@outlook.com</a>
+          <span style="color:var(--text-muted);">г. Уфа</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="about-section">
+      <h2>О проекте</h2>
+      <p>
+        IdeaNest публикует карточки идей и развёрнутые статьи: стартовые вложения,
+        сложность, плюсы и минусы, типичные риски. Цель — дать понятную опору
+        для выбора направления, а не готовую «схему заработка».
+      </p>
+      <p>
+        Контент опирается на открытые обзоры, практику и расчёты в реалистичных
+        порядках величин для РФ. Цифры — ориентиры; результат зависит от региона,
+        опыта и объёма работы.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h2>Чем полезен сайт</h2>
+      <ul>
+        <li>Каталог идей с фильтрами по категории, бюджету и рейтингу</li>
+        <li>Статьи с разбором экономики, оформления и типичных ошибок</li>
+        <li>Возможность сохранять избранное и отмечать полезные материалы</li>
+      </ul>
+    </section>
+
+    <section class="about-section">
+      <h2>Контакты</h2>
+      <p>
+        По вопросам сайта, сотрудничества и обработки персональных данных:
+        <a href="mailto:daniel.waltern@outlook.com">daniel.waltern@outlook.com</a>
+      </p>
+      <p>
+        Правовые документы:
+        <a href="privacy.html">Политика обработки персональных данных</a>,
+        <a href="terms.html">Пользовательское соглашение</a>,
+        <a href="disclaimer.html">Дисклеймер</a>.
+      </p>
+    </section>
+
+    <p class="legal-back"><a href="index.html" class="btn btn-secondary">← На главную</a></p>
+  </main>
+
+  <script src="script.js"></script>
+  <script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>
