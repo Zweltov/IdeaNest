@@ -2400,7 +2400,7 @@ function closeAccountSwitcher() {
     try {
       const { data, error } = await supabaseClient
         .from('ideas')
-        .select('*')
+        .select('id_idea, title, category, budget, complexity, rating, potential, pluses, minuses, risks, cover_url, image_url, banner_url')
         .order('id_idea', { ascending: true });
       if (error) throw error;
       ideasCache = data || [];
@@ -2704,8 +2704,10 @@ function wireAuthorTagClicks(root) {
   }
 
   function articleExcerpt(article, len) {
-    const text = (article.text || '').replace(/[#*`>_~-]/g, '').trim();
-    return text.length > len ? text.slice(0, len) + '…' : (text || 'Текст пока не заполнен.');
+    // description для списков (лёгкий), text — только если description пустой
+    const raw = (article.description || article.text || '').replace(/[#*`>_~\-]/g, '').replace(/\s+/g, ' ').trim();
+    if (!raw) return 'Текст пока не заполнен.';
+    return raw.length > len ? raw.slice(0, len) + '…' : raw;
   }
 
   // Markdown -> безопасный HTML. marked.js делает разбор (**bold**, # заголовки и т.д.),
@@ -3403,13 +3405,14 @@ function wireAuthorTagClicks(root) {
     if (!targetGrid) return;
     targetGrid.innerHTML = '<div class="skeleton-grid">' + Array(6).fill('<div class="skeleton-card"></div>').join('') + '</div>';
     try {
-      // Сначала простой select — без join (join часто ломается без FK и даёт пустой ответ/ошибку)
+      // Лёгкий select: без полного text (он огромный) — для карточек хватает description
+      const LIST_COLS = 'id, title, slug, description, cover_url, image_url, banner_url, thumbnail_url, created_at, id_profile, main_idea_id';
       let data = null;
       let error = null;
       {
         const res = await supabaseClient
           .from('articles')
-          .select('*')
+          .select(LIST_COLS)
           .order('created_at', { ascending: false });
         data = res.data;
         error = res.error;

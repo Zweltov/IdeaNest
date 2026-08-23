@@ -79,6 +79,13 @@ body > .detail-main {
   color: var(--text-main);
 }
 
+/* Выделение на тёмном футере — светлое, иначе текст «пропадает» */
+.site-footer ::selection,
+.site-footer ::-moz-selection {
+  background: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
 
 /* ================= Navbar ================= */
 .navbar {
