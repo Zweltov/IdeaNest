@@ -4406,8 +4406,9 @@ html.nav-as-buttons .nav-link.active::after {
 }
 
 [data-theme="dark"] .brand-logo {
-  filter: brightness(0) invert(1);
-  opacity: 0.95;
+  /* светлый логотип подставляется из logo-light.svg в script.js */
+  filter: none;
+  opacity: 1;
 }
 
 
@@ -4901,3 +4902,73 @@ html[data-skin="ink"] .brand { letter-spacing: -0.02em; }
   padding-left: 20px;
 }
 .about-section li { margin-bottom: 6px; }
+
+
+/* --- Skin controls: filters, sort, auth, icons (parity with buttons) --- */
+html[data-skin="ink"] .btn-secondary,
+html[data-skin="ink"] .filter-btn,
+html[data-skin="ink"] .sort-dropdown-btn,
+html[data-skin="ink"] .nav-icon-btn,
+html[data-skin="ink"] .auth-submit,
+html[data-skin="ink"] .mobile-filter-toggle {
+  border-radius: 2px !important;
+  box-shadow: none !important;
+}
+html[data-skin="ink"] .filter-btn.active,
+html[data-skin="ink"] .filter-btn:hover {
+  background: #111 !important;
+  color: #f7f5f0 !important;
+  border-color: #111 !important;
+}
+
+html[data-skin="clay"] .filter-btn,
+html[data-skin="clay"] .sort-dropdown-btn,
+html[data-skin="clay"] .nav-icon-btn,
+html[data-skin="clay"] .auth-submit {
+  border-radius: 9999px !important;
+}
+html[data-skin="clay"] .filter-btn.active,
+html[data-skin="clay"] .auth-submit {
+  background: var(--accent-primary) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+html[data-skin="neon"] .btn-secondary,
+html[data-skin="neon"] .filter-btn,
+html[data-skin="neon"] .sort-dropdown-btn,
+html[data-skin="neon"] .nav-icon-btn,
+html[data-skin="neon"] .auth-submit,
+html[data-skin="neon"] .modal,
+html[data-skin="neon"] .auth-modal,
+html[data-skin="neon"] .sort-dropdown-menu,
+html[data-skin="neon"] .profile-dropdown {
+  border-radius: 0 !important;
+}
+html[data-skin="neon"] .filter-btn,
+html[data-skin="neon"] .sort-dropdown-btn,
+html[data-skin="neon"] .nav-icon-btn {
+  border: 1px solid var(--accent-primary) !important;
+  background: transparent !important;
+  color: var(--accent-primary) !important;
+}
+html[data-skin="neon"] .filter-btn.active,
+html[data-skin="neon"] .filter-btn:hover,
+html[data-skin="neon"] .nav-icon-btn:hover {
+  background: var(--accent-primary) !important;
+  color: #070b10 !important;
+}
+html[data-skin="neon"] .auth-submit {
+  border: 1px solid var(--accent-primary) !important;
+  background: transparent !important;
+  color: var(--accent-primary) !important;
+}
+html[data-skin="neon"] .auth-submit:hover {
+  background: var(--accent-primary) !important;
+  color: #070b10 !important;
+}
+/* Dark text on filled neon primary already handled; bottom nav keep readable */
+html[data-skin="neon"] .bottom-nav {
+  border-radius: 0 !important;
+  border: 1px solid var(--accent-primary) !important;
+}

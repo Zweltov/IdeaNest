@@ -4,11 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Пользовательское соглашение — IdeaNest</title>
-  <meta name="description" content="Пользовательское соглашение сервиса IdeaNest: условия использования, регистрация, ответственность и ограничения." />
-  <link rel="icon" href="assets/logo-dark.png" />
+  <meta name="description" content="Пользовательское соглашение сервиса IdeaNest: условия использования сайта, регистрации и ограничения ответственности." />
+  <link rel="canonical" href="https://ideanest.ru/terms" />
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="assets/logo-dark.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="IdeaNest" />
+  <meta property="og:locale" content="ru_RU" />
+  <meta property="og:title" content="Пользовательское соглашение — IdeaNest" />
+  <meta property="og:description" content="Пользовательское соглашение сервиса IdeaNest: условия использования сайта, регистрации и ограничения ответственности." />
+  <meta property="og:url" content="https://ideanest.ru/terms" />
+  <meta property="og:image" content="https://ideanest.ru/assets/logo-dark.png" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Пользовательское соглашение — IdeaNest" />
+  <meta name="twitter:description" content="Пользовательское соглашение сервиса IdeaNest: условия использования сайта, регистрации и ограничения ответственности." />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
-  <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(t&&t.colors){var r=document.documentElement.style;Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});var key=t.key||"light",mode=key;if(key==="dark")mode="dark";else if(key==="light"||key==="colorful")mode=key;else{var bg=(t.colors["bg-color"]||"#ffffff").replace("#","");if(bg.length===3)bg=bg[0]+bg[0]+bg[1]+bg[1]+bg[2]+bg[2];var n=parseInt(bg,16);if(!isNaN(n)){var R=(n>>16)&255,G=(n>>8)&255,B=n&255;mode=(0.299*R+0.587*G+0.114*B)<140?"dark":"light";}}document.documentElement.setAttribute("data-theme",mode);}}catch(e){}})();</script>
+  <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(!t||!t.colors)return;var r=document.documentElement.style,key=t.key||"light";Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});if(t.colors["accent-primary"])r.setProperty("--accent",t.colors["accent-primary"]);var skins={ink:1,clay:1,neon:1};var mode="light";if(key==="dark"||key==="neon")mode="dark";else if(key==="colorful")mode="colorful";else if(skins[key])mode="light";else{var bg=(t.colors["bg-color"]||"#fff").replace("#","");if(bg.length===3)bg=bg[0]+bg[0]+bg[1]+bg[1]+bg[2]+bg[2];var n=parseInt(bg,16);if(!isNaN(n)){var R=(n>>16)&255,G=(n>>8)&255,B=n&255;mode=(0.299*R+0.587*G+0.114*B)<140?"dark":"light";}}document.documentElement.setAttribute("data-theme",mode);if(skins[key]){document.documentElement.setAttribute("data-skin",key);var hrefs={ink:"https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap",clay:"https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap",neon:"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"};if(hrefs[key]){var l=document.createElement("link");l.rel="stylesheet";l.href=hrefs[key];l.id="ideanest-skin-fonts";document.head.appendChild(l);}}else{document.documentElement.removeAttribute("data-skin");}}catch(e){}})();</script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>

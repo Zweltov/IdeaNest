@@ -120,12 +120,21 @@ document.addEventListener("DOMContentLoaded", () => {
       const dark = document.documentElement.getAttribute('data-theme') === 'dark';
       document.querySelectorAll('img.brand-logo').forEach(img => {
         const src = img.getAttribute('src') || '';
+        if (!img.dataset.orig && (src.includes('logo-dark') || src.includes('logo-light'))) {
+          img.dataset.orig = src.includes('logo-light')
+            ? src.replace('logo-light.svg', 'logo-dark.png').replace('logo-light.png', 'logo-dark.png')
+            : src;
+        }
+        const orig = img.dataset.orig || src;
         if (dark) {
-          // светлый вариант на тёмном фоне
-          if (src.includes('logo-dark') && !img.dataset.orig) img.dataset.orig = src;
-          // SVG light if available
-          const light = (img.dataset.orig || src).replace('logo-dark.png', 'logo-light.svg').replace('logo-dark.svg', 'logo-light.svg');
-          // keep filter CSS as backup
+          const light = orig.replace('logo-dark.png', 'logo-light.svg').replace('logo-dark.svg', 'logo-light.svg');
+          if (img.getAttribute('src') !== light) img.setAttribute('src', light);
+          img.style.filter = '';
+          img.style.opacity = '';
+        } else {
+          if (orig && img.getAttribute('src') !== orig) img.setAttribute('src', orig);
+          img.style.filter = '';
+          img.style.opacity = '';
         }
       });
     };
@@ -247,17 +256,27 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
           // fallback
           const map = {
-            light: { 'bg-color': '#ffffff', 'bg-muted': '#f9fafb', 'surface-color': '#ffffff', 'text-main': '#111827', 'text-muted': '#6b7280', 'border-color': '#e5e7eb', 'accent-primary': '#4f46e5', 'accent-hover': '#1f2937', 'accent-light': '#f3f4f6' },
+            light: { 'bg-color': '#ffffff', 'bg-muted': '#f9fafb', 'surface-color': '#ffffff', 'text-main': '#111827', 'text-muted': '#6b7280', 'border-color': '#e5e7eb', 'accent-primary': '#4f46e5', 'accent-hover': '#4338ca', 'accent-light': '#eef2ff' },
             dark: { 'bg-color': '#0f0f12', 'bg-muted': '#18181c', 'surface-color': '#1c1c22', 'text-main': '#f3f4f6', 'text-muted': '#9ca3af', 'border-color': '#2e2e36', 'accent-primary': '#818cf8', 'accent-hover': '#a5b4fc', 'accent-light': '#27272a' },
-            colorful: { 'bg-color': '#faf5ff', 'bg-muted': '#f3e8ff', 'surface-color': '#ffffff', 'text-main': '#1e1b4b', 'text-muted': '#6b7280', 'border-color': '#e9d5ff', 'accent-primary': '#7c3aed', 'accent-hover': '#6d28d9', 'accent-light': '#ede9fe' }
+            colorful: { 'bg-color': '#f8fdff', 'bg-muted': '#eafaff', 'surface-color': '#ffffff', 'text-main': '#0c2733', 'text-muted': '#4b7a89', 'border-color': '#cdeef7', 'accent-primary': '#0891b2', 'accent-hover': '#0e7490', 'accent-light': '#ecfeff' },
+            ink: { 'bg-color': '#f7f5f0', 'bg-muted': '#efece6', 'surface-color': '#fffcf7', 'text-main': '#14110f', 'text-muted': '#6a635c', 'border-color': '#d4cdc3', 'accent-primary': '#14110f', 'accent-hover': '#000000', 'accent-light': '#e8e4dc' },
+            clay: { 'bg-color': '#faf6f1', 'bg-muted': '#f3ebe3', 'surface-color': '#ffffff', 'text-main': '#3d2c29', 'text-muted': '#8a736c', 'border-color': '#eadfd6', 'accent-primary': '#c45c26', 'accent-hover': '#a34a1c', 'accent-light': '#fce8dc' },
+            neon: { 'bg-color': '#070b10', 'bg-muted': '#0d1219', 'surface-color': '#0a1018', 'text-main': '#e6f7ff', 'text-muted': '#6b8a9e', 'border-color': '#1a3344', 'accent-primary': '#00f0ff', 'accent-hover': '#7dffff', 'accent-light': '#0a2a33' }
           };
           const c = map[key] || map.light;
-          Object.entries(c).forEach(([k, v]) => document.documentElement.style.setProperty('--' + k, v));
-          document.documentElement.setAttribute('data-theme', key === 'dark' ? 'dark' : key);
-          localStorage.setItem('ideanest_theme', JSON.stringify({ key, colors: c }));
+          if (typeof applyThemeColors === 'function') {
+            applyThemeColors(c, key);
+            saveThemeLocally(key, c);
+          } else {
+            Object.entries(c).forEach(([k, v]) => document.documentElement.style.setProperty('--' + k, v));
+            document.documentElement.setAttribute('data-theme', key === 'dark' || key === 'neon' ? 'dark' : (key === 'colorful' ? 'colorful' : 'light'));
+            if (['ink','clay','neon'].includes(key)) document.documentElement.setAttribute('data-skin', key);
+            else document.documentElement.removeAttribute('data-skin');
+            localStorage.setItem('ideanest_theme', JSON.stringify({ key, colors: c }));
+          }
         }
         bd.remove();
-        showToast('Тема: ' + (key === 'dark' ? 'тёмная' : key === 'colorful' ? 'цветная' : 'светлая'));
+        showToast('Тема: ' + ({ light:'светлая', dark:'тёмная', colorful:'океан', ink:'Ink Editorial', clay:'Clay Soft', neon:'Neon Terminal' }[key] || key));
       });
     });
     bd.addEventListener('click', (e) => { if (e.target === bd) bd.remove(); });
@@ -3264,15 +3283,61 @@ function wireAuthorTagClicks(root) {
     return window.DOMPurify ? DOMPurify.sanitize(html, purifyCfg) : html;
   }
 
-  function setMetaDescription(text) {
-    if (!text) return;
-    let meta = document.querySelector('meta[name="description"]');
+  function setMetaTag(attr, key, content) {
+    if (!content) return;
+    const sel = attr === 'property'
+      ? `meta[property="${key}"]`
+      : `meta[name="${key}"]`;
+    let meta = document.querySelector(sel);
     if (!meta) {
       meta = document.createElement('meta');
-      meta.setAttribute('name', 'description');
+      meta.setAttribute(attr, key);
       document.head.appendChild(meta);
     }
-    meta.setAttribute('content', text.trim().slice(0, 160));
+    meta.setAttribute('content', String(content).trim().slice(0, attr === 'property' && key === 'og:image' ? 500 : 160));
+  }
+
+  function setMetaDescription(text) {
+    if (!text) return;
+    const clipped = text.trim().replace(/\s+/g, ' ').slice(0, 160);
+    setMetaTag('name', 'description', clipped);
+    setMetaTag('property', 'og:description', clipped);
+    setMetaTag('name', 'twitter:description', clipped);
+  }
+
+  function setPageMeta({ title, description, url, image }) {
+    if (title) {
+      document.title = title;
+      setMetaTag('property', 'og:title', title);
+      setMetaTag('name', 'twitter:title', title);
+    }
+    if (description) setMetaDescription(description);
+    if (url) {
+      let link = document.querySelector('link[rel="canonical"]');
+      if (!link) {
+        link = document.createElement('link');
+        link.setAttribute('rel', 'canonical');
+        document.head.appendChild(link);
+      }
+      link.setAttribute('href', url);
+      setMetaTag('property', 'og:url', url);
+    }
+    if (image) {
+      setMetaTag('property', 'og:image', image);
+    }
+  }
+
+  function excerptFromArticle(article) {
+    if (article?.description && String(article.description).trim()) {
+      return String(article.description).trim();
+    }
+    const raw = String(article?.text || '')
+      .replace(/:::.*?:::/gs, ' ')
+      .replace(/[#>*_`\[\]()]/g, ' ')
+      .replace(/https?:\/\/\S+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return raw.slice(0, 160);
   }
 
   // ---------- FAQ: единая плашка-аккордеон (article.faq — jsonb [{question, answer}]) ----------
@@ -3791,6 +3856,12 @@ function wireAuthorTagClicks(root) {
     const articleId = article.id;
 
     document.title = `${article.title || 'Статья'} — IdeaNest`;
+    setPageMeta({
+      title: document.title,
+      description: excerptFromArticle(article),
+      url: (typeof location !== 'undefined' && location.origin ? location.origin : 'https://ideanest.ru') + (article.slug ? ('/articles/' + article.slug) : location.pathname),
+      image: article.cover_url || article.image_url || 'https://ideanest.ru/assets/logo-dark.png'
+    });
     setMetaDescription(article.description || (article.text ? article.text.replace(/[#*`>_-]/g, '').slice(0, 160) : ''));
 
     let isFav = false;
@@ -3962,6 +4033,12 @@ function wireAuthorTagClicks(root) {
     }
 
     document.title = `${ideaTitle(idea)} — IdeaNest`;
+    setPageMeta({
+      title: document.title,
+      description: (idea.potential || idea.pluses || idea.risks || 'Бизнес-идея на IdeaNest').toString().replace(/\s+/g, ' ').trim().slice(0, 160),
+      url: (typeof location !== 'undefined' && location.origin ? location.origin : 'https://ideanest.ru') + '/ideas/' + idea.id_idea,
+      image: idea.cover_url || idea.image_url || 'https://ideanest.ru/assets/logo-dark.png'
+    });
 
     let isFav = false;
     let isUpvoted = false;
