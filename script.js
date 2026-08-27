@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
           // fallback
           const map = {
-            light: { 'bg-color': '#ffffff', 'bg-muted': '#f9fafb', 'surface-color': '#ffffff', 'text-main': '#111827', 'text-muted': '#6b7280', 'border-color': '#e5e7eb', 'accent-primary': '#4f46e5', 'accent-hover': '#4338ca', 'accent-light': '#eef2ff' },
+            light: { 'bg-color': '#ffffff', 'bg-muted': '#f9fafb', 'surface-color': '#ffffff', 'text-main': '#111827', 'text-muted': '#6b7280', 'border-color': '#e5e7eb', 'accent-primary': '#F59E0B', 'accent-hover': '#D97706', 'accent-light': '#FFFBEB' },
             dark: { 'bg-color': '#0f0f12', 'bg-muted': '#18181c', 'surface-color': '#1c1c22', 'text-main': '#f3f4f6', 'text-muted': '#9ca3af', 'border-color': '#2e2e36', 'accent-primary': '#818cf8', 'accent-hover': '#a5b4fc', 'accent-light': '#27272a' },
             colorful: { 'bg-color': '#f8fdff', 'bg-muted': '#eafaff', 'surface-color': '#ffffff', 'text-main': '#0c2733', 'text-muted': '#4b7a89', 'border-color': '#cdeef7', 'accent-primary': '#0891b2', 'accent-hover': '#0e7490', 'accent-light': '#ecfeff' },
             ink: { 'bg-color': '#f7f5f0', 'bg-muted': '#efece6', 'surface-color': '#fffcf7', 'text-main': '#14110f', 'text-muted': '#6a635c', 'border-color': '#d4cdc3', 'accent-primary': '#14110f', 'accent-hover': '#000000', 'accent-light': '#e8e4dc' },
@@ -4325,7 +4325,7 @@ function wireAuthorTagClicks(root) {
     light: {
       name: 'Светлая',
       colors: {
-        'accent-primary': '#4f46e5', 'accent-hover': '#4338ca', 'accent-light': '#eef2ff',
+        'accent-primary': '#F59E0B', 'accent-hover': '#D97706', 'accent-light': '#FFFBEB',
         'bg-color': '#ffffff', 'bg-muted': '#f9fafb', 'surface-color': '#ffffff',
         'text-main': '#111827', 'text-muted': '#6b7280', 'border-color': '#e5e7eb'
       }
