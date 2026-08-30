@@ -1,74 +1,27 @@
 {
   "rewrites": [
-    {
-      "source": "/about",
-      "destination": "/about.html"
-    },
-    {
-      "source": "/articles",
-      "destination": "/articles/index.html"
-    },
-    {
-      "source": "/articles/",
-      "destination": "/articles/index.html"
-    },
-    {
-      "source": "/articles/:slug([^.]+)",
-      "destination": "/articles/article.html"
-    },
-    {
-      "source": "/ideas/:id([0-9]+)",
-      "destination": "/ideas/idea.html"
-    },
-    {
-      "source": "/privacy",
-      "destination": "/privacy.html"
-    },
-    {
-      "source": "/terms",
-      "destination": "/terms.html"
-    },
-    {
-      "source": "/disclaimer",
-      "destination": "/disclaimer.html"
-    }
+    { "source": "/about", "destination": "/about.html" },
+    { "source": "/articles", "destination": "/articles/index.html" },
+    { "source": "/articles/", "destination": "/articles/index.html" },
+    { "source": "/articles/:slug([^.]+)", "destination": "/api/article?slug=:slug" },
+    { "source": "/ideas/:id([0-9]+)", "destination": "/api/idea?id=:id" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/disclaimer", "destination": "/disclaimer.html" },
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" }
   ],
   "headers": [
     {
-      "source": "/sitemap.xml",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/xml; charset=utf-8"
-        }
-      ]
-    },
-    {
       "source": "/script.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600, stale-while-revalidate=86400"
-        }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }]
     },
     {
       "source": "/style.css",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600, stale-while-revalidate=86400"
-        }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }]
     },
     {
       "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=86400, immutable"
-        }
-      ]
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400, immutable" }]
     }
   ]
 }
