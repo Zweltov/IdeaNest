@@ -12,7 +12,7 @@ module.exports = async function handler(req, res) {
     }
 
     const rows = await sbFetch(
-      `articles?slug=eq.${encodeURIComponent(slug)}&select=id,title,slug,description,text,cover_url,image_url,created_at,profiles(id,username,full_name,first_name,last_name)&limit=1`
+      `articles?slug=eq.${encodeURIComponent(slug)}&select=id,title,slug,description,text,cover_url,created_at,profiles(id,username,full_name,first_name,last_name)&limit=1`
     );
     const article = Array.isArray(rows) ? rows[0] : null;
     if (!article) {

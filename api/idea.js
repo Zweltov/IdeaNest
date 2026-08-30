@@ -19,7 +19,7 @@ module.exports = async function handler(req, res) {
     }
 
     const rows = await sbFetch(
-      `ideas?id_idea=eq.${id}&select=id_idea,title,budget,complexity,category,rating,potential,pluses,minuses,risks,cover_url,image_url,created_at&limit=1`
+      `ideas?id_idea=eq.${id}&select=id_idea,title,budget,complexity,category,rating,potential,pluses,minuses,risks,cover_url,created_at&limit=1`
     );
     const idea = Array.isArray(rows) ? rows[0] : null;
     if (!idea) {
