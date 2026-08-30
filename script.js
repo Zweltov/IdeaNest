@@ -2419,7 +2419,7 @@ function closeAccountSwitcher() {
     try {
       const { data, error } = await supabaseClient
         .from('ideas')
-        .select('id_idea, title, category, budget, complexity, rating, potential, pluses, minuses, risks, cover_url, image_url, banner_url')
+        .select('id_idea, title, category, budget, complexity, rating, potential, pluses, minuses, risks, cover_url')
         .order('id_idea', { ascending: true });
       if (error) throw error;
       ideasCache = data || [];
@@ -2510,26 +2510,6 @@ function closeAccountSwitcher() {
   }
   initIdeaMatchPage();
 
-  (function injectMatchLink() {
-    const header = document.querySelector('.section-header, main .section-title');
-    if (!header) return;
-    if (document.getElementById('ideaMatchCta')) return;
-    const path = (location.pathname || '').toLowerCase();
-    if (!path.includes('/ideas/')) return;
-    const root = siteRootPrefix();
-    const a = document.createElement('a');
-    a.id = 'ideaMatchCta';
-    a.href = root + 'ideas/match.html';
-    a.className = 'btn btn-secondary';
-    a.style.marginLeft = '12px';
-    a.innerHTML = '<i data-lucide="sparkles"></i> Подборка';
-    if (header.classList && header.classList.contains('section-header')) {
-      header.appendChild(a);
-    } else {
-      header.parentNode?.insertBefore(a, header.nextSibling);
-    }
-    if (window.lucide) lucide.createIcons();
-  })();
 
 
 
@@ -3471,7 +3451,7 @@ function wireAuthorTagClicks(root) {
     targetGrid.innerHTML = '<div class="skeleton-grid">' + Array(6).fill('<div class="skeleton-card"></div>').join('') + '</div>';
     try {
       // Лёгкий select: без полного text (он огромный) — для карточек хватает description
-      const LIST_COLS = 'id, title, slug, description, cover_url, image_url, banner_url, thumbnail_url, created_at, id_profile, main_idea_id';
+      const LIST_COLS = 'id, title, slug, description, cover_url, created_at, id_profile, main_idea_id';
       let data = null;
       let error = null;
       {
