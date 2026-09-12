@@ -14,7 +14,7 @@ function escapeAttr(s) {
 function simpleMarkdown(md) {
   if (!md) return '<p></p>';
   let text = String(md).replace(/\r\n/g, '\n');
-  // unwrap :::blocks — keep inner text visible for SEO
+  // unwrap :::blocks — keep inner text visible for SEO (full interactive — на клиенте)
   text = text.replace(/:::[\w-]*(?:\[[^\]]*\])?\s*\n?([\s\S]*?):::/g, (_, inner) => '\n\n' + inner.trim() + '\n\n');
   // youtube lines → link
   text = text.replace(/https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})\S*/g, (m) => `[Видео YouTube](${m})`);
@@ -40,27 +40,68 @@ function simpleMarkdown(md) {
       .replace(/\*([^*]+)\*/g, '<em>$1</em>')
       .replace(/`([^`]+)`/g, '<code>$1</code>');
   }
+  function isTableSep(line) {
+    return /^\s*\|?[\s:|-]+\|[\s:|-]+\|?\s*$/.test(line) && /-/.test(line);
+  }
+  function isTableRow(line) {
+    return /^\s*\|.*\|\s*$/.test(line) || (/\|/.test(line) && !line.trim().startsWith('#'));
+  }
+  function splitCells(line) {
+    let s = line.trim();
+    if (s.startsWith('|')) s = s.slice(1);
+    if (s.endsWith('|')) s = s.slice(0, -1);
+    return s.split('|').map(c => c.trim());
+  }
 
-  for (const line of lines) {
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    // GFM table: header + separator + rows
+    if (i + 1 < lines.length && isTableRow(line) && isTableSep(lines[i + 1])) {
+      flushPara(); flushList();
+      const headers = splitCells(line);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && isTableRow(lines[i]) && !isTableSep(lines[i])) {
+        rows.push(splitCells(lines[i]));
+        i++;
+      }
+      let t = '<div class="md-table-wrap"><table class="md-table"><thead><tr>';
+      headers.forEach(h => { t += '<th>' + inline(h) + '</th>'; });
+      t += '</tr></thead><tbody>';
+      rows.forEach(r => {
+        t += '<tr>';
+        headers.forEach((_, ci) => { t += '<td>' + inline(r[ci] || '') + '</td>'; });
+        t += '</tr>';
+      });
+      t += '</tbody></table></div>';
+      out.push(t);
+      continue;
+    }
+
     const h = /^(#{1,3})\s+(.+)$/.exec(line);
     if (h) {
       flushPara(); flushList();
       const n = h[1].length;
       out.push(`<h${n}>${inline(h[2].trim())}</h${n}>`);
+      i++;
       continue;
     }
     if (/^\s*[-*]\s+/.test(line)) {
       flushPara();
       if (!inList) { out.push('<ul>'); inList = true; }
       out.push('<li>' + inline(line.replace(/^\s*[-*]\s+/, '')) + '</li>');
+      i++;
       continue;
     }
     if (!line.trim()) {
       flushPara(); flushList();
+      i++;
       continue;
     }
     flushList();
     para.push(line.trim());
+    i++;
   }
   flushPara(); flushList();
   return out.join('\n') || '<p></p>';
