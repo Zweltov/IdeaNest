@@ -3013,16 +3013,30 @@ function wireAuthorTagClicks(root) {
 
   function extractCalcBlocks(text) {
     const blocks = [];
-    // new unified :::calc  and old :::calc-payback
-    const re = /:::(calc-payback|calc)\s*\r?\n?([\s\S]*?)\r?\n?[ \t]*:::/gi;
-    const cleaned = text.replace(re, (_, tag, body) => {
+
+    function parseCalcParams(body, tag) {
       const params = {};
-      String(body || '').split('\n').forEach(line => {
-        const m = line.match(/^\s*([\w_]+)\s*:\s*(.+?)\s*$/);
-        if (m) params[m[1].toLowerCase()] = m[2].trim();
-      });
-      const num = (k) => parseFloat(String(params[k] || '0').replace(/\s/g, '').replace(',', '.')) || 0;
-      const opts = {
+      const src = String(body || '');
+      // Поддержка и построчно, и «всё в одну строку»:
+      // mode: payback invest: 50000 monthly_profit: 45000
+      const reKV = /([\w_]+)\s*:\s*([^\n]+?)(?=\s+[\w_]+\s*:|$)/g;
+      let m;
+      while ((m = reKV.exec(src)) !== null) {
+        params[m[1].toLowerCase()] = m[2].trim();
+      }
+      // Если ничего не нашли — построчный fallback
+      if (!Object.keys(params).length) {
+        src.split('\n').forEach(line => {
+          const mm = line.match(/^\s*([\w_]+)\s*:\s*(.+?)\s*$/);
+          if (mm) params[mm[1].toLowerCase()] = mm[2].trim();
+        });
+      }
+      const num = (k) => {
+        const raw = String(params[k] || '0').replace(/\s/g, '').replace(',', '.');
+        const n = parseFloat(raw);
+        return Number.isFinite(n) ? n : 0;
+      };
+      return {
         mode: (params.mode || (tag === 'calc-payback' ? 'payback' : 'payback')).toLowerCase(),
         invest: num('invest') || num('budget'),
         monthly_profit: num('monthly_profit') || num('profit') || num('monthly'),
@@ -3038,10 +3052,35 @@ function wireAuthorTagClicks(root) {
         payroll: num('payroll') || num('salary'),
         other: num('other') || num('buffer')
       };
+    }
+
+    let cleaned = String(text || '');
+
+    // 1) Классический блок :::calc ... :::
+    cleaned = cleaned.replace(/:::(calc-payback|calc)\b\s*\r?\n?([\s\S]*?)\r?\n?[ \t]*:::/gi, (_, tag, body) => {
       const idx = blocks.length;
-      blocks.push(renderCalcHTML(opts));
+      blocks.push(renderCalcHTML(parseCalcParams(body, tag)));
       return '\n@@CALCBLOCK' + idx + '@@\n';
     });
+
+    // 2) Однострочный: :::calc mode: payback invest: 1 :::
+    cleaned = cleaned.replace(/:::(calc-payback|calc)\b\s+([^:\n]*:[^:]+?)\s*:::/gi, (_, tag, body) => {
+      const idx = blocks.length;
+      blocks.push(renderCalcHTML(parseCalcParams(body, tag)));
+      return '\n@@CALCBLOCK' + idx + '@@\n';
+    });
+
+    // 3) «Голый» хвост после срыва ограждений (как на скрине):
+    // mode: payback invest: 50000 monthly_profit: 45000
+    cleaned = cleaned.replace(
+      /(^|\n)[ \t]*mode\s*:\s*(payback|breakeven|unit|budget)\s+([\w_]+\s*:\s*[\d.,\s]+(?:\s+[\w_]+\s*:\s*[\d.,\s]+)*)/gi,
+      (m, lead, mode, rest) => {
+        const idx = blocks.length;
+        blocks.push(renderCalcHTML(parseCalcParams('mode: ' + mode + ' ' + rest, 'calc')));
+        return lead + '\n@@CALCBLOCK' + idx + '@@\n';
+      }
+    );
+
     return { cleaned, blocks };
   }
 
@@ -3293,7 +3332,12 @@ function wireAuthorTagClicks(root) {
     }
     calc.blocks.forEach((b, i) => {
       const token = '@@CALCBLOCK' + i + '@@';
-      html = html.split('<p>' + token + '</p>').join(b).split(token).join(b);
+      // marked/DOM иногда оборачивает токен в <p>, <code>, <pre>
+      const re = new RegExp(
+        '(?:<p>\s*)?(?:<code>)?(?:<span>)?' + token.replace(/[@@]/g, '@@') + '(?:<\/span>)?(?:<\/code>)?(?:\s*<\/p>)?',
+        'g'
+      );
+      html = html.replace(re, b).split(token).join(b);
     });
     blocks.forEach((b, i) => {
       const token = '@@INFOBLOCK' + i + '@@';

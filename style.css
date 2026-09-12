@@ -680,7 +680,26 @@ button.dropdown-item {
 .article-body hr { border: none; border-top: 1px solid var(--border-color); margin: 28px 0; }
 
 /* ================= Инфоблоки статьи (:::tip, :::warning и т.д.) ================= */
-.infobox { border-radius: var(--radius-sm); padding: 14px 16px; margin: 0 0 16px; border-left: 4px solid; }
+/* infobox-strong-frames */
+.infobox {
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  margin: 18px 0 20px;
+  border-left: 4px solid;
+  border: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+  border-left-width: 4px;
+  box-shadow: var(--shadow-sm);
+}
+.article-body .infobox,
+.article-body .proscons-list,
+.article-body .checklist-list,
+.article-body .biz-calc,
+.article-body .md-spoiler,
+.article-body .md-accordion,
+.article-body .md-tabs,
+.article-body .md-steps {
+  max-width: 100%;
+}
 .infobox-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.92rem; margin-bottom: 6px; }
 .infobox-title i { width: 16px; height: 16px; }
 .infobox-body { font-size: 0.92rem; }
