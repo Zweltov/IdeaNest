@@ -14,9 +14,39 @@ function escapeAttr(s) {
 function simpleMarkdown(md) {
   if (!md) return '<p></p>';
   let text = String(md).replace(/\r\n/g, '\n');
-  // unwrap :::blocks — keep inner text visible for SEO (full interactive — на клиенте)
+
+  // --- спецблоки IdeaNest (SSR-фолбэк; полный интерактив дорисует script.js) ---
+  text = text.replace(/:::youtube\s+(\S+)\s*:::/gi, (_, u) => `\n\n[Видео YouTube](${u})\n\n`);
+  text = text.replace(/:::(calc-payback|calc)\b[\s\S]*?:::/gi, () =>
+    '\n\n<p><em>Бизнес-калькулятор загрузится на странице…</em></p>\n\n'
+  );
+
+  text = text.replace(/:::(pros|cons)\s*\n([\s\S]*?)\n\s*:::/gi, (_, type, body) => {
+    const isPros = type.toLowerCase() === 'pros';
+    const items = body.split('\n').map(l => l.trim()).filter(Boolean)
+      .map(l => `<li>${isPros ? '✓' : '✗'} ${escapeHtml(l)}</li>`).join('');
+    return `\n\n<ul class="proscons-list ${isPros ? 'pros' : 'cons'}">${items}</ul>\n\n`;
+  });
+
+  text = text.replace(/:::checklist\s*\n([\s\S]*?)\n\s*:::/gi, (_, body) => {
+    const items = body.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      const checked = /^\[x\]/i.test(l);
+      const t = l.replace(/^\[[ xX]\]\s*/, '');
+      return `<li class="checklist-item${checked ? ' is-checked' : ''}">${escapeHtml(t)}</li>`;
+    }).join('');
+    return `\n\n<ul class="checklist-list">${items}</ul>\n\n`;
+  });
+
+  text = text.replace(/:::(tip|warning|note|success|danger)\s*(?:\[[^\]]*\])?\s*\n([\s\S]*?)\n\s*:::/gi, (_, type, body) => {
+    const labels = { tip: 'Совет', warning: 'Важно', note: 'Заметка', success: 'Итог', danger: 'Ошибка' };
+    const t = type.toLowerCase();
+    const inner = escapeHtml(body.trim()).replace(/\n/g, '<br>');
+    return `\n\n<div class="infobox infobox-${t}"><div class="infobox-title">${labels[t] || t}</div><div class="infobox-body"><p>${inner}</p></div></div>\n\n`;
+  });
+
+  // остальные ::: блоки — показать содержимое, не склеивать в одну строку
   text = text.replace(/:::[\w-]*(?:\[[^\]]*\])?\s*\n?([\s\S]*?):::/g, (_, inner) => '\n\n' + inner.trim() + '\n\n');
-  // youtube lines → link
+
   text = text.replace(/https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{11})\S*/g, (m) => `[Видео YouTube](${m})`);
 
   const lines = text.split('\n');
@@ -44,7 +74,7 @@ function simpleMarkdown(md) {
     return /^\s*\|?[\s:|-]+\|[\s:|-]+\|?\s*$/.test(line) && /-/.test(line);
   }
   function isTableRow(line) {
-    return /^\s*\|.*\|\s*$/.test(line) || (/\|/.test(line) && !line.trim().startsWith('#'));
+    return /^\s*\|.*\|\s*$/.test(line);
   }
   function splitCells(line) {
     let s = line.trim();
@@ -56,7 +86,24 @@ function simpleMarkdown(md) {
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
-    // GFM table: header + separator + rows
+
+    // уже готовый HTML-блок (инфобоксы/pros) — вставляем как есть
+    if (/^\s*<(?:ul|div|p|table|h[1-6])\b/i.test(line)) {
+      flushPara(); flushList();
+      let chunk = line;
+      // если открывающий тег без закрытия на этой строке — копим до закрытия упрощённо
+      i++;
+      while (i < lines.length && !/^\s*$/.test(lines[i]) && !/^\s*<(?:ul|div|p|table|h[1-6])\b/i.test(lines[i]) && !/^(#{1,3})\s+/.test(lines[i])) {
+        // stop if next is markdown structure
+        if (isTableRow(lines[i]) && i + 1 < lines.length && isTableSep(lines[i + 1])) break;
+        chunk += '\n' + lines[i];
+        i++;
+        if (/<\/(?:ul|div|p|table)>/i.test(chunk)) break;
+      }
+      out.push(chunk);
+      continue;
+    }
+
     if (i + 1 < lines.length && isTableRow(line) && isTableSep(lines[i + 1])) {
       flushPara(); flushList();
       const headers = splitCells(line);
@@ -82,8 +129,7 @@ function simpleMarkdown(md) {
     const h = /^(#{1,3})\s+(.+)$/.exec(line);
     if (h) {
       flushPara(); flushList();
-      const n = h[1].length;
-      out.push(`<h${n}>${inline(h[2].trim())}</h${n}>`);
+      out.push(`<h${h[1].length}>${inline(h[2].trim())}</h${h[1].length}>`);
       i++;
       continue;
     }
