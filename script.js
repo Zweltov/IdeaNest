@@ -2772,7 +2772,7 @@ function wireAuthorTagClicks(root) {
   function extractInfoBlocks(text) {
     const blocks = [];
     // Интерактив: spoiler / accordion / tabs + старые типы
-    const cleaned = text.replace(/:::(tip|warning|note|success|danger|pros|cons|checklist|spoiler|accordion|tabs|steps)\s*(?:\[([^\]]*)\])?\s*\r?\n([\s\S]*?)\r?\n[ \t]*:::/g, (m, type, titleArg, body) => {
+    const cleaned = text.replace(/:::(tip|warning|note|success|danger|pros|cons|checklist|spoiler|accordion|tabs|steps)\s*(?:\[([^\]]*)\])?\s*\r?\n([\s\S]*?)\r?\n?[ \t]*:::/g, (m, type, titleArg, body) => {
       const idx = blocks.length;
       const title = (titleArg || '').trim();
       if (type === 'pros' || type === 'cons') {
@@ -3330,20 +3330,21 @@ function wireAuthorTagClicks(root) {
     } else {
       html = '<p style="white-space: pre-line;">' + cleaned.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>';
     }
+    function injectToken(htmlStr, token, blockHtml) {
+      if (!htmlStr) return htmlStr;
+      return htmlStr
+        .split('<p>' + token + '</p>').join(blockHtml)
+        .split('<p><code>' + token + '</code></p>').join(blockHtml)
+        .split('<code>' + token + '</code>').join(blockHtml)
+        .split(token).join(blockHtml);
+    }
     calc.blocks.forEach((b, i) => {
-      const token = '@@CALCBLOCK' + i + '@@';
-      // marked/DOM иногда оборачивает токен в <p>, <code>, <pre>
-      const re = new RegExp(
-        '(?:<p>\s*)?(?:<code>)?(?:<span>)?' + token.replace(/[@@]/g, '@@') + '(?:<\/span>)?(?:<\/code>)?(?:\s*<\/p>)?',
-        'g'
-      );
-      html = html.replace(re, b).split(token).join(b);
+      html = injectToken(html, '@@CALCBLOCK' + i + '@@', b);
     });
     blocks.forEach((b, i) => {
-      const token = '@@INFOBLOCK' + i + '@@';
-      html = html.split('<p>' + token + '</p>').join(b).split(token).join(b);
+      html = injectToken(html, '@@INFOBLOCK' + i + '@@', b);
     });
-    // youtube placeholders
+// youtube placeholders
     html = html.replace(/@@YOUTUBE:([\w-]{6,})@@/g, function (_, id) {
       return '<div class="video-embed"><iframe src="https://www.youtube.com/embed/' + id + '" title="YouTube" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>';
     });
