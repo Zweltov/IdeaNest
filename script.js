@@ -369,20 +369,49 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   profileBlurOverlay?.classList.remove('active');
 
+  function positionProfileDropdown() {
+    if (!profileDropdown || isMobileNav()) return;
+    const anchor =
+      document.getElementById('topAvatar') ||
+      document.querySelector('#profileWrapper .avatar-img') ||
+      document.querySelector('.avatar-img');
+    if (!anchor) return;
+    const r = anchor.getBoundingClientRect();
+    const w = 260;
+    let left = r.right - w;
+    left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
+    profileDropdown.style.top = Math.round(r.bottom + 10) + 'px';
+    profileDropdown.style.left = Math.round(left) + 'px';
+    profileDropdown.style.right = 'auto';
+    profileDropdown.style.bottom = 'auto';
+    profileDropdown.style.width = w + 'px';
+  }
+
   function openProfileDropdown() {
     if (!profileDropdown) return;
-    // Всегда в <body>: иначе z-index меню ограничивается .navbar (blur ложится поверх)
+    // Всегда в <body>: иначе z-index меню ограничивается .navbar
     if (profileDropdown.parentElement !== document.body) {
       document.body.appendChild(profileDropdown);
     }
     resetSheetTransform();
     void profileDropdown.offsetWidth;
+    positionProfileDropdown();
     profileDropdown.classList.add('active');
     profileDropdown.setAttribute('aria-hidden', 'false');
-    // Фон страницы не трогаем. На мобилке — невидимый оверлей только чтобы ловить тап снаружи.
     if (isMobileNav()) profileBlurOverlay?.classList.add('active');
     document.getElementById('bottomNav')?.classList.add('behind-sheet');
   }
+
+  if (!window.__profilePosWired) {
+    window.__profilePosWired = true;
+    window.addEventListener('resize', () => {
+      if (profileDropdown?.classList.contains('active')) positionProfileDropdown();
+    });
+    window.addEventListener('scroll', () => {
+      if (profileDropdown?.classList.contains('active')) positionProfileDropdown();
+    }, true);
+  }
+
   function closeProfileDropdown() {
     if (!profileDropdown) return;
     profileDropdown.classList.remove('active');
@@ -2225,16 +2254,25 @@ function closeAccountSwitcher() {
       bar = document.createElement('div');
       bar.id = 'activeIdeaFilters';
       bar.className = 'active-filters-bar';
-      const grid = document.getElementById('ideasGrid');
-      if (grid) grid.parentNode.insertBefore(bar, grid);
-      else return;
+      // Не внутрь .ideas-page-layout — иначе ломается сетка (одна колонка)
+      const layout = document.querySelector('.ideas-page-layout');
+      const filters = document.querySelector('.filters-container');
+      const chipRow = document.getElementById('ideaArticleFilterChip');
+      if (layout && layout.parentNode) layout.parentNode.insertBefore(bar, layout);
+      else if (chipRow && chipRow.parentNode) chipRow.parentNode.insertBefore(bar, chipRow.nextSibling);
+      else if (filters && filters.parentNode) filters.parentNode.insertBefore(bar, filters.nextSibling);
+      else {
+        const grid = document.getElementById('ideasGrid');
+        if (grid) grid.parentNode.insertBefore(bar, grid);
+        else return;
+      }
     }
     const chips = [];
     const cat = document.querySelector('.filter-btn.active')?.dataset.filter;
     if (cat && cat !== 'all') chips.push({ key: 'cat', label: 'Категория: ' + cat });
     const ratingSlider = document.getElementById('ratingSlider');
     if (ratingSlider && parseFloat(ratingSlider.value) > 0) chips.push({ key: 'rating', label: 'Рейтинг ≥ ' + ratingSlider.value });
-    const q = document.getElementById('ideaSearch')?.value?.trim();
+    const q = (document.getElementById('ideaSearchInput') || document.getElementById('ideaSearch'))?.value?.trim();
     if (q) chips.push({ key: 'q', label: 'Поиск: ' + q });
     if (filterArticleId) chips.push({ key: 'article', label: 'Связь со статьёй' });
     if (new URLSearchParams(location.search).get('mine') === '1') chips.push({ key: 'mine', label: 'Только мои' });
@@ -2244,7 +2282,7 @@ function closeAccountSwitcher() {
         const k = btn.dataset.chip;
         if (k === 'cat') document.querySelector('.filter-btn[data-filter="all"]')?.click();
         if (k === 'rating' && ratingSlider) { ratingSlider.value = 0; ratingSlider.dispatchEvent(new Event('input')); }
-        if (k === 'q') { const s = document.getElementById('ideaSearch'); if (s) { s.value = ''; s.dispatchEvent(new Event('input')); } }
+        if (k === 'q') { const s = document.getElementById('ideaSearchInput') || document.getElementById('ideaSearch'); if (s) { s.value = ''; s.dispatchEvent(new Event('input')); } }
         if (k === 'article' || k === 'mine') location.href = siteRootPrefix() + 'ideas/all.html';
         applyIdeaFilters();
         renderActiveIdeaFilterChips();
@@ -3862,18 +3900,15 @@ function wireAuthorTagClicks(root) {
       { label: 'Статьи', href: rootBc + 'articles/index.html' },
       { label: article.title || 'Статья' }
     ]);
+    const coverSrc = mediaCoverUrl(article);
     container.innerHTML = `
       ${bc}
-      ${mediaCoverUrl(article) ? `
-      <div class="article-hero" style="background-image:url('${escapeAttr(mediaCoverUrl(article))}')">
+      <div class="article-hero${coverSrc ? '' : ' article-hero--fallback'}"${coverSrc ? ` style="background-image:url('${escapeAttr(coverSrc)}')"` : ''}>
         <div class="article-hero-overlay">
-          ${authorTagHtml(article).replace("card-tag", "card-tag idea-hero-tag")}
+          ${authorTagHtml(article).replace(/card-tag/g, 'card-tag idea-hero-tag author-tag')}
           <h1 class="idea-hero-title">${article.title || 'Без названия'}</h1>
         </div>
-      </div>` : `
-      ${authorTagHtml(article)}
-      <h1 class="idea-modal-title">${article.title || 'Без названия'}</h1>
-      `}
+      </div>
       <div class="idea-pill-row">
         <span class="idea-pill"><i data-lucide="calendar"></i> ${formatDate(article.created_at) || 'дата не указана'}</span>
       </div>
