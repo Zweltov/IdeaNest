@@ -48,15 +48,27 @@ module.exports = async function handler(req, res) {
       return `<section class="idea-field-block"><h2>${escapeHtml(label)}</h2>${html}</section>`;
     };
 
+    const cat = String(idea.category || '').toLowerCase();
+    const coverUrl = idea.cover_url || '';
+    const heroClass = coverUrl ? 'idea-hero' : ('idea-hero idea-hero--' + (cat || 'default'));
+    const heroStyle = coverUrl
+      ? ` style="background-image:url('${escapeAttr(coverUrl)}')"`
+      : '';
     const bodyHtml = `
-    <div class="card" style="cursor:default;" id="ideaDetailContainer" data-ssr="1">
+    <a href="/ideas/all.html" class="btn-text" style="margin-bottom:16px;display:inline-flex;">Ко всем идеям</a>
+    <div class="card" style="cursor:default;padding:28px 28px 32px;" id="ideaDetailContainer" data-ssr="1">
     <nav class="breadcrumbs">
       <a href="/">Главная</a> <span class="bc-sep">/</span>
       <a href="/ideas/all.html">Идеи</a> <span class="bc-sep">/</span>
       <span class="bc-current">${escapeHtml(name)}</span>
     </nav>
+    <div class="${heroClass}"${heroStyle}>
+      <div class="idea-hero-overlay">
+        <span class="card-tag idea-hero-tag">${escapeHtml(idea.complexity || idea.category || 'Идея')}</span>
+        <h1 class="idea-hero-title">${escapeHtml(name)}</h1>
+      </div>
+    </div>
     <article>
-      <h1 class="idea-modal-title">${escapeHtml(name)}</h1>
       <p class="idea-pill-row">
         <span class="idea-pill">Бюджет: ${escapeHtml(formatBudget(idea.budget))}</span>
         <span class="idea-pill">Сложность: ${escapeHtml(idea.complexity || '—')}</span>
@@ -67,8 +79,9 @@ module.exports = async function handler(req, res) {
       ${block('Плюсы', idea.pluses)}
       ${block('Минусы', idea.minuses)}
       ${block('Риски', idea.risks)}
+      <p class="idea-field-block" style="color:var(--text-muted);font-size:0.9rem;">Калькулятор и действия появятся после полной загрузки страницы.</p>
     </article>
-    <p style="margin-top:32px"><a class="btn btn-secondary" href="/ideas/all.html">← Все идеи</a></p>
+    <p style="margin-top:28px"><a class="btn btn-secondary" href="/ideas/all.html">Все идеи</a></p>
     </div>`;
 
     const jsonLd = JSON.stringify({

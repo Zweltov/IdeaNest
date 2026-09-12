@@ -38,24 +38,31 @@ module.exports = async function handler(req, res) {
       ? (author.full_name || [author.first_name, author.last_name].filter(Boolean).join(' ') || author.username || '')
       : '';
 
+    const coverUrl = article.cover_url || '';
+    const dateStr = article.created_at
+      ? new Date(article.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+      : '';
     const bodyHtml = `
+    <a href="/articles/" class="btn-text" style="margin-bottom:16px;display:inline-flex;">Ко всем статьям</a>
     <div class="article-page-body" style="cursor:default;" id="articleDetailContainer" data-ssr="1">
     <nav class="breadcrumbs" aria-label="Навигация">
       <a href="/">Главная</a> <span class="bc-sep">/</span>
       <a href="/articles/">Статьи</a> <span class="bc-sep">/</span>
       <span class="bc-current">${escapeHtml(article.title || 'Статья')}</span>
     </nav>
+    <div class="article-hero${coverUrl ? '' : ' article-hero--fallback'}"${coverUrl ? ` style="background-image:url('${escapeAttr(coverUrl)}')"` : ''}>
+      <div class="article-hero-overlay">
+        ${authorName ? `<span class="card-tag idea-hero-tag author-tag">${escapeHtml(authorName)}</span>` : '<span class="card-tag idea-hero-tag">Статья</span>'}
+        <h1 class="idea-hero-title">${escapeHtml(article.title || 'Без названия')}</h1>
+      </div>
+    </div>
     <article>
-      <h1 class="idea-modal-title">${escapeHtml(article.title || 'Без названия')}</h1>
-      <p class="idea-pill-row" style="color:var(--text-muted);font-size:0.95rem;">
-        ${authorName ? `Автор: ${escapeHtml(authorName)} · ` : ''}
-        ${article.created_at ? new Date(article.created_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
-      </p>
+      ${dateStr ? `<div class="idea-pill-row"><span class="idea-pill">${escapeHtml(dateStr)}</span></div>` : ''}
       <div class="article-body idea-field-block">
         ${simpleMarkdown(article.text)}
       </div>
     </article>
-    <p style="margin-top:32px"><a class="btn btn-secondary" href="/articles/">← Все статьи</a></p>
+    <p style="margin-top:28px"><a class="btn btn-secondary" href="/articles/">Все статьи</a></p>
     </div>`;
 
     const jsonLd = JSON.stringify({
