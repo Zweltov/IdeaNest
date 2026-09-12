@@ -1658,7 +1658,9 @@ function closeAccountSwitcher() {
     if (!isRecovery) authForm.reset();
     resetPasswordToggle(authPassword, passwordToggleBtn);
     resetPasswordToggle(recoveryPassword, recoveryPasswordToggleBtn);
-    authBackdrop.classList.add('active');
+    authBackdrop.classList.remove('active');
+    void authBackdrop.offsetWidth;
+    requestAnimationFrame(() => requestAnimationFrame(() => authBackdrop.classList.add('active')));
   }
   function closeAuthModal() { authBackdrop.classList.remove('active'); }
 
@@ -2410,7 +2412,13 @@ function closeAccountSwitcher() {
       </a>
     `;
     if (window.lucide) lucide.createIcons();
-    ideaBackdrop.classList.add('active');
+    wirePaybackCalcs(ideaModalBody);
+    // Анимация: кадр без active → следующий с active
+    ideaBackdrop.classList.remove('active');
+    void ideaBackdrop.offsetWidth;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => ideaBackdrop.classList.add('active'));
+    });
   }
 
   const isHomePage = !!(
@@ -3458,7 +3466,11 @@ function wireAuthorTagClicks(root) {
       </a>
     `;
     if (window.lucide) lucide.createIcons();
-    articleBackdrop.classList.add('active');
+    articleBackdrop.classList.remove('active');
+    void articleBackdrop.offsetWidth;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => articleBackdrop.classList.add('active'));
+    });
   }
 
   function paintArticlesGrid(grid, list) {

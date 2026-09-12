@@ -1406,10 +1406,14 @@ button.dropdown-item {
   width: 100%;
   max-width: 400px;
   padding: 32px;
-  transform: translateY(12px) scale(0.97);
-  transition: transform 0.25s var(--ease-smooth);
+  transform: translateY(18px) scale(0.96);
+  opacity: 0.92;
+  transition: transform 0.32s var(--ease-smooth), opacity 0.28s var(--ease-smooth);
 }
-.modal-backdrop.active .modal { transform: translateY(0) scale(1); }
+.modal-backdrop.active .modal {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
 
 .modal-close {
   position: absolute;
@@ -5005,10 +5009,45 @@ html[data-skin="ink"] .brand { letter-spacing: -0.02em; }
 .about-section li { margin-bottom: 6px; }
 
 
-/* Скрыть модалки до явного .active — без вспышки «голого» HTML при загрузке */
+/* Скрыть модалки до .active, но без display:none — иначе нет анимации открытия */
 .modal-backdrop:not(.active) {
-  display: none !important;
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
+}
+
+
+/* no-underline nav back */
+a.btn-text,
+a.btn-text:hover,
+a.btn-secondary,
+a.btn-secondary:hover,
+.idea-open-btn,
+.detail-main a.btn {
+  text-decoration: none !important;
+}
+.detail-main--idea,
+.detail-main--article {
+  padding-left: 28px;
+  padding-right: 28px;
+}
+.idea-field-block ul,
+.article-body ul {
+  padding-left: 1.35em;
+  margin: 8px 0 0;
+}
+.idea-field-block li,
+.article-body li {
+  margin-bottom: 6px;
+  line-height: 1.55;
+}
+.idea-field-block p {
+  padding-left: 2px;
+}
+@media (max-width: 640px) {
+  .detail-main--idea,
+  .detail-main--article {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
 }
