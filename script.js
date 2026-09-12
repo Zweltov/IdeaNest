@@ -2772,7 +2772,7 @@ function wireAuthorTagClicks(root) {
   function extractInfoBlocks(text) {
     const blocks = [];
     // Интерактив: spoiler / accordion / tabs + старые типы
-    const cleaned = text.replace(/:::(tip|warning|note|success|danger|pros|cons|checklist|spoiler|accordion|tabs|steps)\s*(?:\[([^\]]*)\])?\s*\n([\s\S]*?)\n:::/g, (m, type, titleArg, body) => {
+    const cleaned = text.replace(/:::(tip|warning|note|success|danger|pros|cons|checklist|spoiler|accordion|tabs|steps)\s*(?:\[([^\]]*)\])?\s*\r?\n([\s\S]*?)\r?\n[ \t]*:::/g, (m, type, titleArg, body) => {
       const idx = blocks.length;
       const title = (titleArg || '').trim();
       if (type === 'pros' || type === 'cons') {
@@ -3014,7 +3014,7 @@ function wireAuthorTagClicks(root) {
   function extractCalcBlocks(text) {
     const blocks = [];
     // new unified :::calc  and old :::calc-payback
-    const re = /:::(calc-payback|calc)\s*\n?([\s\S]*?)\n?:::/gi;
+    const re = /:::(calc-payback|calc)\s*\r?\n?([\s\S]*?)\r?\n?[ \t]*:::/gi;
     const cleaned = text.replace(re, (_, tag, body) => {
       const params = {};
       String(body || '').split('\n').forEach(line => {
@@ -3277,8 +3277,17 @@ function wireAuthorTagClicks(root) {
     const cleaned = extracted.cleaned;
     const blocks = extracted.blocks;
     let html;
-    if (window.marked && window.DOMPurify) {
-      html = marked.parse(cleaned, { breaks: true });
+    if (window.marked) {
+      try {
+        // GFM-таблицы + переносы строк
+        if (typeof marked.use === 'function') {
+          marked.use({ gfm: true, breaks: true });
+        }
+        html = marked.parse(cleaned, { breaks: true, gfm: true });
+      } catch (e) {
+        console.warn('marked.parse failed', e);
+        html = marked.parse(cleaned);
+      }
     } else {
       html = '<p style="white-space: pre-line;">' + cleaned.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>';
     }
@@ -3298,14 +3307,25 @@ function wireAuthorTagClicks(root) {
     html = html.replace(/<\/iframe><\/div>\s*<\/p>/g, '</iframe></div>');
     html = html.replace(/<img /g, '<img class="article-md-img" loading="lazy" ');
     const purifyCfg = {
-      ADD_TAGS: ['iframe', 'input', 'label', 'details', 'summary', 'button'],
+      ADD_TAGS: [
+        'iframe', 'input', 'label', 'details', 'summary', 'button',
+        'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'colgroup', 'col'
+      ],
       ADD_ATTR: [
         'allow', 'allowfullscreen', 'frameborder', 'src', 'title', 'loading',
-        'type', 'min', 'max', 'step', 'value', 'placeholder', 'class', 'id',
+        'type', 'min', 'max', 'step', 'value', 'placeholder', 'class', 'id', 'name',
+        'colspan', 'rowspan', 'scope', 'open', 'disabled', 'aria-label', 'aria-hidden',
+        // калькулятор и интерактив
+        'data-f', 'data-out', 'data-calc-id', 'data-calc-mode', 'data-calc-tab', 'data-panel',
         'data-payback-id', 'data-payback-months', 'data-payback-year', 'data-payback-roi',
-        'data-check', 'data-tab', 'data-tab-pane', 'data-step', 'data-step-pane', 'data-step-total', 'data-step-current', 'open', 'disabled'
-      ]
+        'data-check', 'data-tab', 'data-tab-pane', 'data-step', 'data-step-pane',
+        'data-step-total', 'data-step-current', 'data-sortable', 'data-lucide'
+      ],
+      ALLOW_DATA_ATTR: true
     };
+    // Обёртка таблиц для мобильного скролла
+    html = html.replace(/<table/g, '<div class="md-table-wrap"><table class="md-table"');
+    html = html.replace(/<\/table>/g, '</table></div>');
     return window.DOMPurify ? DOMPurify.sanitize(html, purifyCfg) : html;
   }
 
