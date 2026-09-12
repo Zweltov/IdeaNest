@@ -174,7 +174,7 @@ document.addEventListener("DOMContentLoaded", () => {
     bd.id = 'navSearchBackdrop';
     bd.className = 'profile-hub-backdrop active';
     const pop = document.createElement('div');
-    pop.className = 'profile-hub-pop profile-dropdown nav-search-pop';
+    pop.className = 'profile-hub-pop nav-search-pop';
     pop.style.cssText = 'opacity:1;visibility:visible;pointer-events:auto;transform:none;position:fixed;';
     pop.innerHTML = `
       <div class="profile-hub-title">Поиск</div>
@@ -219,7 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
     bd.id = 'navThemeBackdrop';
     bd.className = 'profile-hub-backdrop active';
     const pop = document.createElement('div');
-    pop.className = 'profile-hub-pop profile-dropdown';
+    pop.className = 'profile-hub-pop nav-theme-pop';
     pop.style.cssText = 'opacity:1;visibility:visible;pointer-events:auto;transform:none;position:fixed;';
     const current = (() => {
       try { return JSON.parse(localStorage.getItem('ideanest_theme') || '{}').key || 'light'; }

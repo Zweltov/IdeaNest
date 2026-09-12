@@ -1023,10 +1023,6 @@ button.dropdown-item {
 .slider-label span { color: var(--text-main); font-weight: 700; }
 
 /* ================= Страница "Все идеи": сетка + фильтры справа (DNS-стиль) ================= */
-.ideas-page-layout > .active-filters-bar {
-  /* если чип случайно внутри layout — на всю ширину над колонками */
-  grid-column: 1 / -1;
-}
 .ideas-page-layout {
   display: grid;
   grid-template-columns: 1fr 240px;
@@ -1035,14 +1031,15 @@ button.dropdown-item {
 }
 
 @media (min-width: 1400px) {
-  .ideas-page-layout > .active-filters-bar {
-  /* если чип случайно внутри layout — на всю ширину над колонками */
-  grid-column: 1 / -1;
-}
-.ideas-page-layout {
+  .ideas-page-layout {
     grid-template-columns: 1fr 260px;
     gap: 36px;
   }
+}
+
+/* Чип активных фильтров — над сеткой, не ломает колонки */
+.ideas-page-layout > .active-filters-bar {
+  grid-column: 1 / -1;
 }
 
 .ideas-filter-sidebar {
@@ -1285,6 +1282,8 @@ button.dropdown-item {
   padding: 18px 20px 20px;
   display: flex;
   flex-direction: column;
+  flex: 1;
+}
 
 .card:hover {
   transform: translateY(-6px);
@@ -4069,6 +4068,30 @@ html.nav-as-buttons .nav-link.active::after {
   opacity: 1;
   pointer-events: auto;
 }
+.nav-search-pop {
+  position: fixed;
+  z-index: 230;
+  width: min(300px, calc(100vw - 24px));
+  padding: 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-color) 92%, transparent);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+.nav-theme-pop {
+  position: fixed;
+  z-index: 230;
+  width: min(240px, calc(100vw - 24px));
+  padding: 10px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-color) 92%, transparent);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
 .profile-hub-pop {
   position: fixed;
   z-index: 220;
@@ -4086,7 +4109,31 @@ html.nav-as-buttons .nav-link.active::after {
   transition: opacity 0.22s var(--ease-smooth), transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   scrollbar-width: none;
 }
-.profile-hub-backdrop.active .profile-hub-pop {
+.profile-hub-backdrop.active .nav-search-pop {
+  position: fixed;
+  z-index: 230;
+  width: min(300px, calc(100vw - 24px));
+  padding: 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-color) 92%, transparent);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+.nav-theme-pop {
+  position: fixed;
+  z-index: 230;
+  width: min(240px, calc(100vw - 24px));
+  padding: 10px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-color) 92%, transparent);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+.profile-hub-pop {
   opacity: 1;
   transform: scale(1);
 }
@@ -4956,3 +5003,12 @@ html[data-skin="ink"] .brand { letter-spacing: -0.02em; }
   padding-left: 20px;
 }
 .about-section li { margin-bottom: 6px; }
+
+
+/* Скрыть модалки до явного .active — без вспышки «голого» HTML при загрузке */
+.modal-backdrop:not(.active) {
+  display: none !important;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
