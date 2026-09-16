@@ -3,196 +3,209 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IdeaNest — Найдите бизнес, который вам подходит</title>
+  <meta name="description" content="Каталог бизнес-идей и статьи: подбор по бюджету, формату и сложности. Без обещаний лёгкого заработка." />
   <link rel="icon" href="favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/icon-16.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png" />
-  <link rel="icon" type="image/png" sizes="48x48" href="assets/icon-48.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
-  <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
-  <link rel="manifest" href="site.webmanifest" />
-  <meta name="theme-color" content="#F59E0B" />
-  <title>IdeaNest — бизнес-идеи и статьи для запуска</title>
-  <meta name="description" content="Каталог бизнес-идей и экспертных статей: IT, офлайн и крипто. Идеи с бюджетом, рисками и расчётами — без обещаний лёгких денег." />
-  <link rel="canonical" href="https://ideanest.ru/" />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="IdeaNest" />
-  <meta property="og:locale" content="ru_RU" />
-  <meta property="og:title" content="IdeaNest — бизнес-идеи и статьи для запуска" />
-  <meta property="og:description" content="Каталог бизнес-идей и экспертных статей: IT, офлайн и крипто. Идеи с бюджетом, рисками и расчётами — без обещаний лёгких денег." />
-  <meta property="og:url" content="https://ideanest.ru/" />
-  <meta property="og:image" content="https://ideanest.ru/assets/logo-dark.png" />
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="IdeaNest — бизнес-идеи и статьи для запуска" />
-  <meta name="twitter:description" content="Каталог бизнес-идей и экспертных статей: IT, офлайн и крипто. Идеи с бюджетом, рисками и расчётами — без обещаний лёгких денег." />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
-  <script>(function(){try{var t=JSON.parse(localStorage.getItem("ideanest_theme")||"null");if(!t||!t.colors)return;var r=document.documentElement.style,key=t.key||"light";Object.keys(t.colors).forEach(function(k){r.setProperty("--"+k,t.colors[k]);});if(t.colors["accent-primary"])r.setProperty("--accent",t.colors["accent-primary"]);var skins={ink:1,clay:1,neon:1};var mode="light";if(key==="dark"||key==="neon")mode="dark";else if(key==="colorful")mode="colorful";else if(skins[key])mode="light";else{var bg=(t.colors["bg-color"]||"#fff").replace("#","");if(bg.length===3)bg=bg[0]+bg[0]+bg[1]+bg[1]+bg[2]+bg[2];var n=parseInt(bg,16);if(!isNaN(n)){var R=(n>>16)&255,G=(n>>8)&255,B=n&255;mode=(0.299*R+0.587*G+0.114*B)<140?"dark":"light";}}document.documentElement.setAttribute("data-theme",mode);if(skins[key]){document.documentElement.setAttribute("data-skin",key);var hrefs={ink:"https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap",clay:"https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap",neon:"https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"};if(hrefs[key]){var l=document.createElement("link");l.rel="stylesheet";l.href=hrefs[key];l.id="ideanest-skin-fonts";document.head.appendChild(l);}}else{document.documentElement.removeAttribute("data-skin");}}catch(e){}})();</script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <meta name="google-site-verification" content="3582S0R9xKkdkDTkdgidze-TcXZRM8gCEPf9nhYlcKI" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="shell.css" />
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('ideanest-theme');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
 </head>
-<body>
-
-  <div class="profile-blur-overlay" id="profileBlurOverlay"></div>
-
-  <header class="navbar">
-    <div class="navbar-container">
-      <a class="brand" href="index.html">
-        <img src="assets/logo-dark.png" class="brand-logo" alt="IdeaNest" /> IdeaNest
-      </a>
-      
-      <nav class="nav-links">
-        <a href="ideas/all.html" class="nav-link">Идеи</a>
-        <a href="articles/index.html" class="nav-link">Статьи</a>
-      </nav>
-
-      <div class="navbar-actions">
-        <button class="btn btn-secondary" id="loginBtn" style="display:none;">Войти</button>
-        <div class="profile-wrapper" id="profileWrapper" style="display:none;">
-          <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="topAvatar" class="avatar-img" alt="Профиль">
-          
-          <div class="profile-dropdown" id="profileDropdown">
-            <div class="dropdown-header">
-              <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="dropdownAvatar" class="dropdown-avatar" alt="Профиль">
-              <div class="user-info">
-                <span class="user-name" id="userName">Пользователь</span>
-                <span class="user-email" id="userEmail">user@ideanest.com</span>
-              </div>
-            </div>
-            <div class="dropdown-divider"></div>
-                        <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
-            <a href="settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
-            <div class="dropdown-divider"></div>
-            <button type="button" class="dropdown-item" id="hubContentBtn"><i data-lucide="layout-grid"></i> Мой контент</button>
-            <button type="button" class="dropdown-item" id="hubAccountBtn"><i data-lucide="shield"></i> Аккаунт</button>
-</div>
+<body class="shell-body">
+  <div class="page">
+    <header class="nav-wrap">
+      <div class="nav-capsule">
+        <a class="nav-brand" href="index.html">
+          <span class="brand-mark">in</span>
+          <span class="brand-name">IdeaNest</span>
+        </a>
+        <nav class="nav-links">
+          <button type="button" class="is-active" data-screen="home">Главная</button>
+          <button type="button" data-screen="ideas">Идеи</button>
+          <button type="button" data-screen="picker">Подбор</button>
+          <button type="button" data-screen="articles">Статьи</button>
+          <button type="button" data-screen="tools">Расчёт</button>
+        </nav>
+        <div class="nav-right">
+          <button type="button" class="icon-btn" id="btnTheme" title="Тема" aria-label="Тема">◐</button>
+          <button type="button" class="btn btn-dark btn-sm" id="btnAuth">Войти</button>
+          <button type="button" class="btn btn-ghost btn-sm is-hidden" id="btnUser">Аккаунт</button>
         </div>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <main>
-    <section class="hero">
-      <div class="hero-content">
-        <div class="badge">Встречайте новый IdeaNest 2.0</div>
-        <h1 class="hero-title">Найди идею.<br>Создай будущее.</h1>
-        <p class="hero-subtitle">Каталог проверенных бизнес-идей и статей. От концепции до реализации — с минимальными рисками и максимальным профитом.</p>
-        <div class="hero-actions">
-          <button class="btn btn-primary" id="heroStartBtn">Начать поиск</button>
-          <button class="btn btn-secondary" id="heroHowBtn">Как это работает</button>
+    <!-- HOME -->
+    <section id="screen-home" class="screen is-on">
+      <div class="hero">
+        <h1>Какой бизнес<br />вы ищете?</h1>
+        <p class="hero-lead">Напишите своими словами — бюджет, город, формат. Подберём идеи из каталога.</p>
+        <form class="search-card" id="searchForm">
+          <div class="search-field">
+            <svg class="search-ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input id="searchInput" type="search" placeholder="Например: бизнес до 300 000 ₽ одному" autocomplete="off" />
+            <button type="submit" class="btn btn-accent">Найти</button>
+          </div>
+          <div class="chips">
+            <button type="button" class="chip" data-q="до 100 тысяч">До 100 тыс.</button>
+            <button type="button" class="chip" data-q="онлайн">Онлайн</button>
+            <button type="button" class="chip" data-q="офлайн">Офлайн</button>
+            <button type="button" class="chip" data-q="it">IT</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="feature-hero card-soft">
+        <div class="feature-hero-text">
+          <h2>Не знаете, с чего начать?</h2>
+          <p>Короткий подбор по бюджету и формату — список идей из базы. Это фильтр, не «идеальный бизнес».</p>
+          <button type="button" class="btn btn-accent" data-screen="picker">Подобрать бизнес</button>
+        </div>
+        <div class="feature-hero-art" aria-hidden="true">
+          <div class="blob blob-1"></div>
+          <div class="blob blob-2"></div>
+          <div class="orb orb-a"></div>
+          <div class="orb orb-b"></div>
+          <div class="slab"></div>
+        </div>
+      </div>
+
+      <div class="feature-grid">
+        <article class="card-soft feature-tile">
+          <div>
+            <h3>Каталог идей</h3>
+            <p>Реальные карточки из Supabase: бюджет, категория, сложность.</p>
+            <button type="button" class="btn btn-dark btn-sm" data-screen="ideas">Смотреть идеи</button>
+          </div>
+          <div class="mini-art mini-art-green" aria-hidden="true"></div>
+        </article>
+        <article class="card-soft feature-tile">
+          <div>
+            <h3>Статьи</h3>
+            <p>Разборы с сайта. Откроется полная страница статьи.</p>
+            <button type="button" class="btn btn-dark btn-sm" data-screen="articles">К материалам</button>
+          </div>
+          <div class="mini-art mini-art-glass" aria-hidden="true"></div>
+        </article>
+      </div>
+
+      <div class="block">
+        <div class="block-head">
+          <h2>Популярные идеи</h2>
+          <button type="button" class="text-link" data-screen="ideas">Все →</button>
+        </div>
+        <div class="idea-grid" id="homeIdeas"><p class="muted-line">Загрузка…</p></div>
+      </div>
+
+      <div class="block">
+        <div class="block-head"><h2>Свежие статьи</h2>
+          <button type="button" class="text-link" data-screen="articles">Все →</button>
+        </div>
+        <div class="article-stack" id="homeArticles"><p class="muted-line">Загрузка…</p></div>
+      </div>
+    </section>
+
+    <!-- IDEAS -->
+    <section id="screen-ideas" class="screen">
+      <button type="button" class="back" data-screen="home">← На главную</button>
+      <h1 class="page-h">Идеи</h1>
+      <p class="page-lead" id="ideasLead">Каталог из базы IdeaNest.</p>
+      <div class="seg" id="ideaFilters">
+        <button type="button" class="seg-item is-on" data-f="all">Все</button>
+        <button type="button" class="seg-item" data-f="offline">Офлайн</button>
+        <button type="button" class="seg-item" data-f="it">IT</button>
+        <button type="button" class="seg-item" data-f="crypto">Crypto</button>
+        <button type="button" class="seg-item" data-f="low">До 300 тыс.</button>
+      </div>
+      <div class="idea-grid" id="ideasGrid"></div>
+    </section>
+
+    <!-- PICKER -->
+    <section id="screen-picker" class="screen">
+      <button type="button" class="back" data-screen="home">← На главную</button>
+      <h1 class="page-h">Подбор бизнеса</h1>
+      <p class="page-lead">Ответы фильтруют идеи из базы. Без обещаний результата.</p>
+      <div class="card-soft picker-box" id="pickerBox">
+        <div class="progress"><span id="pickerBar"></span></div>
+        <p class="picker-meta" id="pickerMeta">Шаг 1</p>
+        <h2 id="pickerQ"></h2>
+        <div id="pickerOpts" class="picker-opts"></div>
+        <div class="picker-nav">
+          <button type="button" class="btn btn-ghost" id="pickerBack">Назад</button>
+          <button type="button" class="btn btn-accent" id="pickerNext">Далее</button>
+        </div>
+      </div>
+      <div id="pickerOut" class="picker-out is-hidden"></div>
+    </section>
+
+    <!-- ARTICLES -->
+    <section id="screen-articles" class="screen">
+      <button type="button" class="back" data-screen="home">← На главную</button>
+      <h1 class="page-h">Статьи</h1>
+      <p class="page-lead">Клик открывает полную страницу статьи на сайте.</p>
+      <div class="article-stack" id="articlesGrid"></div>
+    </section>
+
+    <!-- TOOLS -->
+    <section id="screen-tools" class="screen">
+      <button type="button" class="back" data-screen="home">← На главную</button>
+      <h1 class="page-h">Окупаемость</h1>
+      <p class="page-lead">Быстрый расчёт. В статьях на сайте — полноценные калькуляторы.</p>
+      <div class="card-soft calc">
+        <label class="field">Вложения, ₽
+          <input type="number" id="inv" value="300000" step="10000" />
+        </label>
+        <label class="field">Прибыль в месяц, ₽
+          <input type="number" id="profit" value="45000" step="1000" />
+        </label>
+        <div class="calc-metrics">
+          <div><span>Окупаемость</span><strong id="mMonths">—</strong></div>
+          <div><span>За год</span><strong id="mYear">—</strong></div>
+          <div><span>Доходность</span><strong id="mRoi">—</strong></div>
         </div>
       </div>
     </section>
 
-    <section id="ideas" class="section">
-      <div class="section-header">
-        <h2 class="section-title">Популярные идеи</h2>
-        <a href="ideas/all.html" class="btn-text">Все идеи <i data-lucide="arrow-right"></i></a>
-      </div>
-      
-      <div class="filters-container">
-        <div class="filter-group">
-          <button class="filter-btn active" data-filter="all">Все</button>
-          <button class="filter-btn" data-filter="it">IT & Tech</button>
-          <button class="filter-btn" data-filter="offline">Офлайн бизнес</button>
-          <button class="filter-btn" data-filter="crypto">Крипто</button>
-        </div>
-        
-        <div class="slider-group">
-          <span class="slider-label">Рейтинг: <span id="ratingValue">4.0</span>+</span>
-          <div class="custom-slider-container">
-            <input type="range" id="ratingSlider" min="0" max="5" step="0.1" value="4.0" class="custom-slider">
-            <div class="slider-track-fill" id="sliderFill"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid-cards" id="ideasGrid">
-        </div>
+    <!-- IDEA QUICK -->
+    <section id="screen-idea" class="screen">
+      <button type="button" class="back" id="ideaBack">← Назад</button>
+      <div class="card-soft idea-page" id="ideaPage"></div>
     </section>
 
-    <section id="articles" class="section bg-muted">
-      <div class="section-header">
-        <h2 class="section-title">Свежие статьи</h2>
-        <a href="articles/index.html" class="btn-text">Все статьи <i data-lucide="arrow-right"></i></a>
-      </div>
-      
-      <div class="grid-cards articles-grid" id="articlesGrid">
-        </div>
-    </section>
-  </main>
+    <footer class="footer">
+      <a href="about.html">Об авторе</a>
+      <span class="dot">·</span>
+      <a href="privacy.html">Конфиденциальность</a>
+      <span class="dot">·</span>
+      <a href="terms.html">Соглашение</a>
+      <span class="dot">·</span>
+      <a href="disclaimer.html">Дисклеймер</a>
+    </footer>
+  </div>
 
-  <div id="toastContainer" class="toast-container"></div>
-
-  <div class="modal-backdrop" id="articleBackdrop">
-    <div class="modal idea-modal">
-      <button class="modal-close" id="articleCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
-      <div id="articleModalBody"></div>
+  <!-- Auth modal -->
+  <div class="modal-bg is-hidden" id="authBg"></div>
+  <div class="modal card-soft is-hidden" id="authModal" role="dialog" aria-modal="true">
+    <button type="button" class="modal-x" id="authClose">✕</button>
+    <h2 id="authTitle">Вход</h2>
+    <p class="page-lead" style="margin-bottom:12px">Тот же аккаунт, что на ideanest.ru</p>
+    <label class="field">Email<input type="email" id="authEmail" autocomplete="email" /></label>
+    <label class="field">Пароль<input type="password" id="authPass" autocomplete="current-password" /></label>
+    <p class="auth-err is-hidden" id="authErr"></p>
+    <div class="idea-actions" style="margin-top:12px">
+      <button type="button" class="btn btn-accent" id="authSubmit">Войти</button>
+      <button type="button" class="btn btn-ghost" id="authToggle">Создать аккаунт</button>
     </div>
   </div>
 
-  <div class="modal-backdrop" id="ideaBackdrop">
-    <div class="modal idea-modal">
-      <button class="modal-close" id="ideaCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
-      <div id="ideaModalBody"></div>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" id="authBackdrop">
-    <div class="modal auth-modal">
-      <button class="modal-close" id="authCloseBtn" aria-label="Закрыть"><i data-lucide="x"></i></button>
-      <div class="auth-tabs" id="authTabs">
-        <button class="auth-tab active" data-auth-tab="signin">Вход</button>
-        <button class="auth-tab" data-auth-tab="signup">Регистрация</button>
-      </div>
-      <button type="button" class="auth-reset-back" id="authResetBack" style="display:none;">
-        <i data-lucide="arrow-left"></i> Назад ко входу
-      </button>
-      <form id="authForm">
-        <div class="form-group nickname-group" id="usernameGroup">
-          <label for="authFullName">Имя</label>
-          <input type="text" id="authFullName" placeholder="Александр" autocomplete="name" style="margin-bottom:14px;" />
-
-          <label for="authUsername">Никнейм</label>
-          <div class="nickname-input-wrapper">
-            <span class="nickname-at">@</span>
-            <input type="text" id="authUsername" placeholder="nickname" autocomplete="off" maxlength="15" />
-            <span class="nickname-status" id="nicknameStatus"></span>
-          </div>
-          <div class="nickname-hint" id="nicknameHint">От 5 до 15 символов: латиница в нижнем регистре, цифры, _</div>
-</div>
-        <div class="form-group" id="identifierGroup">
-          <label for="authEmail" id="authEmailLabel">Email</label>
-          <input type="text" id="authEmail" placeholder="you@example.com" required autocomplete="email" />
-        </div>
-        <div class="form-group" id="passwordGroup">
-          <label for="authPassword">Пароль</label>
-          <div class="password-input-wrapper">
-            <input type="password" id="authPassword" placeholder="Минимум 6 символов" required autocomplete="current-password" />
-            <button type="button" class="password-toggle-btn" id="passwordToggleBtn" aria-label="Показать пароль">
-              <i data-lucide="eye"></i>
-            </button>
-          </div>
-          <div class="auth-forgot-row" id="authForgotRow">
-            <a href="#" id="forgotPasswordLink" class="auth-forgot-link">Забыли пароль?</a>
-          </div>
-        </div>
-        <div class="form-group" id="recoveryPasswordGroup" style="display:none;">
-          <label for="recoveryPassword">Новый пароль</label>
-          <div class="password-input-wrapper">
-            <input type="password" id="recoveryPassword" placeholder="Минимум 6 символов" autocomplete="new-password" />
-            <button type="button" class="password-toggle-btn" id="recoveryPasswordToggleBtn" aria-label="Показать пароль">
-              <i data-lucide="eye"></i>
-            </button>
-          </div>
-        </div>
-        <div class="auth-error" id="authError"></div>
-        <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">Войти</button>
-      </form>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shell-home.js"></script>
 </body>
 </html>
