@@ -9,6 +9,11 @@
   let authMode = 'login';
   let pickerStep = 0;
   const pickerAns = {};
+  let currentUser = null;
+  let profileRow = null;
+  let favIds = new Set();
+  let upvoteIds = new Set();
+  let openIdeaId = null;
 
   const PICKER = [
     { key: 'budget', q: 'Какой бюджет готовы вложить?', opts: [
@@ -66,6 +71,11 @@
     document.querySelectorAll('.nav-links button').forEach((b) => {
       b.classList.toggle('is-active', b.dataset.screen === name);
     });
+    document.querySelectorAll('.mobile-capsule .m-item').forEach((b) => {
+      const map = { home: 'home', ideas: 'ideas', picker: 'picker', articles: 'articles', favs: 'ideas', idea: 'ideas', tools: 'home' };
+      b.classList.toggle('is-on', b.dataset.screen === (map[name] || name));
+    });
+    if (name === 'favs') renderFavs();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -122,9 +132,10 @@
     });
   }
 
-  function openIdea(id) {
+  async function openIdea(id) {
     const i = ideas.find((x) => x.id_idea === id);
     if (!i) return;
+    openIdeaId = id;
     prevScreen = [...document.querySelectorAll('.screen.is-on')][0]?.id?.replace('screen-', '') || 'home';
     const pluses = String(i.pluses || '')
       .split(/\n|•|;/)
@@ -136,6 +147,28 @@
       .map((x) => x.trim())
       .filter(Boolean)
       .slice(0, 6);
+
+    let relatedHtml = '';
+    try {
+      const { data: links } = await db.from('idea_articles').select('id_article').eq('id_idea', id).limit(6);
+      const ids = (links || []).map((r) => r.id_article).filter(Boolean);
+      if (ids.length) {
+        const related = articles.filter((a) => ids.includes(a.id));
+        if (related.length) {
+          relatedHtml = `<div class="block-t"><h3>Статьи по теме</h3><div class="article-stack" style="margin-top:8px">${related.map(articleRow).join('')}</div></div>`;
+        }
+      }
+      if (!relatedHtml) {
+        const { data: byMain } = await db.from('articles').select('id, title, slug, description, cover_url').eq('main_idea_id', id).limit(4);
+        if (byMain && byMain.length) {
+          relatedHtml = `<div class="block-t"><h3>Статьи по теме</h3><div class="article-stack" style="margin-top:8px">${byMain.map(articleRow).join('')}</div></div>`;
+        }
+      }
+    } catch (e) { console.warn(e); }
+
+    const isFav = favIds.has(id);
+    const isUp = upvoteIds.has(id);
+
     $('ideaPage').innerHTML = `
       <h1>${escapeHtml(i.title || '')}</h1>
       <div class="pills">
@@ -148,11 +181,58 @@
       ${pluses.length ? `<div class="block-t"><h3>Плюсы</h3><ul>${pluses.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul></div>` : ''}
       ${minuses.length ? `<div class="block-t"><h3>Минусы</h3><ul>${minuses.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}</ul></div>` : ''}
       ${i.risks ? `<div class="block-t"><h3>Риски</h3><p style="color:var(--muted)">${escapeHtml(excerpt(i.risks, 500))}</p></div>` : ''}
+      ${relatedHtml}
       <div class="idea-actions">
         <a class="btn btn-accent" href="${ideaUrl(i.id_idea)}">Открыть полностью</a>
+        <button type="button" class="btn btn-ghost" id="btnUpvote">${isUp ? '★ Апвоут' : '☆ Апвоут'}</button>
+        <button type="button" class="btn btn-ghost" id="btnFavorite">${isFav ? 'В избранном' : 'В избранное'}</button>
         <button type="button" class="btn btn-ghost" data-screen="tools">Рассчитать</button>
       </div>`;
     go('idea');
+    bindCards($('ideaPage'));
+
+    const needAuth = () => {
+      if (!currentUser) {
+        openAuth(true);
+        return true;
+      }
+      return false;
+    };
+
+    $('btnFavorite').onclick = async () => {
+      if (needAuth()) return;
+      if (!profileRow) await ensureProfile();
+      if (!profileRow) return alert('Профиль ещё не создан. Зайдите в настройки один раз или повторите вход.');
+      try {
+        if (favIds.has(id)) {
+          await db.from('favorites_ideas').delete().eq('id_profile', profileRow.id).eq('id_idea', id);
+          favIds.delete(id);
+        } else {
+          await db.from('favorites_ideas').insert({ id_profile: profileRow.id, id_idea: id });
+          favIds.add(id);
+        }
+        openIdea(id);
+      } catch (e) {
+        alert(e.message || 'Не удалось изменить избранное');
+      }
+    };
+    $('btnUpvote').onclick = async () => {
+      if (needAuth()) return;
+      if (!profileRow) await ensureProfile();
+      if (!profileRow) return;
+      try {
+        if (upvoteIds.has(id)) {
+          await db.from('upvotes_ideas').delete().eq('id_profile', profileRow.id).eq('id_idea', id);
+          upvoteIds.delete(id);
+        } else {
+          await db.from('upvotes_ideas').insert({ id_profile: profileRow.id, id_idea: id });
+          upvoteIds.add(id);
+        }
+        openIdea(id);
+      } catch (e) {
+        alert(e.message || 'Не удалось поставить апвоут');
+      }
+    };
   }
 
   function filterIdeas(mode, query) {
@@ -328,16 +408,100 @@
     if (show) $('authErr').classList.add('is-hidden');
   }
 
+  async function ensureProfile() {
+    if (!currentUser) return null;
+    try {
+      let { data } = await db.from('profiles').select('*').eq('auth_id', currentUser.id).maybeSingle();
+      if (!data) {
+        const { data: byUser } = await db.from('profiles').select('*').eq('user_id', currentUser.id).maybeSingle();
+        data = byUser;
+      }
+      if (!data) {
+        // try id match some schemas store auth uuid differently
+        const { data: list } = await db.from('profiles').select('*').limit(1);
+        void list;
+      }
+      profileRow = data || null;
+      return profileRow;
+    } catch (e) {
+      console.warn('profile', e);
+      profileRow = null;
+      return null;
+    }
+  }
+
+  async function loadUserMeta() {
+    favIds = new Set();
+    upvoteIds = new Set();
+    if (!currentUser) return;
+    await ensureProfile();
+    if (!profileRow) return;
+    try {
+      const { data: favs } = await db.from('favorites_ideas').select('id_idea').eq('id_profile', profileRow.id);
+      (favs || []).forEach((r) => favIds.add(r.id_idea));
+    } catch (e) { console.warn(e); }
+    try {
+      const { data: ups } = await db.from('upvotes_ideas').select('id_idea').eq('id_profile', profileRow.id);
+      (ups || []).forEach((r) => upvoteIds.add(r.id_idea));
+    } catch (e) { console.warn(e); }
+  }
+
+  function daysOnSite() {
+    const raw = profileRow?.created_at || currentUser?.created_at;
+    if (!raw) return null;
+    const d = Math.max(0, Math.floor((Date.now() - new Date(raw).getTime()) / 86400000));
+    return d;
+  }
+
+  function fillProfileSheet() {
+    const name = profileRow?.full_name || profileRow?.username || (currentUser?.email || '').split('@')[0] || 'Пользователь';
+    const email = currentUser?.email || '';
+    $('profileName').textContent = name;
+    $('profileEmail').textContent = email;
+    const d = daysOnSite();
+    $('profileDays').textContent = d == null ? '' : (d === 0 ? 'Сегодня с нами' : `На сайте ${d} дн.`);
+    const letter = (name || '?').trim().charAt(0).toUpperCase();
+    $('profileAva').textContent = letter;
+    if (profileRow?.avatar_url) {
+      $('profileAva').style.backgroundImage = `url('${profileRow.avatar_url}')`;
+      $('profileAva').textContent = '';
+    } else {
+      $('profileAva').style.backgroundImage = '';
+    }
+  }
+
+  function openProfile(show) {
+    if (show) fillProfileSheet();
+    $('profileBg').classList.toggle('is-hidden', !show);
+    $('profileSheet').classList.toggle('is-hidden', !show);
+  }
+
+  function renderFavs() {
+    if (!currentUser) {
+      $('favsLead').textContent = 'Войдите, чтобы видеть сохранённые идеи.';
+      $('favsGrid').innerHTML = '<p class="muted-line">Нужен вход.</p>';
+      return;
+    }
+    const list = ideas.filter((i) => favIds.has(i.id_idea));
+    $('favsLead').textContent = list.length ? `Сохранено: ${list.length}` : 'Пока пусто — отметьте идеи «В избранное».';
+    $('favsGrid').innerHTML = list.length ? list.map(ideaCard).join('') : '<p class="muted-line">Нет избранных идей.</p>';
+    bindCards($('favsGrid'));
+  }
+
   async function refreshSession() {
     const { data } = await db.auth.getSession();
-    const user = data?.session?.user;
-    if (user) {
+    currentUser = data?.session?.user || null;
+    if (currentUser) {
       $('btnAuth').classList.add('is-hidden');
       $('btnUser').classList.remove('is-hidden');
-      $('btnUser').textContent = (user.email || 'Аккаунт').split('@')[0];
+      $('btnUser').textContent = (currentUser.email || 'Аккаунт').split('@')[0];
+      await loadUserMeta();
     } else {
       $('btnAuth').classList.remove('is-hidden');
       $('btnUser').classList.add('is-hidden');
+      profileRow = null;
+      favIds = new Set();
+      upvoteIds = new Set();
     }
   }
 
@@ -347,6 +511,7 @@
     if (!t) return;
     if (t.tagName === 'A') return;
     e.preventDefault();
+    openProfile(false);
     if (t.dataset.screen === 'picker') {
       pickerStep = 0;
       Object.keys(pickerAns).forEach((k) => delete pickerAns[k]);
@@ -401,10 +566,18 @@
     $('authSubmit').textContent = 'Войти';
     openAuth(true);
   };
-  $('btnUser').onclick = () => {
-    if (confirm('Выйти из аккаунта?')) {
-      db.auth.signOut().then(refreshSession);
-    }
+  $('btnUser').onclick = () => openProfile(true);
+  $('profileBg').onclick = () => openProfile(false);
+  $('profileHandle').onclick = () => openProfile(false);
+  $('btnLogout').onclick = async () => {
+    await db.auth.signOut();
+    openProfile(false);
+    await refreshSession();
+  };
+  $('btnFavs').onclick = () => {
+    openProfile(false);
+    renderFavs();
+    go('favs');
   };
   $('authClose').onclick = () => openAuth(false);
   $('authBg').onclick = () => openAuth(false);

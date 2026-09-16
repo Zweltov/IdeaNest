@@ -173,6 +173,14 @@
       </div>
     </section>
 
+    <!-- FAVORITES -->
+    <section id="screen-favs" class="screen">
+      <button type="button" class="back" data-screen="home">← На главную</button>
+      <h1 class="page-h">Избранное</h1>
+      <p class="page-lead" id="favsLead">Сохранённые идеи. Нужен вход.</p>
+      <div class="idea-grid" id="favsGrid"></div>
+    </section>
+
     <!-- IDEA QUICK -->
     <section id="screen-idea" class="screen">
       <button type="button" class="back" id="ideaBack">← Назад</button>
@@ -189,6 +197,33 @@
       <a href="disclaimer.html">Дисклеймер</a>
     </footer>
   </div>
+
+  <!-- Profile sheet -->
+  <div class="modal-bg is-hidden" id="profileBg"></div>
+  <div class="profile-sheet card-soft is-hidden" id="profileSheet" role="dialog" aria-modal="true">
+    <div class="sheet-handle" id="profileHandle"></div>
+    <div class="profile-sheet-head">
+      <div class="profile-ava" id="profileAva">?</div>
+      <div>
+        <strong id="profileName">Гость</strong>
+        <div class="muted-line" id="profileEmail" style="padding:0"></div>
+        <div class="muted-line" id="profileDays" style="padding:4px 0 0"></div>
+      </div>
+    </div>
+    <div class="profile-actions">
+      <button type="button" class="btn btn-ghost" data-screen="favs" id="btnFavs">Избранное</button>
+      <a class="btn btn-ghost" href="settings/settings.html">Настройки</a>
+      <button type="button" class="btn btn-ghost" id="btnLogout">Выйти</button>
+    </div>
+  </div>
+
+  <!-- Mobile capsule -->
+  <nav class="mobile-capsule" id="mobileCapsule" aria-label="Навигация">
+    <button type="button" class="m-item is-on" data-screen="home"><span>⌂</span>Главная</button>
+    <button type="button" class="m-item" data-screen="ideas"><span>◇</span>Идеи</button>
+    <button type="button" class="m-item" data-screen="picker"><span>◎</span>Подбор</button>
+    <button type="button" class="m-item" data-screen="articles"><span>§</span>Статьи</button>
+  </nav>
 
   <!-- Auth modal -->
   <div class="modal-bg is-hidden" id="authBg"></div>
