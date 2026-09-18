@@ -7,7 +7,9 @@
 
 const SUPABASE_URL = 'https://hhwndrynnozllrqtcdct.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhod25kcnlubm96bGxycXRjZGN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5MTkyOTIsImV4cCI6MjA5OTQ5NTI5Mn0.Gq2PNYIiZzKIaUNOY1AfF-8yVnAjPCf2HRGMX11Av14';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseClient = (window.__shellSb) || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+window.__shellSb = supabaseClient;
+window.supabaseClient = supabaseClient;
 
 // "../" если текущая страница уже внутри ideas/, articles/ или settings/, иначе ""
 function siteRootPrefix() {
@@ -1598,7 +1600,7 @@ function closeAccountSwitcher() {
     }
   }
 
-  authUsername.addEventListener('input', () => {
+  authUsername?.addEventListener('input', () => {
     const cleaned = authUsername.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
     if (cleaned !== authUsername.value) authUsername.value = cleaned;
     clearTimeout(nicknameCheckTimer);
@@ -1613,26 +1615,33 @@ function closeAccountSwitcher() {
   });
 
   function openAuthModal(mode) {
+    if (!authBackdrop || !authForm) {
+      // fallback: shell auth
+      if (typeof window.openShellAuth === 'function') window.openShellAuth(mode !== 'signup');
+      return;
+    }
     authMode = mode || 'signin';
     const isReset = authMode === 'reset';
     const isRecovery = authMode === 'recovery';
 
-    authTabsWrapper.style.display = (isReset || isRecovery) ? 'none' : 'flex';
-    authResetBack.style.display = isReset ? 'flex' : 'none';
+    if (authTabsWrapper) authTabsWrapper.style.display = (isReset || isRecovery) ? 'none' : 'flex';
+    if (authResetBack) authResetBack.style.display = isReset ? 'flex' : 'none';
     authTabs.forEach(t => t.classList.toggle('active', t.dataset.authTab === authMode));
 
-    usernameGroup.classList.toggle('expanded', authMode === 'signup');
+    usernameGroup?.classList.toggle('expanded', authMode === 'signup');
     /* phone registration removed — no verification */
-    identifierGroup.style.display = isRecovery ? 'none' : '';
-    authEmail.required = !isRecovery;
-    passwordGroup.style.display = (isReset || isRecovery) ? 'none' : '';
-    authPassword.required = !(isReset || isRecovery);
-    recoveryPasswordGroup.style.display = isRecovery ? 'flex' : 'none';
-    authForgotRow.style.display = (authMode === 'signin') ? 'block' : 'none';
+    if (identifierGroup) identifierGroup.style.display = isRecovery ? 'none' : '';
+    if (authEmail) authEmail.required = !isRecovery;
+    if (passwordGroup) passwordGroup.style.display = (isReset || isRecovery) ? 'none' : '';
+    if (authPassword) authPassword.required = !(isReset || isRecovery);
+    if (recoveryPasswordGroup) recoveryPasswordGroup.style.display = isRecovery ? 'flex' : 'none';
+    if (authForgotRow) authForgotRow.style.display = (authMode === 'signin') ? 'block' : 'none';
 
-    if (isRecovery) authSubmitBtn.textContent = 'Сохранить новый пароль';
-    else if (isReset) authSubmitBtn.textContent = 'Отправить письмо';
-    else authSubmitBtn.textContent = authMode === 'signup' ? 'Создать аккаунт' : 'Войти';
+    if (authSubmitBtn) {
+      if (isRecovery) authSubmitBtn.textContent = 'Сохранить новый пароль';
+      else if (isReset) authSubmitBtn.textContent = 'Отправить письмо';
+      else authSubmitBtn.textContent = authMode === 'signup' ? 'Создать аккаунт' : 'Войти';
+    }
     ensureAuthConsentUI();
     if (authMode === 'signup') {
       /* не сбрасываем галочки при каждом открытии вкладки только если уже signup? сбрасываем всегда для чистоты */
@@ -1654,26 +1663,28 @@ function closeAccountSwitcher() {
       authEmail.placeholder = 'you@example.com или nickname';
     }
     setNicknameStatus('empty', DEFAULT_NICKNAME_HINT, false);
-    authError.textContent = '';
+    if (authError) authError.textContent = '';
     if (!isRecovery) authForm.reset();
     resetPasswordToggle(authPassword, passwordToggleBtn);
     resetPasswordToggle(recoveryPassword, recoveryPasswordToggleBtn);
+    if (!authBackdrop) return;
     authBackdrop.classList.remove('active');
     void authBackdrop.offsetWidth;
     requestAnimationFrame(() => requestAnimationFrame(() => authBackdrop.classList.add('active')));
   }
-  function closeAuthModal() { authBackdrop.classList.remove('active'); }
+  function closeAuthModal() { authBackdrop?.classList.remove('active'); }
 
-  loginBtn.addEventListener('click', () => openAuthModal('signin'));
-  authCloseBtn.addEventListener('click', closeAuthModal);
-  authBackdrop.addEventListener('click', (e) => { if (e.target === authBackdrop) closeAuthModal(); });
-
-  authTabs.forEach(tab => {
-    tab.addEventListener('click', () => openAuthModal(tab.dataset.authTab));
-  });
-
-  forgotPasswordLink.addEventListener('click', (e) => { e.preventDefault(); openAuthModal('reset'); });
-  authResetBack.addEventListener('click', () => openAuthModal('signin'));
+  // Старая auth-модалка есть не на всех страницах (shell-chrome — свой вход)
+  if (authBackdrop && authForm) {
+    loginBtn?.addEventListener('click', () => openAuthModal('signin'));
+    authCloseBtn?.addEventListener('click', closeAuthModal);
+    authBackdrop.addEventListener('click', (e) => { if (e.target === authBackdrop) closeAuthModal(); });
+    authTabs.forEach(tab => {
+      tab.addEventListener('click', () => openAuthModal(tab.dataset.authTab));
+    });
+    forgotPasswordLink?.addEventListener('click', (e) => { e.preventDefault(); openAuthModal('reset'); });
+    authResetBack?.addEventListener('click', () => openAuthModal('signin'));
+  }
 
   // По введённой строке определяем, похоже это на email или на никнейм
   function looksLikeEmail(value) {
@@ -1689,7 +1700,7 @@ function closeAccountSwitcher() {
     return resolvedEmail || null;
   }
 
-  authForm.addEventListener('submit', async (e) => {
+  authForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     authError.textContent = '';
 
@@ -3203,10 +3214,24 @@ function wireAuthorTagClicks(root) {
     if (!root || root.dataset.interactiveWired === '1') return;
     root.dataset.interactiveWired = '1';
 
-    // Checklist
-    root.querySelectorAll('.checklist-list.is-interactive .checklist-item').forEach(li => {
-      li.addEventListener('click', () => {
+    // Checklist — галочки кликабельны, после перезагрузки страницы сброс (не в localStorage)
+    root.querySelectorAll('.checklist-list .checklist-item, .checklist-list.is-interactive .checklist-item').forEach(li => {
+      if (li.dataset.checkWired === '1') return;
+      li.dataset.checkWired = '1';
+      li.setAttribute('role', 'checkbox');
+      li.setAttribute('tabindex', '0');
+      const syncAria = () => li.setAttribute('aria-checked', li.classList.contains('is-checked') ? 'true' : 'false');
+      syncAria();
+      const toggle = () => {
         li.classList.toggle('is-checked');
+        syncAria();
+      };
+      li.addEventListener('click', toggle);
+      li.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          toggle();
+        }
       });
     });
 
@@ -3570,10 +3595,19 @@ function wireAuthorTagClicks(root) {
       let data = null;
       let error = null;
       {
-        const res = await supabaseClient
+        let res = await supabaseClient
           .from('articles')
           .select(LIST_COLS)
           .order('created_at', { ascending: false });
+        if (res.error) {
+          res = await supabaseClient
+            .from('articles')
+            .select('id, title, slug, description, cover_url, created_at, id_profile')
+            .order('created_at', { ascending: false });
+        }
+        if (res.error) {
+          res = await supabaseClient.from('articles').select('*').order('created_at', { ascending: false });
+        }
         data = res.data;
         error = res.error;
       }
@@ -3851,7 +3885,7 @@ function wireAuthorTagClicks(root) {
             updateUrlParams();
             renderFilterChip();
             fMenu.querySelectorAll('.sort-dropdown-item').forEach(x => x.classList.toggle('active', x === el));
-            if (fLabel) fLabel.textContent = filterIdeaId ? el.textContent.trim() : 'Идея';
+            if (fLabel) fLabel.textContent = filterIdeaId ? el.textContent.trim() : 'Выбрать идею';
             dd.classList.remove('open');
             if (filterIdeaId) await resolveFilterIdea();
             else sortAndRender();
@@ -5332,6 +5366,7 @@ function wireAuthorTagClicks(root) {
   }
 
   function openProfileWindow() {
+    window.openProfileWindow = openProfileWindow;
     ensureProfileWindow();
     closeProfileDropdown();
     const win = document.getElementById('profileWindow');
@@ -5873,3 +5908,13 @@ function wireAuthorTagClicks(root) {
     initialUserUIPromise.then(() => openProfileWindow());
   }
 });
+
+
+/* shell-lucide-init */
+(function(){
+  function run(){ try{ if(window.lucide&&lucide.createIcons) lucide.createIcons(); }catch(e){} }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+  setTimeout(run, 300);
+  setTimeout(run, 1000);
+})();

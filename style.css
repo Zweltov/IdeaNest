@@ -1,15 +1,15 @@
 :root {
-  /* Палитра в стиле Linear/Vercel (Светлая тема с контрастными акцентами) */
-  --bg-color: #ffffff;
-  --bg-muted: #f9fafb;
+  /* Палитра «финтех / Сбер-like» — спокойный зелёный */
+  --bg-color: #f3f6f5;
+  --bg-muted: #e8eeec;
   --surface-color: #ffffff;
-  --text-main: #111827;
-  --text-muted: #6b7280;
-  --border-color: #e5e7eb;
+  --text-main: #0a1f18;
+  --text-muted: #5a6b64;
+  --border-color: rgba(10, 40, 30, 0.10);
   
-  --accent-primary: #F59E0B;
-  --accent-hover: #D97706;
-  --accent-light: #FFFBEB;
+  --accent-primary: #1a9f4b;
+  --accent-hover: #15803d;
+  --accent-light: #e8f8ef;
   
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -707,7 +707,7 @@ button.dropdown-item {
 
 .infobox-tip { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
 .infobox-tip .infobox-title { color: #3b82f6; }
-.infobox-warning { background: rgba(245,158,11,0.1); border-color: #f59e0b; }
+.infobox-warning { background: rgba(245,158,11,0.1); border-color: #1a9f4b; }
 .infobox-warning .infobox-title { color: #b45309; }
 .infobox-note { background: rgba(139,92,246,0.08); border-color: #8b5cf6; }
 .infobox-note .infobox-title { color: #7c3aed; }
@@ -724,9 +724,7 @@ button.dropdown-item {
 .proscons-list.cons li { background: rgba(239,68,68,0.08); }
 .proscons-list.cons li i { color: #dc2626; }
 
-.checklist-list { list-style: none; padding: 0; margin: 0 0 16px; display: flex; flex-direction: column; gap: 6px; }
-.checklist-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.92rem; padding: 4px 0; }
-.checklist-list li i { width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; color: var(--text-muted); }
+/* base checklist rules overridden by interactive block below */
 
 .article-body table {
   width: 100%; border-collapse: collapse; margin: 0 0 20px;
@@ -1293,7 +1291,7 @@ button.dropdown-item {
 }
 .card-cover--idea-default { background: linear-gradient(135deg, #111827, #4b5563); }
 .card-cover--idea-it { background: linear-gradient(135deg, #0f172a, #2563eb); }
-.card-cover--idea-offline { background: linear-gradient(135deg, #1c1917, #d97706); }
+.card-cover--idea-offline { background: linear-gradient(135deg, #1c1917, #15803d); }
 .card-cover--idea-crypto { background: linear-gradient(135deg, #0c4a6e, #7c3aed); }
 .card-cover--article { background: linear-gradient(135deg, #f3f4f6, #d1d5db); }
 
@@ -1314,7 +1312,7 @@ button.dropdown-item {
 .card-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; line-height: 1.3; color: var(--text-main); }
 .card-desc { color: var(--text-muted); font-size: 0.92rem; line-height: 1.5; margin-bottom: 16px; flex: 1; }
 .card-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 14px; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; margin-top: auto; }
-.card-rating { display: flex; align-items: center; gap: 4px; color: #f59e0b; }
+.card-rating { display: flex; align-items: center; gap: 4px; color: #1a9f4b; }
 
 /* featured badge on cover cards */
 .card--has-cover .card-featured-badge {
@@ -1876,8 +1874,8 @@ button.dropdown-item {
   .bottom-nav-item span { display: none; } /* только иконки, как в капсуле */
   .bottom-nav-item i { width: 20px; height: 20px; stroke-width: 1.75; }
   .bottom-nav-item.active {
-    color: var(--text-main);
-    background: color-mix(in srgb, var(--text-main) 8%, transparent);
+    color: #fff;
+    background: var(--accent-primary);
   }
   .bottom-nav-item:active { transform: scale(0.9); }
 
@@ -2581,7 +2579,7 @@ html.nav-as-buttons .nav-link.active::after {
 }
 
 /* Группы в навбаре: идеи vs статьи — лёгкий акцент иконки */
-.nav-link[data-nav-group="ideas"] .nav-link-icon { color: #d97706; }
+.nav-link[data-nav-group="ideas"] .nav-link-icon { color: #15803d; }
 .nav-link[data-nav-group="articles"] .nav-link-icon { color: #2563eb; }
 .nav-link[data-nav-group="home"] .nav-link-icon { color: var(--text-muted); }
 
@@ -3946,6 +3944,8 @@ html.nav-as-buttons .nav-link.active::after {
   border-radius: 16px;
   padding: 20px;
   max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .idea-match-grid {
   display: grid;
@@ -4282,30 +4282,47 @@ html.nav-as-buttons .nav-link.active::after {
 .md-tab-pane { display: none; }
 .md-tab-pane.active { display: block; }
 
-.checklist-list.is-interactive { list-style: none; padding: 0; margin: 0 0 16px; }
+/* Интерактивный чеклист: квадрат слева, клик переключает, после reload сброс */
+.checklist-list,
+.checklist-list.is-interactive {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .checklist-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 12px;
   cursor: pointer;
-  margin-bottom: 6px;
-  background: var(--bg-muted);
+  background: var(--surface-color);
   border: 1px solid var(--border-color);
-  transition: background 0.15s;
+  transition: background 0.18s var(--ease-smooth), border-color 0.18s, box-shadow 0.18s;
   user-select: none;
 }
-.checklist-item:hover { background: var(--accent-light); }
+.checklist-item:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-primary) 6%, var(--surface-color));
+}
+.checklist-item:active { transform: scale(0.997); }
 .checklist-box {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  border: 2px solid var(--border-color);
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 2px solid color-mix(in srgb, var(--text-muted) 55%, var(--border-color));
   flex-shrink: 0;
   margin-top: 1px;
   position: relative;
-  background: var(--surface-color);
+  background: var(--bg-color);
+  transition: background 0.18s, border-color 0.18s, transform 0.18s;
+}
+.checklist-item.is-checked {
+  border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-color));
 }
 .checklist-item.is-checked .checklist-box {
   background: var(--accent-primary);
@@ -4314,13 +4331,19 @@ html.nav-as-buttons .nav-link.active::after {
 .checklist-item.is-checked .checklist-box::after {
   content: '';
   position: absolute;
-  left: 4px;
+  left: 5px;
   top: 1px;
-  width: 5px;
-  height: 9px;
+  width: 6px;
+  height: 11px;
   border: solid #fff;
-  border-width: 0 2px 2px 0;
+  border-width: 0 2.2px 2.2px 0;
   transform: rotate(45deg);
+}
+.checklist-text {
+  flex: 1;
+  line-height: 1.45;
+  color: var(--text-main);
+  font-size: 0.95rem;
 }
 .checklist-item.is-checked .checklist-text {
   text-decoration: line-through;
@@ -5107,3 +5130,115 @@ a.btn-secondary:hover,
 }
 .article-body .md-table-wrap,
 .idea-field-block .md-table-wrap { max-width: 100%; }
+
+
+/* =========================================================
+   SHELL SITEWIDE — облик как у прототипа (весь сайт)
+   ========================================================= */
+body {
+  background: var(--bg-color);
+}
+
+.navbar {
+  background: transparent !important;
+  border-bottom: none !important;
+  padding: 12px 16px 8px !important;
+  position: sticky;
+  top: 0;
+}
+.navbar-container {
+  max-width: 1100px;
+  height: 56px !important;
+  padding: 0 10px 0 14px;
+  background: color-mix(in srgb, var(--surface-color) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  box-shadow: 0 8px 32px rgba(13, 41, 31, 0.06);
+}
+[data-theme="dark"] .navbar-container {
+  background: color-mix(in srgb, var(--surface-color) 88%, transparent);
+}
+
+.btn-primary,
+button.btn-primary {
+  background: var(--accent-primary) !important;
+  color: #fff !important;
+  border-radius: 999px !important;
+  box-shadow: 0 4px 14px rgba(26, 159, 75, 0.25);
+}
+.btn-primary:hover,
+button.btn-primary:hover {
+  background: var(--accent-hover) !important;
+}
+.btn-secondary {
+  border-radius: 999px !important;
+}
+
+.card, .idea-card, .article-card, .settings-card, .filter-panel,
+.ideas-page-layout .filters-sidebar,
+.modal-content, .profile-dropdown {
+  border-radius: 20px !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 12px 40px rgba(13, 41, 31, 0.05);
+}
+
+.chip, .filter-chip, .tag, .idea-pill, .seg-item {
+  border-radius: 999px !important;
+}
+
+/* bottom nav capsule already exists — align colors */
+.bottom-nav, .mobile-bottom-nav, .bottom-nav-capsule {
+  background: color-mix(in srgb, var(--surface-color) 92%, transparent) !important;
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border-color) !important;
+  box-shadow: 0 10px 32px rgba(13, 41, 31, 0.1);
+}
+.bottom-nav-item.active,
+.bottom-nav-item.is-active {
+  color: var(--accent-primary) !important;
+}
+
+/* inputs */
+input, textarea, select {
+  border-radius: 12px !important;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 3px var(--accent-light) !important;
+}
+
+/* detail heroes softer */
+.article-hero, .idea-hero {
+  border-radius: 0 0 24px 24px;
+}
+
+.site-footer {
+  background: #0d291f !important;
+  color: rgba(255,255,255,0.75);
+}
+
+/* shell content rhythm */
+main, .detail-main, .settings-main {
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.detail-main { padding-left: 20px; padding-right: 20px; }
+
+
+/* 1. dropdown ideas: no visible scrollbar */
+.sort-dropdown-menu,
+.custom-dropdown-menu,
+.filter-dropdown-menu {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.sort-dropdown-menu::-webkit-scrollbar,
+.custom-dropdown-menu::-webkit-scrollbar,
+.filter-dropdown-menu::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}

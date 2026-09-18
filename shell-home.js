@@ -1,6 +1,16 @@
 (function () {
   const SUPABASE_URL = 'https://hhwndrynnozllrqtcdct.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhod25kcnlubm96bGxycXRjZGN0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5MTkyOTIsImV4cCI6MjA5OTQ5NTI5Mn0.Gq2PNYIiZzKIaUNOY1AfF-8yVnAjPCf2HRGMX11Av14';
+  if (!window.supabase) {
+    console.error('Supabase SDK not loaded');
+    document.addEventListener('DOMContentLoaded', function () {
+      ['homeIdeas', 'homeArticles', 'ideasGrid', 'articlesGrid'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.innerHTML = '<p class="muted-line">Не загружен Supabase.</p>';
+      });
+    });
+    return;
+  }
   const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
   let ideas = [];
@@ -65,16 +75,20 @@
   }
 
   function go(name) {
+    // Разделы — отдельные HTML (единый навбар на всём сайте)
+    const map = {
+      ideas: 'ideas/all.html',
+      articles: 'articles/index.html',
+      picker: 'ideas/match.html',
+      tools: 'tools.html',
+    };
+    if (map[name]) {
+      location.href = map[name];
+      return;
+    }
     document.querySelectorAll('.screen').forEach((s) => s.classList.remove('is-on'));
     const el = $('screen-' + name);
     if (el) el.classList.add('is-on');
-    document.querySelectorAll('.nav-links button').forEach((b) => {
-      b.classList.toggle('is-active', b.dataset.screen === name);
-    });
-    document.querySelectorAll('.mobile-capsule .m-item').forEach((b) => {
-      const map = { home: 'home', ideas: 'ideas', picker: 'picker', articles: 'articles', favs: 'ideas', idea: 'ideas', tools: 'home' };
-      b.classList.toggle('is-on', b.dataset.screen === (map[name] || name));
-    });
     if (name === 'favs') renderFavs();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -269,17 +283,20 @@
     return false;
   }
 
+  function setHtml(id, html) {
+    const el = $(id);
+    if (el) el.innerHTML = html;
+  }
   function renderIdeaLists() {
     const home = ideas.slice(0, 6);
-    $('homeIdeas').innerHTML = home.length ? home.map(ideaCard).join('') : '<p class="muted-line">Идей пока нет.</p>';
-    $('ideasGrid').innerHTML = ideas.length ? ideas.map(ideaCard).join('') : '<p class="muted-line">Идей пока нет.</p>';
+    setHtml('homeIdeas', home.length ? home.map(ideaCard).join('') : '<p class="muted-line">Идей пока нет.</p>');
+    setHtml('ideasGrid', ideas.length ? ideas.map(ideaCard).join('') : '<p class="muted-line">Идей пока нет.</p>');
     bindCards(document.body);
   }
 
   function renderArticles() {
-    const rows = articles.map(articleRow).join('');
-    $('homeArticles').innerHTML = articles.length ? articles.slice(0, 4).map(articleRow).join('') : '<p class="muted-line">Статей пока нет.</p>';
-    $('articlesGrid').innerHTML = articles.length ? rows : '<p class="muted-line">Статей пока нет.</p>';
+    setHtml('homeArticles', articles.length ? articles.slice(0, 4).map(articleRow).join('') : '<p class="muted-line">Статей пока нет.</p>');
+    setHtml('articlesGrid', articles.length ? articles.map(articleRow).join('') : '<p class="muted-line">Статей пока нет.</p>');
     bindCards(document.body);
   }
 
@@ -293,8 +310,8 @@
       ideas = data || [];
     } catch (e) {
       console.error(e);
-      $('homeIdeas').innerHTML = '<p class="muted-line">Не удалось загрузить идеи. Проверьте сеть / RLS.</p>';
-      $('ideasGrid').innerHTML = $('homeIdeas').innerHTML;
+      setHtml('homeIdeas', '<p class="muted-line">Не удалось загрузить идеи. Проверьте сеть / RLS.</p>');
+      setHtml('ideasGrid', '<p class="muted-line">Не удалось загрузить идеи. Проверьте сеть / RLS.</p>');
     }
     try {
       let res = await db
@@ -309,21 +326,16 @@
       articles = res.data || [];
     } catch (e) {
       console.error(e);
-      $('homeArticles').innerHTML = '<p class="muted-line">Не удалось загрузить статьи.</p>';
-      $('articlesGrid').innerHTML = $('homeArticles').innerHTML;
+      setHtml('homeArticles', '<p class="muted-line">Не удалось загрузить статьи.</p>');
+      setHtml('articlesGrid', '<p class="muted-line">Не удалось загрузить статьи.</p>');
     }
     renderIdeaLists();
     renderArticles();
   }
 
   function runSearch(q) {
-    const list = filterIdeas('search', q);
-    $('ideasLead').textContent = q
-      ? `По запросу «${q}»: ${list.length} идей`
-      : 'Каталог из базы IdeaNest.';
-    $('ideasGrid').innerHTML = list.length ? list.map(ideaCard).join('') : '<p class="muted-line">Ничего не найдено — попробуйте другой запрос или подбор.</p>';
-    bindCards($('ideasGrid'));
-    go('ideas');
+    const qq = (q || '').trim();
+    location.href = 'ideas/all.html' + (qq ? ('?q=' + encodeURIComponent(qq)) : '');
   }
 
   function renderPicker() {
@@ -403,9 +415,26 @@
   }
 
   function openAuth(show) {
-    $('authBg').classList.toggle('is-hidden', !show);
-    $('authModal').classList.toggle('is-hidden', !show);
-    if (show) $('authErr').classList.add('is-hidden');
+    const bg = $('authBg') || $('shellAuthBg');
+    const modal = $('authModal') || $('shellAuthModal');
+    if (!bg || !modal) return;
+    if (show) {
+      bg.classList.remove('is-hidden');
+      modal.classList.remove('is-hidden');
+      requestAnimationFrame(() => {
+        bg.classList.add('is-open');
+        modal.classList.add('is-open');
+      });
+      const err = $('authErr') || $('shellAuthErr');
+      if (err) err.classList.add('is-hidden');
+    } else {
+      bg.classList.remove('is-open');
+      modal.classList.remove('is-open');
+      setTimeout(() => {
+        bg.classList.add('is-hidden');
+        modal.classList.add('is-hidden');
+      }, 280);
+    }
   }
 
   async function ensureProfile() {
@@ -491,14 +520,23 @@
   async function refreshSession() {
     const { data } = await db.auth.getSession();
     currentUser = data?.session?.user || null;
+    const btnAuth = $('btnAuth') || $('shellAuthBtn');
+    const btnUser = $('btnUser');
     if (currentUser) {
-      $('btnAuth').classList.add('is-hidden');
-      $('btnUser').classList.remove('is-hidden');
-      $('btnUser').textContent = (currentUser.email || 'Аккаунт').split('@')[0];
+      if (btnAuth) btnAuth.classList.add('is-hidden');
+      if (btnUser) {
+        btnUser.classList.remove('is-hidden');
+        btnUser.textContent = (currentUser.email || 'Аккаунт').split('@')[0];
+      } else if (btnAuth) {
+        btnAuth.textContent = (currentUser.email || 'Аккаунт').split('@')[0];
+      }
       await loadUserMeta();
     } else {
-      $('btnAuth').classList.remove('is-hidden');
-      $('btnUser').classList.add('is-hidden');
+      if (btnAuth) {
+        btnAuth.classList.remove('is-hidden');
+        btnAuth.textContent = 'Войти';
+      }
+      if (btnUser) btnUser.classList.add('is-hidden');
       profileRow = null;
       favIds = new Set();
       upvoteIds = new Set();
@@ -520,7 +558,7 @@
     go(t.dataset.screen);
   });
 
-  $('searchForm').addEventListener('submit', (e) => {
+  if ($('searchForm')) $('searchForm').addEventListener('submit', (e) => {
     e.preventDefault();
     runSearch($('searchInput').value);
   });
@@ -531,7 +569,7 @@
     });
   });
 
-  $('ideaFilters').querySelectorAll('.seg-item').forEach((btn) => {
+  if ($('ideaFilters')) $('ideaFilters').querySelectorAll('.seg-item').forEach((btn) => {
     btn.addEventListener('click', () => {
       $('ideaFilters').querySelectorAll('.seg-item').forEach((b) => b.classList.remove('is-on'));
       btn.classList.add('is-on');
@@ -541,7 +579,7 @@
     });
   });
 
-  $('pickerNext').onclick = () => {
+  if ($('pickerNext')) $('pickerNext').onclick = () => {
     const s = PICKER[pickerStep];
     if (!pickerAns[s.key]) pickerAns[s.key] = s.opts[0].id;
     if (pickerStep >= PICKER.length - 1) finishPicker();
@@ -550,44 +588,75 @@
       renderPicker();
     }
   };
-  $('pickerBack').onclick = () => {
+  if ($('pickerBack')) $('pickerBack').onclick = () => {
     if (pickerStep > 0) {
       pickerStep--;
       renderPicker();
     }
   };
-  $('ideaBack').onclick = () => go(prevScreen || 'home');
-  ['inv', 'profit'].forEach((id) => $(id).addEventListener('input', updateCalc));
-  updateCalc();
+  if ($('ideaBack')) $('ideaBack').onclick = () => go(prevScreen || 'home');
+  ['inv', 'profit'].forEach((id) => { if ($(id)) $(id).addEventListener('input', updateCalc); });
+  if ($('inv') && $('profit')) updateCalc();
 
-  $('btnAuth').onclick = () => {
-    authMode = 'login';
-    $('authTitle').textContent = 'Вход';
-    $('authSubmit').textContent = 'Войти';
-    openAuth(true);
-  };
-  $('btnUser').onclick = () => openProfile(true);
-  $('profileBg').onclick = () => openProfile(false);
-  $('profileHandle').onclick = () => openProfile(false);
-  $('btnLogout').onclick = async () => {
-    await db.auth.signOut();
-    openProfile(false);
-    await refreshSession();
-  };
-  $('btnFavs').onclick = () => {
-    openProfile(false);
-    renderFavs();
-    go('favs');
-  };
-  $('authClose').onclick = () => openAuth(false);
-  $('authBg').onclick = () => openAuth(false);
-  $('authToggle').onclick = () => {
+  const _btnAuth = $('btnAuth') || $('shellAuthBtn');
+  if (_btnAuth) {
+    _btnAuth.onclick = () => {
+      if (currentUser) {
+        openProfile(true);
+        return;
+      }
+      authMode = 'login';
+      if ($('authTitle')) $('authTitle').textContent = 'Вход';
+      if ($('authSubmit')) $('authSubmit').textContent = 'Войти';
+      if ($('authModal')) openAuth(true);
+      else document.getElementById('shellAuthBtn')?.click();
+    };
+  }
+  if ($('btnUser')) $('btnUser').onclick = () => openProfile(true);
+  if ($('profileBg')) $('profileBg').onclick = () => openProfile(false);
+  if ($('profileHandle')) $('profileHandle').onclick = () => openProfile(false);
+  if ($('btnLogout')) {
+    $('btnLogout').onclick = async () => {
+      await db.auth.signOut();
+      openProfile(false);
+      await refreshSession();
+    };
+  }
+  if ($('btnFavs')) {
+    $('btnFavs').onclick = () => {
+      openProfile(false);
+      renderFavs();
+      go('favs');
+    };
+  }
+  if ($('authClose')) $('authClose').onclick = () => openAuth(false);
+  if ($('authBg')) $('authBg').onclick = () => openAuth(false);
+  if ($('authToggle')) $('authToggle').onclick = () => {
+    const modal = $('authModal');
+    const startH = modal.offsetHeight;
+    modal.style.height = startH + 'px';
+    modal.style.overflow = 'hidden';
+    modal.style.transition = 'height 0.32s cubic-bezier(0.22, 1, 0.36, 1)';
+
     authMode = authMode === 'login' ? 'signup' : 'login';
     $('authTitle').textContent = authMode === 'login' ? 'Вход' : 'Регистрация';
-    $('authSubmit').textContent = authMode === 'login' ? 'Войти' : 'Создать';
+    $('authSubmit').textContent = authMode === 'login' ? 'Войти' : 'Создать аккаунт';
     $('authToggle').textContent = authMode === 'login' ? 'Создать аккаунт' : 'Уже есть аккаунт';
+
+    requestAnimationFrame(() => {
+      modal.style.height = 'auto';
+      const endH = modal.offsetHeight;
+      modal.style.height = startH + 'px';
+      modal.getBoundingClientRect();
+      modal.style.height = endH + 'px';
+      setTimeout(() => {
+        modal.style.height = '';
+        modal.style.overflow = '';
+        modal.style.transition = '';
+      }, 340);
+    });
   };
-  $('authSubmit').onclick = async () => {
+  if ($('authSubmit')) $('authSubmit').onclick = async () => {
     const email = $('authEmail').value.trim();
     const password = $('authPass').value;
     $('authErr').classList.add('is-hidden');
@@ -607,16 +676,26 @@
     }
   };
 
-  $('btnTheme').onclick = () => {
-    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (dark) {
-      document.documentElement.removeAttribute('data-theme');
-      localStorage.setItem('ideanest-theme', 'light');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('ideanest-theme', 'dark');
-    }
-  };
+  function bindTheme(btn) {
+    if (!btn || btn.__themeBound) return;
+    btn.__themeBound = true;
+    btn.onclick = () => {
+      document.documentElement.classList.add('theme-animating');
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (dark) {
+        document.documentElement.removeAttribute('data-theme');
+        try { localStorage.setItem('ideanest-theme', 'light'); } catch (e) {}
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        try { localStorage.setItem('ideanest-theme', 'dark'); } catch (e) {}
+      }
+      setTimeout(() => document.documentElement.classList.remove('theme-animating'), 400);
+    };
+  }
+  bindTheme($('btnTheme'));
+  bindTheme($('shellThemeBtn'));
+  // chrome может вставить кнопку позже
+  setTimeout(() => bindTheme($('shellThemeBtn')), 0);
 
   // dark theme vars
   const darkCss = document.createElement('style');
@@ -645,6 +724,10 @@
   `;
   document.head.appendChild(modalCss);
 
+
+  // Капсула: фиксированный nudge только при наведении на ДРУГИЕ пункты
+  
+
   refreshSession();
-  loadData();
+  try { loadData(); } catch (e) { console.error(e); }
 })();

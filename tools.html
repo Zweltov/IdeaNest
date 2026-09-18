@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Расчёт окупаемости — IdeaNest</title>
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icon-16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icon-32.png" />
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/icon-48.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+  <link rel="manifest" href="site.webmanifest" />
+  <meta name="theme-color" content="#22c55e" />
+  <meta name="description" content="Быстрый расчёт окупаемости бизнеса: вложения, прибыль в месяц, срок возврата." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="shell.css" />
+  <script>
+    (function () {
+      try {
+        if (localStorage.getItem('ideanest-theme') === 'dark')
+          document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body class="shell-body shell-site">
+  <main class="page shell-page shell-centered-page">
+    <div class="shell-tools-inner">
+    <h1 class="page-h" style="margin-top:28px">Окупаемость</h1>
+    <p class="page-lead">Ориентир по цифрам. В статьях — расширенные калькуляторы.</p>
+    <div class="card-soft calc shell-center-card">
+      <label class="field">Вложения, ₽
+        <input type="number" id="inv" value="300000" step="10000" />
+      </label>
+      <label class="field">Прибыль в месяц, ₽
+        <input type="number" id="profit" value="45000" step="1000" />
+      </label>
+      <div class="calc-metrics">
+        <div><span>Окупаемость</span><strong id="mMonths">—</strong></div>
+        <div><span>За год</span><strong id="mYear">—</strong></div>
+        <div><span>Доходность</span><strong id="mRoi">—</strong></div>
+      </div>
+    </div>
+    </div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shell-chrome.js"></script>
+  <script>
+    function upd() {
+      var inv = Number(document.getElementById('inv').value) || 0;
+      var p = Number(document.getElementById('profit').value) || 0;
+      document.getElementById('mYear').textContent = (p * 12).toLocaleString('ru-RU') + ' ₽';
+      if (p <= 0) {
+        document.getElementById('mMonths').textContent = '—';
+        document.getElementById('mRoi').textContent = '—';
+        return;
+      }
+      var m = inv / p;
+      document.getElementById('mMonths').textContent = m < 0.2 ? 'сразу' : m.toFixed(1).replace('.0', '') + ' мес.';
+      document.getElementById('mRoi').textContent = inv > 0 ? Math.round((p * 12) / inv * 100) + '% / год' : '—';
+    }
+    document.getElementById('inv').oninput = upd;
+    document.getElementById('profit').oninput = upd;
+    upd();
+  </script>
+</body>
+</html>
