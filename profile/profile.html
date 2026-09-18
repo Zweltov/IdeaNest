@@ -2,34 +2,45 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="../favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="16x16" href="../assets/icon-16.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="../assets/icon-32.png" />
-  <link rel="icon" type="image/png" sizes="48x48" href="../assets/icon-48.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="../assets/icon-192.png" />
-  <link rel="icon" type="image/png" sizes="512x512" href="../assets/icon-512.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png" />
-  <link rel="manifest" href="../site.webmanifest" />
-  <meta name="theme-color" content="#F59E0B" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Профиль — IdeaNest</title>
-  <meta name="description" content="Профиль пользователя IdeaNest." />
   <meta name="robots" content="noindex, nofollow" />
-  <link rel="canonical" href="https://ideanest.ru/profile/profile.html" />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="IdeaNest" />
-  <meta property="og:locale" content="ru_RU" />
-  <meta property="og:title" content="Профиль — IdeaNest" />
-  <meta property="og:description" content="Профиль пользователя IdeaNest." />
-  <meta property="og:url" content="https://ideanest.ru/profile/profile.html" />
-  <meta property="og:image" content="https://ideanest.ru/assets/logo-dark.png" />
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Профиль — IdeaNest" />
-  <meta name="twitter:description" content="Профиль пользователя IdeaNest." />
-  <meta http-equiv="refresh" content="0;url=../index.html" />
-  <script>location.replace("../index.html#profile");</script>
+  <link rel="icon" href="../favicon.ico" sizes="any" />
+  <link rel="stylesheet" href="../style.css" />
+  <link rel="stylesheet" href="../shell.css" />
+  <script>
+    try {
+      var t = localStorage.getItem('ideanest-theme');
+      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    } catch (e) {}
+  </script>
 </head>
-<body>
-  <p><a href="../index.html">Перейти на главную</a></p>
+<body class="shell-body shell-site">
+  <main class="detail-main detail-main--settings" style="padding-top:48px;">
+    <p class="muted" style="color:var(--text-muted);">Загрузка профиля…</p>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="../script.js"></script>
+  <script src="../shell-chrome.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      function open() {
+        if (typeof window.openProfileWindow === 'function') {
+          window.openProfileWindow();
+          return true;
+        }
+        return false;
+      }
+      if (!open()) {
+        setTimeout(function () {
+          if (!open()) {
+            var m = document.querySelector('main');
+            if (m) m.innerHTML = '<p>Не удалось открыть профиль. <a href="../index.html">На главную</a></p>';
+          }
+        }, 400);
+      }
+    });
+  </script>
 </body>
 </html>

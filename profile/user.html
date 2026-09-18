@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Профиль автора — IdeaNest</title>
+  <link rel="stylesheet" href="../shell.css">
   <link rel="icon" href="../favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="16x16" href="../assets/icon-16.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/icon-32.png" />
@@ -11,8 +13,7 @@
   <link rel="icon" type="image/png" sizes="512x512" href="../assets/icon-512.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png" />
   <link rel="manifest" href="../site.webmanifest" />
-  <meta name="theme-color" content="#F59E0B" />
-  <title>Профиль автора — IdeaNest</title>
+  <meta name="theme-color" content="#22c55e" />
   <meta name="description" content="Публичный профиль автора на IdeaNest." />
   <link rel="canonical" href="https://ideanest.ru/profile/user.html" />
   <meta property="og:type" content="website" />
@@ -33,42 +34,12 @@
 </head>
 <body>
   <div class="profile-blur-overlay" id="profileBlurOverlay"></div>
-  <header class="navbar">
-    <div class="navbar-container">
-      <a class="brand" href="../index.html">
-        <img src="../assets/logo-dark.png" class="brand-logo" alt="IdeaNest" /> IdeaNest
-      </a>
-      <nav class="nav-links">
-        <a href="../ideas/all.html" class="nav-link">Идеи</a>
-        <a href="../articles/index.html" class="nav-link">Статьи</a>
-      </nav>
-      <div class="navbar-actions">
-        <button class="btn btn-secondary" id="loginBtn" style="display:none;">Войти</button>
-        <div class="profile-wrapper" id="profileWrapper" style="display:none;">
-          <img src="" id="topAvatar" class="avatar-img" alt="Профиль">
-          <div class="profile-dropdown" id="profileDropdown">
-            <div class="dropdown-header">
-              <img src="" id="dropdownAvatar" class="dropdown-avatar" alt="">
-              <div class="user-info">
-                <span class="user-name" id="userName">Пользователь</span>
-                <span class="user-email" id="userEmail"></span>
-              </div>
-            </div>
-            <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item" id="profilePageLink"><i data-lucide="user"></i> Профиль</a>
-            <a href="../settings/settings.html" class="dropdown-item"><i data-lucide="settings"></i> Настройки</a>
-            <div class="dropdown-divider"></div>
-            <button type="button" class="dropdown-item" id="hubContentBtn"><i data-lucide="layout-grid"></i> Мой контент</button>
-            <button type="button" class="dropdown-item" id="hubAccountBtn"><i data-lucide="shield"></i> Аккаунт</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
+  <!-- shell-chrome injects nav -->
   <main class="section" style="padding-top:32px;max-width:900px;margin:0 auto;">
     <div id="publicProfileMount"></div>
   </main>
   <div id="toastContainer" class="toast-container"></div>
   <script src="../script.js"></script>
+  <script src="../shell-chrome.js"></script>
 </body>
 </html>
