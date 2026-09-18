@@ -32,9 +32,9 @@ function simpleMarkdown(md) {
     const items = body.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
       const checked = /^\[x\]/i.test(l);
       const t = l.replace(/^\[[ xX]\]\s*/, '');
-      return `<li class="checklist-item${checked ? ' is-checked' : ''}">${escapeHtml(t)}</li>`;
+      return `<li class="checklist-item${checked ? ' is-checked' : ''}" data-check><span class="checklist-box" aria-hidden="true"></span><span class="checklist-text">${escapeHtml(t)}</span></li>`;
     }).join('');
-    return `\n\n<ul class="checklist-list">${items}</ul>\n\n`;
+    return `\n\n<ul class="checklist-list is-interactive">${items}</ul>\n\n`;
   });
 
   text = text.replace(/:::(tip|warning|note|success|danger)\s*(?:\[[^\]]*\])?\s*\n([\s\S]*?)\n\s*:::/gi, (_, type, body) => {
@@ -181,7 +181,7 @@ function layout({ title, description, canonical, image, bodyHtml, jsonLd }) {
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
-  <meta name="theme-color" content="#F59E0B" />
+  <meta name="theme-color" content="#1a9f4b" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="IdeaNest" />
   <meta property="og:locale" content="ru_RU" />
