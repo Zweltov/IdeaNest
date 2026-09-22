@@ -5242,3 +5242,266 @@ main, .detail-main, .settings-main {
   height: 0 !important;
   display: none !important;
 }
+
+
+.nickname-input-wrapper {
+  background: var(--surface-color) !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+.nickname-input-wrapper input {
+  width: 100% !important;
+  min-width: 0 !important;
+  background: transparent !important;
+  color: var(--text-main) !important;
+  -webkit-text-fill-color: var(--text-main) !important;
+}
+.nickname-input-wrapper input::selection {
+  background: color-mix(in srgb, var(--accent-primary) 35%, transparent) !important;
+  color: var(--text-main) !important;
+}
+[data-theme="dark"] .nickname-input-wrapper {
+  background: #0c1411 !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+[data-theme="dark"] .nickname-input-wrapper input {
+  color: #e8f0ec !important;
+  -webkit-text-fill-color: #e8f0ec !important;
+}
+[data-theme="dark"] .nickname-input-wrapper input::selection {
+  background: color-mix(in srgb, var(--accent-primary) 45%, transparent) !important;
+  color: #fff !important;
+}
+.profile-logout-link {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #dc2626;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  padding: 12px 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  border-radius: 10px;
+}
+.profile-logout-link:hover {
+  background: rgba(220, 38, 38, 0.08);
+  text-decoration: underline;
+}
+[data-theme="dark"] .profile-window {
+  background: #15201b !important;
+  color: #e8f0ec !important;
+}
+[data-theme="dark"] .profile-window input,
+[data-theme="dark"] .profile-window select {
+  background: #0c1411 !important;
+  color: #e8f0ec !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+[data-theme="dark"] .profile-window label,
+[data-theme="dark"] .profile-info-label,
+[data-theme="dark"] .profile-page-section-title {
+  color: #a8bfb4 !important;
+}
+[data-theme="dark"] .profile-window .profile-info-value,
+[data-theme="dark"] .profile-window h2 {
+  color: #e8f0ec !important;
+}
+[data-theme="dark"] .settings-nav-item.active {
+  background: var(--accent-primary, #1a9f4b) !important;
+  color: #fff !important;
+}
+
+
+/* Profile action buttons: half width side by side */
+.profile-page-actions-row {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  margin-top: 16px !important;
+}
+.profile-btn-logout,
+.profile-btn-delete {
+  flex: 1 1 50% !important;
+  width: auto !important;
+  margin: 0 !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  padding: 12px 14px !important;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease !important;
+}
+/* Выйти: белая + красная окантовка + красный текст */
+.profile-btn-logout {
+  background: #fff !important;
+  color: #dc2626 !important;
+  border: 1.5px solid #dc2626 !important;
+  box-shadow: none !important;
+}
+.profile-btn-logout:hover {
+  background: #dc2626 !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.28) !important;
+}
+/* Удалить: красная заливка */
+.profile-btn-delete {
+  background: #dc2626 !important;
+  color: #fff !important;
+  border: 1.5px solid #dc2626 !important;
+}
+.profile-btn-delete:hover {
+  background: #b91c1c !important;
+  border-color: #b91c1c !important;
+  box-shadow: 0 4px 14px rgba(185, 28, 28, 0.3) !important;
+}
+[data-theme="dark"] .profile-btn-logout {
+  background: transparent !important;
+  color: #f87171 !important;
+  border-color: #f87171 !important;
+}
+[data-theme="dark"] .profile-btn-logout:hover {
+  background: #dc2626 !important;
+  color: #fff !important;
+}
+
+/* Nickname full-width focus (including @) */
+.nickname-input-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: var(--surface-color, #fff) !important;
+}
+.nickname-input-wrapper:focus-within {
+  border-color: var(--accent-primary, #1a9f4b) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary, #1a9f4b) 18%, transparent) !important;
+}
+.nickname-input-wrapper input {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+.nickname-input-wrapper input:focus {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Password update visible on dark */
+[data-theme="dark"] .btn-secondary,
+[data-theme="dark"] #profilePasswordBtn {
+  background: #1e2b26 !important;
+  color: #e8f0ec !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+}
+[data-theme="dark"] .btn-secondary:hover,
+[data-theme="dark"] #profilePasswordBtn:hover {
+  background: #243530 !important;
+  border-color: var(--accent-primary, #1a9f4b) !important;
+}
+
+.btn-primary, .btn-accent {
+  background: var(--accent-primary, #1a9f4b) !important;
+  border-color: var(--accent-primary, #1a9f4b) !important;
+  color: #fff !important;
+}
+
+
+.settings-nav-item.active {
+  background: #1a9f4b !important;
+  color: #fff !important;
+  overflow: hidden !important;
+}
+.filter-btn.is-active,
+.filter-btn.active,
+.category-pill.active {
+  background: #1a9f4b !important;
+  border-color: #1a9f4b !important;
+  color: #fff !important;
+}
+input[type="range"] { accent-color: #1a9f4b !important; }
+
+#profileWindow.profile-window,
+.profile-window {
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) scale(1) !important;
+  z-index: 6000 !important;
+  max-height: min(90vh, 820px) !important;
+  width: min(440px, 94vw) !important;
+  overflow-y: auto !important;
+  background: var(--surface-color, #fff) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.25) !important;
+}
+.profile-window-backdrop.active {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 5990 !important;
+  display: block !important;
+}
+
+:root {
+  --accent-primary: #1a9f4b !important;
+  --accent-hover: #15803d !important;
+  --accent-light: #e8f8ef !important;
+}
+.settings-nav-item.active { background: #1a9f4b !important; color: #fff !important; }
+.filter-btn.active, .filter-btn.is-active { background: #1a9f4b !important; border-color: #1a9f4b !important; color: #fff !important; }
+input[type="range"] { accent-color: #1a9f4b !important; }
+
+.settings-nav-item.active { background: #1a9f4b !important; color: #fff !important; }
+.filter-btn.active, .filter-btn.is-active, .btn-accent, .btn-primary {
+  background: #1a9f4b !important; border-color: #1a9f4b !important; color: #fff !important;
+}
+input[type="range"] { accent-color: #1a9f4b !important; }
+#profileWindow .profile-page-avatar, #profilePageAvatar {
+  width: 88px !important; height: 88px !important; border-radius: 50% !important; object-fit: cover !important;
+}
+
+
+/* Danger zone — matches rest of UI in dark theme */
+[data-theme="dark"] .settings-danger-zone {
+  background: #1a2220 !important;
+  border: 1px solid rgba(248, 113, 113, 0.35) !important;
+  color: #e8f0ec !important;
+}
+[data-theme="dark"] .settings-danger-zone .settings-subblock-title {
+  color: #fca5a5 !important;
+}
+[data-theme="dark"] .settings-danger-zone p,
+[data-theme="dark"] .settings-danger-zone .settings-hint {
+  color: #c5d6cd !important;
+}
+[data-theme="dark"] .settings-danger-zone #deleteAccountBtn,
+[data-theme="dark"] .settings-danger-zone .btn {
+  background: #dc2626 !important;
+  color: #fff !important;
+  border-color: #dc2626 !important;
+}
+
+/* Light stays soft red */
+.settings-danger-zone {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 24px;
+}
+.settings-danger-zone .settings-subblock-title {
+  color: #dc2626;
+}
+
+/* Hide custom theme UI leftovers */
+#addThemeCard,
+.theme-card-add,
+.theme-card-delete {
+  display: none !important;
+}

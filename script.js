@@ -114,8 +114,14 @@ let currentProfile = null; // строка из таблицы profiles (id, use
 
 
 document.addEventListener("DOMContentLoaded", () => {
+  // export profile window ASAP (functions are hoisted in this scope)
+  try {
+    if (typeof openProfileWindow === 'function') window.openProfileWindow = openProfileWindow;
+    if (typeof closeProfileWindow === 'function') window.closeProfileWindow = closeProfileWindow;
+  } catch (e) {}
+
   // Инициализация иконок Lucide
-  lucide.createIcons();
+  try { if (window.lucide) lucide.createIcons(); } catch (e) {}
 
   (function syncBrandLogo() {
     const apply = () => {
@@ -258,7 +264,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
           // fallback
           const map = {
-            light: { 'bg-color': '#ffffff', 'bg-muted': '#f9fafb', 'surface-color': '#ffffff', 'text-main': '#111827', 'text-muted': '#6b7280', 'border-color': '#e5e7eb', 'accent-primary': '#F59E0B', 'accent-hover': '#D97706', 'accent-light': '#FFFBEB' },
+            light: { 'bg-color': '#ffffff', 'bg-muted': '#f9fafb', 'surface-color': '#ffffff', 'text-main': '#111827', 'text-muted': '#6b7280', 'border-color': '#e5e7eb', 'accent-primary': '#1a9f4b', 'accent-hover': '#15803d', 'accent-light': '#e8f8ef' },
             dark: { 'bg-color': '#0f0f12', 'bg-muted': '#18181c', 'surface-color': '#1c1c22', 'text-main': '#f3f4f6', 'text-muted': '#9ca3af', 'border-color': '#2e2e36', 'accent-primary': '#818cf8', 'accent-hover': '#a5b4fc', 'accent-light': '#27272a' },
             colorful: { 'bg-color': '#f8fdff', 'bg-muted': '#eafaff', 'surface-color': '#ffffff', 'text-main': '#0c2733', 'text-muted': '#4b7a89', 'border-color': '#cdeef7', 'accent-primary': '#0891b2', 'accent-hover': '#0e7490', 'accent-light': '#ecfeff' },
             ink: { 'bg-color': '#f7f5f0', 'bg-muted': '#efece6', 'surface-color': '#fffcf7', 'text-main': '#14110f', 'text-muted': '#6a635c', 'border-color': '#d4cdc3', 'accent-primary': '#14110f', 'accent-hover': '#000000', 'accent-light': '#e8e4dc' },
@@ -1991,14 +1997,28 @@ function closeAccountSwitcher() {
 
   // ================= 4. Тосты (уведомления) =================
   window.showToast = function (message, isError) {
-    const container = document.getElementById('toastContainer');
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toastContainer';
+      container.className = 'toast-container';
+      container.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;';
+      document.body.appendChild(container);
+    }
     const toast = document.createElement('div');
     toast.className = 'toast' + (isError ? ' error' : '');
     toast.textContent = message;
+    toast.style.cssText = 'pointer-events:auto;padding:12px 18px;border-radius:12px;background:#0c1411;color:#fff;font-size:0.9rem;box-shadow:0 8px 24px rgba(0,0,0,0.2);opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;';
+    if (isError) toast.style.background = '#dc2626';
     container.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add('show'));
+    requestAnimationFrame(() => {
+      toast.classList.add('show');
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
     setTimeout(() => {
       toast.classList.remove('show');
+      toast.style.opacity = '0';
       setTimeout(() => toast.remove(), 300);
     }, 3200);
   };
@@ -4451,53 +4471,17 @@ function wireAuthorTagClicks(root) {
     light: {
       name: 'Светлая',
       colors: {
-        'accent-primary': '#F59E0B', 'accent-hover': '#D97706', 'accent-light': '#FFFBEB',
-        'bg-color': '#ffffff', 'bg-muted': '#f9fafb', 'surface-color': '#ffffff',
-        'text-main': '#111827', 'text-muted': '#6b7280', 'border-color': '#e5e7eb'
+        'accent-primary': '#1a9f4b', 'accent-hover': '#15803d', 'accent-light': '#e8f8ef',
+        'bg-color': '#f3f6f5', 'bg-muted': '#e8eeeb', 'surface-color': '#ffffff',
+        'text-main': '#0c1411', 'text-muted': '#5a6f66', 'border-color': '#d5e0db'
       }
     },
     dark: {
       name: 'Тёмная',
       colors: {
-        'accent-primary': '#818cf8', 'accent-hover': '#a5b4fc', 'accent-light': '#25252f',
-        'bg-color': '#0e0e13', 'bg-muted': '#16161d', 'surface-color': '#1a1a22',
-        'text-main': '#f3f4f6', 'text-muted': '#9ca3af', 'border-color': '#2a2a35'
-      }
-    },
-    colorful: {
-      name: 'Океан',
-      colors: {
-        'accent-primary': '#0891b2', 'accent-hover': '#0e7490', 'accent-light': '#ecfeff',
-        'bg-color': '#f8fdff', 'bg-muted': '#eafaff', 'surface-color': '#ffffff',
-        'text-main': '#0c2733', 'text-muted': '#4b7a89', 'border-color': '#cdeef7'
-      }
-    },
-    /* Глобальные «шкуры» сайта */
-    ink: {
-      name: 'Ink Editorial',
-      skin: true,
-      colors: {
-        'accent-primary': '#14110f', 'accent-hover': '#000000', 'accent-light': '#e8e4dc',
-        'bg-color': '#f7f5f0', 'bg-muted': '#efece6', 'surface-color': '#fffcf7',
-        'text-main': '#14110f', 'text-muted': '#6a635c', 'border-color': '#d4cdc3'
-      }
-    },
-    clay: {
-      name: 'Clay Soft',
-      skin: true,
-      colors: {
-        'accent-primary': '#c45c26', 'accent-hover': '#a34a1c', 'accent-light': '#fce8dc',
-        'bg-color': '#faf6f1', 'bg-muted': '#f3ebe3', 'surface-color': '#ffffff',
-        'text-main': '#3d2c29', 'text-muted': '#8a736c', 'border-color': '#eadfd6'
-      }
-    },
-    neon: {
-      name: 'Neon Terminal',
-      skin: true,
-      colors: {
-        'accent-primary': '#00f0ff', 'accent-hover': '#7dffff', 'accent-light': '#0a2a33',
-        'bg-color': '#070b10', 'bg-muted': '#0d1219', 'surface-color': '#0a1018',
-        'text-main': '#e6f7ff', 'text-muted': '#6b8a9e', 'border-color': '#1a3344'
+        'accent-primary': '#1a9f4b', 'accent-hover': '#22c55e', 'accent-light': '#143528',
+        'bg-color': '#0c1411', 'bg-muted': '#101a16', 'surface-color': '#15201b',
+        'text-main': '#e8f0ec', 'text-muted': '#8aa399', 'border-color': 'rgba(255,255,255,0.12)'
       }
     }
   };
@@ -4514,6 +4498,13 @@ function wireAuthorTagClicks(root) {
   }
 
   function applyThemeColors(colors, themeKey) {
+    // migrate legacy orange accent -> site green
+    if (colors && (colors['accent-primary'] === '#F59E0B' || colors['accent-primary'] === '#f59e0b')) {
+      colors['accent-primary'] = '#1a9f4b';
+      colors['accent-hover'] = '#15803d';
+      colors['accent-light'] = '#e8f8ef';
+    }
+
     const root = document.documentElement.style;
     Object.keys(colors).forEach(k => root.setProperty('--' + k, colors[k]));
     if (colors['accent-primary']) root.setProperty('--accent', colors['accent-primary']);
@@ -4552,6 +4543,10 @@ function wireAuthorTagClicks(root) {
 
   function saveThemeLocally(themeKey, colors) {
     localStorage.setItem('ideanest_theme', JSON.stringify({ key: themeKey, colors }));
+    try {
+      if (themeKey === 'dark' || themeKey === 'neon') localStorage.setItem('ideanest-theme', 'dark');
+      else localStorage.setItem('ideanest-theme', 'light');
+    } catch (e) {}
   }
 
   function themeCardHtml(key, name, colors, isActive, isCustom) {
@@ -4589,10 +4584,7 @@ function wireAuthorTagClicks(root) {
     Object.keys(BUILTIN_THEMES).forEach(key => {
       html += themeCardHtml(key, BUILTIN_THEMES[key].name, BUILTIN_THEMES[key].colors, activeTheme === key, false);
     });
-    customThemes.forEach(t => {
-      html += themeCardHtml('custom:' + t.id, t.name, t.colors, activeTheme === ('custom:' + t.id), true);
-    });
-    html += `<div class="theme-card theme-card-add" id="addThemeCard"><i data-lucide="plus"></i><span>Создать свою</span></div>`;
+    // custom themes and "create" removed — only light / dark
 
     grid.innerHTML = html;
     if (window.lucide) lucide.createIcons();
@@ -4765,13 +4757,6 @@ function wireAuthorTagClicks(root) {
             <em>1–2 символа или эмодзи</em>
           </span>
         </button>
-        <button type="button" class="avatar-source-opt" data-avatar-src="gallery">
-          <i data-lucide="images"></i>
-          <span class="avatar-source-opt-text">
-            <strong>Из галереи</strong>
-            <em>Готовые стильные аватарки</em>
-          </span>
-        </button>
       </div>`;
     bd.appendChild(pop);
     document.body.appendChild(bd);
@@ -4779,11 +4764,18 @@ function wireAuthorTagClicks(root) {
     const place = () => {
       const r = (anchorEl || document.body).getBoundingClientRect();
       const w = 280;
+      pop.style.position = 'fixed';
+      pop.style.zIndex = '7001';
       pop.style.width = w + 'px';
       let left = r.left + r.width / 2 - w / 2;
       left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
+      let top = r.bottom + 10;
+      // if near bottom of viewport, open above
+      if (top + 200 > window.innerHeight) top = Math.max(12, r.top - 210);
       pop.style.left = left + 'px';
-      pop.style.top = (r.bottom + 10) + 'px';
+      pop.style.top = top + 'px';
+      pop.style.right = 'auto';
+      pop.style.bottom = 'auto';
       pop.style.transformOrigin = 'top center';
     };
     place();
@@ -4804,10 +4796,7 @@ function wireAuthorTagClicks(root) {
       close();
       setTimeout(() => openTextAvatarWindow(), 180);
     });
-    pop.querySelector('[data-avatar-src="gallery"]')?.addEventListener('click', () => {
-      close();
-      setTimeout(() => openGalleryAvatarWindow(), 180);
-    });
+    
   }
 
   async function uploadAvatarBlob(blob, mime) {
@@ -4912,73 +4901,107 @@ function wireAuthorTagClicks(root) {
 
 
   function ensureTextAvatarWindow() {
-    if (document.getElementById('textAvatarBackdrop')) return;
+    // always rebuild so layout stays correct after CSS/JS updates
+    document.getElementById('textAvatarBackdrop')?.remove();
+    document.getElementById('textAvatarWindow')?.remove();
+
     const backdrop = document.createElement('div');
     backdrop.id = 'textAvatarBackdrop';
     backdrop.className = 'text-avatar-backdrop';
+    backdrop.style.cssText = 'position:fixed;inset:0;z-index:7100;background:rgba(10,20,16,0.45);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .22s ease;';
+
     const win = document.createElement('div');
     win.id = 'textAvatarWindow';
     win.className = 'text-avatar-window';
     win.setAttribute('role', 'dialog');
     win.setAttribute('aria-modal', 'true');
+    win.style.cssText = 'position:relative;z-index:7101;width:min(360px,100%);max-height:min(90vh,640px);overflow:auto;background:#fff;border-radius:20px;padding:22px 20px 18px;box-sizing:border-box;box-shadow:0 24px 56px rgba(0,0,0,0.22);opacity:0;transform:scale(0.96) translateY(8px);transition:opacity .22s ease,transform .28s cubic-bezier(0.22,1,0.36,1);';
+
     win.innerHTML = `
       <button type="button" class="text-avatar-close" id="textAvatarClose" aria-label="Закрыть">
         <i data-lucide="x"></i>
       </button>
-      <div class="text-avatar-layout">
-        <div class="text-avatar-preview-col">
-          <canvas id="avatarTextPreview" width="200" height="200"></canvas>
-          <p class="text-avatar-hint">Превью</p>
+      <div class="text-avatar-stack">
+        <div class="text-avatar-preview-wrap">
+          <canvas id="avatarTextPreview" width="160" height="160" aria-label="Превью аватара"></canvas>
         </div>
-        <div class="text-avatar-controls">
-          <h2 class="text-avatar-title">Аватар из текста</h2>
-          <p class="text-avatar-sub">Один–два символа или эмодзи по центру</p>
-          <label class="avatar-text-field">
-            <span>Символы</span>
-            <input type="text" id="avatarTextInput" maxlength="4" placeholder="AB / 🚀" autocomplete="off" />
-          </label>
-          <div class="avatar-text-colors">
-            <div>
-              <div class="avatar-text-colors-label">Фон</div>
-              <div class="avatar-swatches" id="avatarBgSwatches"></div>
-            </div>
-            <div>
-              <div class="avatar-text-colors-label">Текст</div>
-              <div class="avatar-swatches" id="avatarFgSwatches"></div>
-            </div>
+        <h2 class="text-avatar-title">Аватар из текста</h2>
+        <p class="text-avatar-sub">1–2 символа или эмодзи по центру</p>
+
+        <label class="ta-field">
+          <span class="ta-label">Символы</span>
+          <input type="text" id="avatarTextInput" maxlength="8" placeholder="AB или 🚀" autocomplete="off" />
+        </label>
+
+        <div class="ta-field">
+          <span class="ta-label">Размер текста</span>
+          <div class="ta-slider-row">
+            <input type="range" id="avatarTextSize" min="40" max="100" value="72" />
+            <span id="avatarTextSizeVal">72%</span>
           </div>
-          <div class="text-avatar-actions">
-            <button type="button" class="btn btn-secondary" id="textAvatarCancel">Отмена</button>
-            <button type="button" class="btn btn-primary" id="avatarTextApply">Сохранить</button>
-          </div>
+        </div>
+
+        <div class="ta-field">
+          <span class="ta-label">Цвет текста</span>
+          <div class="avatar-swatches" id="avatarFgSwatches"></div>
+          <input type="color" id="avatarFgCustom" value="#ffffff" class="ta-color-native" title="Свой цвет текста" />
+        </div>
+
+        <div class="ta-field">
+          <span class="ta-label">Цвет фона</span>
+          <div class="avatar-swatches" id="avatarBgSwatches"></div>
+          <input type="color" id="avatarBgCustom" value="#1a9f4b" class="ta-color-native" title="Свой цвет фона" />
+        </div>
+
+        <div class="text-avatar-actions">
+          <button type="button" class="btn btn-secondary ta-btn" id="textAvatarCancel">Отмена</button>
+          <button type="button" class="btn btn-primary ta-btn" id="avatarTextApply">Сохранить</button>
         </div>
       </div>`;
+
     document.body.appendChild(backdrop);
     document.body.appendChild(win);
-    backdrop.addEventListener('click', closeTextAvatarWindow);
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeTextAvatarWindow(); });
     document.getElementById('textAvatarClose').addEventListener('click', closeTextAvatarWindow);
     document.getElementById('textAvatarCancel').addEventListener('click', closeTextAvatarWindow);
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && win.classList.contains('active')) closeTextAvatarWindow();
-    });
   }
 
   function closeTextAvatarWindow() {
-    document.getElementById('textAvatarWindow')?.classList.remove('active');
-    document.getElementById('textAvatarBackdrop')?.classList.remove('active');
+    const win = document.getElementById('textAvatarWindow');
+    const backdrop = document.getElementById('textAvatarBackdrop');
+    if (win) {
+      win.classList.remove('active');
+      win.style.opacity = '0';
+      win.style.transform = 'scale(0.96) translateY(8px)';
+      win.style.pointerEvents = 'none';
+    }
+    if (backdrop) {
+      backdrop.classList.remove('active');
+      backdrop.style.opacity = '0';
+      backdrop.style.pointerEvents = 'none';
+    }
   }
 
   function openTextAvatarWindow() {
     ensureTextAvatarWindow();
     const win = document.getElementById('textAvatarWindow');
     const backdrop = document.getElementById('textAvatarBackdrop');
+    if (!win || !backdrop) return;
+
     backdrop.classList.add('active');
-    void win.offsetWidth;
-    win.classList.add('active');
+    backdrop.style.opacity = '1';
+    backdrop.style.pointerEvents = 'auto';
+    requestAnimationFrame(() => {
+      win.classList.add('active');
+      win.style.opacity = '1';
+      win.style.transform = 'scale(1) translateY(0)';
+      win.style.pointerEvents = 'auto';
+    });
     if (window.lucide) lucide.createIcons();
 
-    let bg = AVATAR_BG_PRESETS[0];
-    let fg = AVATAR_FG_PRESETS[0];
+    let bg = (typeof AVATAR_BG_PRESETS !== 'undefined' && AVATAR_BG_PRESETS[0]) || '#1a9f4b';
+    let fg = (typeof AVATAR_FG_PRESETS !== 'undefined' && AVATAR_FG_PRESETS[0]) || '#ffffff';
+    let sizePct = 72;
 
     const preview = () => {
       const c = document.getElementById('avatarTextPreview');
@@ -4988,52 +5011,93 @@ function wireAuthorTagClicks(root) {
       text = [...text].slice(0, 2).join('') || '?';
       const s = c.width;
       ctx.clearRect(0, 0, s, s);
-      ctx.fillStyle = bg;
+      // circle clip
+      ctx.save();
       ctx.beginPath();
       ctx.arc(s / 2, s / 2, s / 2, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.closePath();
+      ctx.clip();
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, s, s);
       ctx.fillStyle = fg;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const isEmoji = /\p{Extended_Pictographic}/u.test(text);
+      const fontPx = Math.round(s * (sizePct / 100) * (isEmoji ? 0.85 : 0.72));
       ctx.font = isEmoji
-        ? Math.round(s * 0.48) + 'px "Segoe UI Emoji","Apple Color Emoji",sans-serif'
-        : '700 ' + Math.round(s * 0.42) + 'px Inter,system-ui,sans-serif';
-      ctx.fillText(text, s / 2, isEmoji ? s / 2 + 6 : s / 2 + 4);
+        ? `${fontPx}px "Segoe UI Emoji","Apple Color Emoji",sans-serif`
+        : `700 ${fontPx}px Inter,system-ui,sans-serif`;
+      ctx.fillText(text, s / 2, s / 2 + (isEmoji ? fontPx * 0.06 : fontPx * 0.04));
+      ctx.restore();
     };
 
-    const fillSwatches = (el, colors, kind) => {
-      if (!el) return;
-      el.innerHTML = colors.map(c =>
-        `<button type="button" class="avatar-swatch" data-c="${c}" style="background:${c}"></button>`
-      ).join('');
-      const sync = () => {
-        el.querySelectorAll('.avatar-swatch').forEach(b => {
-          b.classList.toggle('is-on', b.dataset.c === (kind === 'bg' ? bg : fg));
-        });
-      };
-      el.querySelectorAll('.avatar-swatch').forEach(btn => {
+    const fillSwatches = (box, colors, kind) => {
+      if (!box) return;
+      box.innerHTML = '';
+      colors.forEach((col) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'avatar-swatch';
+        btn.dataset.c = col;
+        btn.style.cssText = `width:28px;height:28px;border-radius:50%;border:2px solid transparent;background:${col};cursor:pointer;padding:0;flex-shrink:0;`;
+        if (col === '#ffffff' || col === '#fff') btn.style.boxShadow = 'inset 0 0 0 1px #d5e0db';
+        const sync = () => {
+          box.querySelectorAll('.avatar-swatch').forEach((b) => {
+            b.style.outline = (b.dataset.c === (kind === 'bg' ? bg : fg)) ? '2px solid #1a9f4b' : 'none';
+            b.style.outlineOffset = '2px';
+          });
+        };
         btn.addEventListener('click', () => {
-          if (kind === 'bg') bg = btn.dataset.c; else fg = btn.dataset.c;
+          if (kind === 'bg') {
+            bg = col;
+            const n = document.getElementById('avatarBgCustom');
+            if (n) n.value = col;
+          } else {
+            fg = col;
+            const n = document.getElementById('avatarFgCustom');
+            if (n) n.value = col;
+          }
           sync();
           preview();
         });
+        box.appendChild(btn);
+        sync();
       });
-      sync();
     };
 
-    fillSwatches(document.getElementById('avatarBgSwatches'), AVATAR_BG_PRESETS, 'bg');
-    fillSwatches(document.getElementById('avatarFgSwatches'), AVATAR_FG_PRESETS, 'fg');
+    const bgs = (typeof AVATAR_BG_PRESETS !== 'undefined') ? AVATAR_BG_PRESETS : ['#1a9f4b','#0c1411','#2563eb','#dc2626','#7c3aed','#ea580c','#0891b2','#e5e7eb'];
+    const fgs = (typeof AVATAR_FG_PRESETS !== 'undefined') ? AVATAR_FG_PRESETS : ['#ffffff','#0c1411','#fef3c7','#e0e7ff'];
+    fillSwatches(document.getElementById('avatarBgSwatches'), bgs, 'bg');
+    fillSwatches(document.getElementById('avatarFgSwatches'), fgs, 'fg');
+
     const input = document.getElementById('avatarTextInput');
     if (input) {
       input.value = '';
       input.oninput = preview;
-      setTimeout(() => input.focus(), 50);
+      setTimeout(() => input.focus(), 60);
     }
+    const sizeInput = document.getElementById('avatarTextSize');
+    const sizeVal = document.getElementById('avatarTextSizeVal');
+    if (sizeInput) {
+      sizeInput.value = String(sizePct);
+      sizeInput.oninput = () => {
+        sizePct = Number(sizeInput.value) || 72;
+        if (sizeVal) sizeVal.textContent = sizePct + '%';
+        preview();
+      };
+    }
+    document.getElementById('avatarBgCustom')?.addEventListener('input', (e) => {
+      bg = e.target.value;
+      preview();
+    });
+    document.getElementById('avatarFgCustom')?.addEventListener('input', (e) => {
+      fg = e.target.value;
+      preview();
+    });
     preview();
 
     const applyBtn = document.getElementById('avatarTextApply');
-    applyBtn.onclick = async () => {
+    if (applyBtn) applyBtn.onclick = async () => {
       let text = (document.getElementById('avatarTextInput')?.value || '').trim();
       text = [...text].slice(0, 2).join('') || '?';
       const SIZE = 512;
@@ -5046,35 +5110,41 @@ function wireAuthorTagClicks(root) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const isEmoji = /\p{Extended_Pictographic}/u.test(text);
+      const fontPx = Math.round(SIZE * (sizePct / 100) * (isEmoji ? 0.85 : 0.72));
       ctx.font = isEmoji
-        ? '280px "Segoe UI Emoji","Apple Color Emoji",sans-serif'
-        : '700 220px Inter,system-ui,sans-serif';
-      ctx.fillText(text, SIZE / 2, isEmoji ? SIZE / 2 + 18 : SIZE / 2 + 10);
+        ? `${fontPx}px "Segoe UI Emoji","Apple Color Emoji",sans-serif`
+        : `700 ${fontPx}px Inter,system-ui,sans-serif`;
+      ctx.fillText(text, SIZE / 2, SIZE / 2 + (isEmoji ? fontPx * 0.06 : fontPx * 0.04));
       const blob = await new Promise((resolve, reject) => {
         c.toBlob(b => b ? resolve(b) : reject(new Error('blob')), 'image/jpeg', 0.92);
       });
       applyBtn.disabled = true;
       applyBtn.textContent = 'Сохраняем…';
       try {
-        const profileId = await getProfileId();
-        if (!profileId || !currentUser) throw new Error('Нет профиля');
-        const path = `${currentUser.id}/${profileId}_${Date.now()}.jpg`;
-        const { data: signed, error: signErr } = await supabaseClient.storage.from('avatars').createSignedUploadUrl(path);
-        if (signErr) throw signErr;
-        const up = await fetch(signed.signedUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
-        if (!up.ok) throw new Error('upload ' + up.status);
-        const { data: pub } = supabaseClient.storage.from('avatars').getPublicUrl(path);
-        const publicUrl = pub && pub.publicUrl;
-        if (!publicUrl) throw new Error('no url');
-        await supabaseClient.from('profiles').update({ avatar_url: publicUrl }).eq('id', profileId);
-        if (currentProfile) currentProfile.avatar_url = publicUrl;
-        document.querySelectorAll('img#profilePageAvatar, img#dropdownAvatar, img#navbarAvatar, img.profile-avatar, img.dropdown-avatar').forEach(img => {
-          img.src = publicUrl + '?t=' + Date.now();
-        });
-        await rememberCurrentAccount();
+        if (typeof uploadAvatarBlob === 'function') {
+          await uploadAvatarBlob(blob, 'image/jpeg');
+        } else {
+          const profileId = await getProfileId();
+          if (!profileId || !currentUser) throw new Error('Нет профиля');
+          const path = `${currentUser.id}/${profileId}_${Date.now()}.jpg`;
+          const { data: signed, error: signErr } = await supabaseClient.storage.from('avatars').createSignedUploadUrl(path);
+          if (signErr) throw signErr;
+          const up = await fetch(signed.signedUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+          if (!up.ok) throw new Error('upload ' + up.status);
+          const { data: pub } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+          const publicUrl = pub && pub.publicUrl;
+          if (!publicUrl) throw new Error('no url');
+          await supabaseClient.from('profiles').update({ avatar_url: publicUrl }).eq('id', profileId);
+          if (currentProfile) currentProfile.avatar_url = publicUrl;
+          document.querySelectorAll('img#profilePageAvatar, img#dropdownAvatar, img#navbarAvatar, img.profile-avatar, img#shellAvatarImg, img#shellPopAvaImg').forEach(img => {
+            img.src = publicUrl + '?t=' + Date.now();
+          });
+        }
         closeTextAvatarWindow();
         showToast('Аватар обновлён');
-        if (document.getElementById('profileWindowBody')) renderProfileWindow();
+        if (document.getElementById('profileWindowBody') && typeof renderProfileWindow === 'function') renderProfileWindow();
+        if (typeof refreshShellUser === 'function') refreshShellUser();
+        else if (window.__shellRefreshUser) window.__shellRefreshUser();
       } catch (err) {
         console.error(err);
         showToast('Не удалось сохранить: ' + (err.message || err), true);
@@ -5084,6 +5154,7 @@ function wireAuthorTagClicks(root) {
       }
     };
   }
+
 
   function openAvatarPicker() {
     if (!currentUser) {
@@ -5358,6 +5429,10 @@ function wireAuthorTagClicks(root) {
       <div id="profileWindowBody"><p style="color:var(--text-muted);">Загрузка…</p></div>`;
     document.body.appendChild(backdrop);
     document.body.appendChild(win);
+    win.style.position = 'fixed';
+    win.style.zIndex = '7010';
+    backdrop.style.position = 'fixed';
+    backdrop.style.zIndex = '7000';
     backdrop.addEventListener('click', closeProfileWindow);
     document.getElementById('profileWindowClose').addEventListener('click', closeProfileWindow);
     document.addEventListener('keydown', (e) => {
@@ -5366,18 +5441,19 @@ function wireAuthorTagClicks(root) {
   }
 
   function openProfileWindow() {
-    window.openProfileWindow = openProfileWindow;
     ensureProfileWindow();
-    closeProfileDropdown();
+    try { closeProfileDropdown(); } catch (e) {}
     const win = document.getElementById('profileWindow');
     const backdrop = document.getElementById('profileWindowBackdrop');
+    if (!win || !backdrop) return;
     backdrop.classList.add('active');
-    // reflow for animation
     void win.offsetWidth;
     win.classList.add('active');
     renderProfileWindow();
     if (window.lucide) lucide.createIcons();
   }
+  window.openProfileWindow = openProfileWindow;
+  window.closeProfileWindow = closeProfileWindow;
 
   function closeProfileWindow() {
     document.getElementById('profileWindow')?.classList.remove('active');
@@ -5448,7 +5524,7 @@ function wireAuthorTagClicks(root) {
         <div class="profile-page-avatar-wrap">
           <img class="profile-page-avatar" id="profilePageAvatar" src="${avatarUrl}" alt="Аватар" />
           <button type="button" class="profile-page-avatar-edit" id="profileAvatarEditBtn" title="Сменить аватар" aria-label="Сменить аватар">
-            <i data-lucide="camera"></i>
+            <i data-lucide="paintbrush"></i>
           </button>
         </div>
         <div class="profile-page-identity">
@@ -5473,9 +5549,10 @@ function wireAuthorTagClicks(root) {
             </div>
             <div class="nickname-hint" id="profileUsernameHint">От 5 до 15 символов: латиница в нижнем регистре, цифры, _</div>
           </div>
-          <div class="profile-info-row" style="border-bottom:none; padding-top:4px;">
-            <span class="profile-info-label">Email</span>
-            <span class="profile-info-value">${email || '—'}</span>
+          <div class="form-group" style="margin-top:8px;">
+            <label for="profileEditEmail">Email</label>
+            <input type="email" id="profileEditEmail" value="${(email || '').replace(/"/g, '&quot;')}" placeholder="you@example.com" autocomplete="email" />
+            <div class="nickname-hint">После смены почты нужно подтвердить новый адрес письмом.</div>
           </div>
           <div class="profile-info-row">
             <span class="profile-info-label">Регистрация</span>
@@ -5532,15 +5609,16 @@ function wireAuthorTagClicks(root) {
         </form>
       </div>
 
-      <div class="profile-page-actions">
-        <button type="button" class="btn btn-danger-text" id="profileDeleteAccountBtn" style="width:100%;">
-          Удалить аккаунт
-        </button>
+      <div class="profile-page-actions profile-page-actions-row">
+        <button type="button" class="btn profile-btn-logout" id="profileLogoutBtn">Выйти</button>
+        <button type="button" class="btn profile-btn-delete" id="profileDeleteAccountBtn">Удалить аккаунт</button>
       </div>`;
 
     if (window.lucide) lucide.createIcons();
 
     document.getElementById('profileAvatarEditBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       openAvatarSourcePicker(e.currentTarget);
     });
 
@@ -5663,6 +5741,17 @@ function wireAuthorTagClicks(root) {
           });
         }
 
+                const newEmail = document.getElementById('profileEditEmail')?.value?.trim();
+        if (newEmail && newEmail !== (currentUser?.email || '')) {
+          const { error: emailErr } = await supabaseClient.auth.updateUser({ email: newEmail });
+          if (emailErr) {
+            if (errEl) errEl.textContent = 'Не удалось сменить email: ' + emailErr.message;
+            if (saveBtn) saveBtn.disabled = false;
+            return;
+          }
+          showToast('Проверьте новую почту для подтверждения');
+        }
+
         showToast('Профиль сохранён');
       } catch (err) {
         console.error(err);
@@ -5688,11 +5777,20 @@ function wireAuthorTagClicks(root) {
       showToast('Пароль обновлён');
     });
 
-    // --- Удаление аккаунта: поповер → ввод ника ---
+    document.getElementById('profileLogoutBtn')?.addEventListener('click', async () => {
+      try {
+        await supabaseClient.auth.signOut();
+      } catch (err) {}
+      closeProfileWindow();
+      location.reload();
+    });
+
+    // --- Удаление аккаунта: то же окно, что в настройках (ввод никнейма) ---
     const deleteBtn = document.getElementById('profileDeleteAccountBtn');
     deleteBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      openDeleteConfirmPopover(deleteBtn, username || originalUsername || '');
+      openDeleteNicknameModal(username || originalUsername || currentProfile?.username || '');
     });
   }
 
@@ -5758,10 +5856,21 @@ function wireAuthorTagClicks(root) {
         </div>
       </div>`;
     document.body.appendChild(backdrop);
-    requestAnimationFrame(() => backdrop.classList.add('active'));
+    // force fixed overlay even if CSS missing
+    backdrop.style.cssText = 'position:fixed;inset:0;z-index:8000;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;background:rgba(10,20,16,0.45);backdrop-filter:blur(6px);opacity:0;transition:opacity .22s ease;';
+    const modalEl = backdrop.querySelector('.delete-nick-modal');
+    if (modalEl) {
+      modalEl.style.cssText = 'position:relative;width:min(400px,100%);margin:0;padding:24px 22px;box-sizing:border-box;background:#fff;border-radius:18px;box-shadow:0 24px 56px rgba(0,0,0,0.2);';
+    }
+    requestAnimationFrame(() => {
+      backdrop.classList.add('active');
+      backdrop.style.opacity = '1';
+      backdrop.style.pointerEvents = 'auto';
+    });
 
     const close = () => {
       backdrop.classList.remove('active');
+      backdrop.style.opacity = '0';
       setTimeout(() => backdrop.remove(), 220);
     };
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
@@ -5798,22 +5907,40 @@ function wireAuthorTagClicks(root) {
         }
 
         if (!hardOk) {
-          const { error } = await supabaseClient.from('profiles').update({
+          const payload = {
             is_deleted: true,
             deleted_at: new Date().toISOString()
-          }).eq('id', profileId);
+          };
+          // best-effort: mark deletion request for admin review
+          try {
+            payload.deletion_requested_at = new Date().toISOString();
+          } catch (x) {}
+          const { error } = await supabaseClient.from('profiles').update(payload).eq('id', profileId);
           if (error) {
-            if (/deleted_at|column/i.test(error.message || '')) {
+            if (/deleted_at|deletion_requested|column/i.test(error.message || '')) {
               const { error: e2 } = await supabaseClient.from('profiles').update({ is_deleted: true }).eq('id', profileId);
               if (e2) throw e2;
             } else throw error;
+          }
+          // optional admin notify (Edge Function); ignores errors
+          try {
+            await supabaseClient.functions.invoke('notify-account-deletion', {
+              body: {
+                profile_id: profileId,
+                username: expectedUsername || currentProfile?.username || '',
+                email: currentUser?.email || '',
+                full_name: currentUser?.user_metadata?.full_name || ''
+              }
+            });
+          } catch (mailErr) {
+            console.warn('notify-account-deletion:', mailErr);
           }
         }
 
         await supabaseClient.auth.signOut({ scope: 'global' });
         close();
-        closeProfileWindow();
-        showToast(hardOk ? 'Аккаунт удалён' : 'Аккаунт деактивирован');
+        try { closeProfileWindow(); } catch (e) {}
+        showToast(hardOk ? 'Аккаунт удалён' : 'Запрос на удаление отправлен. Аккаунт деактивирован.');
         setTimeout(() => {
           const root = siteRootPrefix();
           window.location.href = root + 'index.html';

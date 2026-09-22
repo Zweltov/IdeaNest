@@ -16,14 +16,55 @@
   <meta name="description" content="Быстрый расчёт окупаемости бизнеса: вложения, прибыль в месяц, срок возврата." />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="shell.css" />
-  <script>
-    (function () {
-      try {
-        if (localStorage.getItem('ideanest-theme') === 'dark')
-          document.documentElement.setAttribute('data-theme', 'dark');
-      } catch (e) {}
-    })();
-  </script>
+  
+<script>(function(){try{
+  var modePref=localStorage.getItem('ideanest-theme');
+  var t=null;
+  try{t=JSON.parse(localStorage.getItem('ideanest_theme')||'null');}catch(e){}
+  var GREEN={
+    'accent-primary':'#1a9f4b','accent-hover':'#15803d','accent-light':'#e8f8ef',
+    'bg-color':'#f3f6f5','bg-muted':'#e8eeeb','surface-color':'#ffffff',
+    'text-main':'#0c1411','text-muted':'#5a6f66','border-color':'#d5e0db'
+  };
+  var DARK={
+    'accent-primary':'#1a9f4b','accent-hover':'#22c55e','accent-light':'#143528',
+    'bg-color':'#0c1411','bg-muted':'#101a16','surface-color':'#15201b',
+    'text-main':'#e8f0ec','text-muted':'#8aa399','border-color':'rgba(255,255,255,0.1)'
+  };
+  // resolve mode: explicit toggle wins
+  var mode=modePref;
+  if(mode!=='light'&&mode!=='dark'){
+    if(t&&(t.key==='dark'||t.key==='neon')) mode='dark';
+    else mode='light';
+  }
+  try{localStorage.setItem('ideanest-theme',mode);}catch(e){}
+  if(mode==='dark') document.documentElement.setAttribute('data-theme','dark');
+  else document.documentElement.removeAttribute('data-theme');
+
+  // base palette for mode (never apply dark bg colors in light mode)
+  var base=mode==='dark'?DARK:GREEN;
+  var colors=Object.assign({},base);
+  if(t&&t.colors){
+    // only keep custom accent if not legacy orange
+    var ap=(t.colors['accent-primary']||'').toLowerCase();
+    var isOrange=!ap||/#f59e0b|#d97706|#fffbeb|#ea580c|#f97316|#fb923c|#ca8a04|#eab308|#fbbf24/.test(ap)||ap.indexOf('f59')>=0;
+    if(!isOrange&&ap){
+      colors['accent-primary']=t.colors['accent-primary'];
+      colors['accent-hover']=t.colors['accent-hover']||colors['accent-hover'];
+      colors['accent-light']=t.colors['accent-light']||colors['accent-light'];
+    }
+  }
+  var r=document.documentElement.style;
+  Object.keys(colors).forEach(function(k){r.setProperty('--'+k,colors[k]);});
+  r.setProperty('--accent',colors['accent-primary']);
+  r.setProperty('--accent-primary',colors['accent-primary']);
+  r.setProperty('--accent-hover',colors['accent-hover']);
+  r.setProperty('--accent-light',colors['accent-light']);
+  // persist cleaned theme
+  try{
+    localStorage.setItem('ideanest_theme',JSON.stringify({key:mode,colors:colors}));
+  }catch(e){}
+}catch(e){}})();</script>
 </head>
 <body class="shell-body shell-site">
   <main class="page shell-page shell-centered-page">

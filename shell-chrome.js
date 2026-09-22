@@ -115,12 +115,6 @@
                 </span>
                 <img class="shell-avatar-img is-hidden" id="shellAvatarImg" alt="" />
               </button>
-              
-            </div>
-          </div>
-        </div>
-      </header>
-      <div class="shell-profile-backdrop is-hidden" id="shellProfileBackdrop" aria-hidden="true"></div>
               <div class="shell-profile-pop is-hidden" id="shellProfilePop" role="dialog">
                 <div class="shell-profile-pop-head">
                   <div class="shell-pop-ava-wrap" id="shellPopAva">
@@ -143,9 +137,12 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
                     Настройки
                   </a>
-                  <button type="button" class="shell-pop-link danger is-hidden" id="shellPopLogout">Выйти</button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </header>
       <nav class="mobile-capsule" id="shellMobileCapsule" aria-label="Меню">
         <a class="m-item" data-nav="home" href="${h.home}"><span>⌂</span>Главная</a>
         <a class="m-item" data-nav="ideas" href="${h.ideas}"><span>◇</span>Идеи</a>
@@ -301,6 +298,155 @@
     return window.__shellSb;
   }
 
+
+  function openEmailVerifyWait(email) {
+    document.getElementById('emailVerifyBackdrop')?.remove();
+    const safeEmail = String(email || '').replace(/[<>&"]/g, '');
+    const bd = document.createElement('div');
+    bd.id = 'emailVerifyBackdrop';
+    bd.className = 'email-verify-backdrop';
+    bd.style.cssText = 'position:fixed;inset:0;z-index:7500;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,20,16,0.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);';
+    bd.innerHTML = `
+      <div class="email-verify-modal" role="dialog" aria-modal="true" style="
+        position:relative;width:min(400px,100%);background:#fff;border-radius:20px;padding:28px 24px 24px;
+        box-shadow:0 24px 56px rgba(0,0,0,0.2);text-align:center;box-sizing:border-box;
+      ">
+        <button type="button" id="emailVerifyCloseBtn" aria-label="Закрыть" style="
+          position:absolute;top:12px;right:12px;width:32px;height:32px;border:none;border-radius:50%;
+          background:#f3f6f5;color:#5a6f66;cursor:pointer;font-size:1.1rem;line-height:1;display:flex;
+          align-items:center;justify-content:center;font-family:inherit;
+        ">×</button>
+        <div class="email-verify-anim" aria-hidden="true" style="margin:8px auto 18px;width:64px;height:64px;position:relative;">
+          <div class="email-verify-ring"></div>
+          <div class="email-verify-icon">✉</div>
+        </div>
+        <h2 style="margin:0 0 10px;font-size:1.25rem;font-weight:700;color:#0c1411;">Подтвердите почту</h2>
+        <p style="margin:0 0 16px;font-size:0.95rem;line-height:1.5;color:#5a6f66;">
+          Мы отправили код${safeEmail ? ' на <strong style="color:#0c1411">' + safeEmail + '</strong>' : ''}.
+          Введите его ниже.
+        </p>
+        <div style="text-align:left;margin-bottom:8px;">
+          <label for="emailVerifyCode" style="display:block;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#5a6f66;margin-bottom:6px;">Код из письма</label>
+          <input type="text" id="emailVerifyCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456" style="
+            width:100%;box-sizing:border-box;border:1.5px solid #d5e0db;border-radius:12px;padding:12px 14px;
+            font-size:1.25rem;letter-spacing:0.2em;text-align:center;font-family:inherit;font-weight:600;
+          " />
+        </div>
+        <p id="emailVerifyErr" style="min-height:1.2em;margin:6px 0 10px;font-size:0.85rem;color:#dc2626;"></p>
+        <button type="button" id="emailVerifySubmit" style="
+          width:100%;border:none;border-radius:12px;padding:12px 16px;background:#1a9f4b;color:#fff;
+          font-weight:600;font-size:0.95rem;cursor:pointer;font-family:inherit;
+        ">Подтвердить</button>
+        <button type="button" id="emailVerifyResend" style="
+          margin-top:12px;background:transparent;border:none;color:#5a6f66;font-size:0.85rem;
+          cursor:pointer;font-family:inherit;text-decoration:underline;
+        ">Отправить код ещё раз</button>
+      </div>`;
+    document.body.appendChild(bd);
+
+    const close = () => {
+      bd.style.opacity = '0';
+      setTimeout(() => bd.remove(), 220);
+      if (window.__emailVerifyUnsub) {
+        try { window.__emailVerifyUnsub(); } catch (e) {}
+        window.__emailVerifyUnsub = null;
+      }
+      if (window.__emailVerifyTimer) {
+        clearInterval(window.__emailVerifyTimer);
+        window.__emailVerifyTimer = null;
+      }
+    };
+    bd.querySelector('#emailVerifyCloseBtn')?.addEventListener('click', close);
+
+    const db = getDb();
+    const errEl = () => document.getElementById('emailVerifyErr');
+    const codeInput = document.getElementById('emailVerifyCode');
+    codeInput?.focus();
+
+    const onConfirmed = async () => {
+      close();
+      try { await refreshShellUser(); } catch (e) {}
+      try {
+        if (typeof showToast === 'function') showToast('Почта подтверждена — вы вошли');
+        else if (window.showToast) window.showToast('Почта подтверждена — вы вошли');
+      } catch (e) {}
+    };
+
+    async function tryVerify() {
+      const token = (codeInput?.value || '').trim().replace(/\s+/g, '');
+      if (!token || token.length < 4) {
+        if (errEl()) errEl().textContent = 'Введите код из письма';
+        return;
+      }
+      if (!db) {
+        if (errEl()) errEl().textContent = 'Supabase не загружен';
+        return;
+      }
+      const btn = document.getElementById('emailVerifySubmit');
+      if (btn) { btn.disabled = true; btn.textContent = 'Проверяем…'; }
+      if (errEl()) errEl().textContent = '';
+      try {
+        // signup OTP, затем email как запасной тип
+        let result = await db.auth.verifyOtp({ email: safeEmail, token, type: 'signup' });
+        if (result.error) {
+          result = await db.auth.verifyOtp({ email: safeEmail, token, type: 'email' });
+        }
+        if (result.error) throw result.error;
+        await onConfirmed();
+      } catch (e) {
+        console.error(e);
+        if (errEl()) errEl().textContent = e.message || 'Неверный или устаревший код';
+        if (btn) { btn.disabled = false; btn.textContent = 'Подтвердить'; }
+      }
+    }
+
+    document.getElementById('emailVerifySubmit')?.addEventListener('click', tryVerify);
+    codeInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); tryVerify(); }
+    });
+
+    document.getElementById('emailVerifyResend')?.addEventListener('click', async () => {
+      if (!db || !safeEmail) return;
+      const b = document.getElementById('emailVerifyResend');
+      if (b) { b.disabled = true; b.textContent = 'Отправляем…'; }
+      try {
+        // повторная отправка письма подтверждения
+        const { error } = await db.auth.resend({ type: 'signup', email: safeEmail });
+        if (error) throw error;
+        if (errEl()) {
+          errEl().style.color = '#1a9f4b';
+          errEl().textContent = 'Код отправлен повторно';
+        }
+      } catch (e) {
+        if (errEl()) {
+          errEl().style.color = '#dc2626';
+          errEl().textContent = e.message || 'Не удалось отправить';
+        }
+      } finally {
+        if (b) { b.disabled = false; b.textContent = 'Отправить код ещё раз'; }
+      }
+    });
+
+    if (!db) return;
+
+    // На случай, если пользователь всё же перешёл по ссылке из письма
+    try {
+      const { data: { subscription } } = db.auth.onAuthStateChange((event, session) => {
+        if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+          onConfirmed();
+        }
+      });
+      window.__emailVerifyUnsub = () => subscription?.unsubscribe?.();
+    } catch (e) { console.warn(e); }
+
+    window.__emailVerifyTimer = setInterval(async () => {
+      try {
+        const { data } = await db.auth.getSession();
+        if (data?.session?.user) await onConfirmed();
+      } catch (e) {}
+    }, 3000);
+  }
+
   function wireAuth(bg, modal) {
     let mode = 'login';
     const title = () => document.getElementById('shellAuthTitle');
@@ -359,6 +505,17 @@
     }
     bindPassToggle('shellPassToggle', 'shellAuthPass');
     bindPassToggle('shellPassToggle2', 'shellAuthPass2');
+
+    // Enter → Войти / Создать
+    function onAuthEnter(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submit()?.click();
+      }
+    }
+    ['shellAuthEmail', 'shellAuthPass', 'shellAuthNick', 'shellAuthEmail2', 'shellAuthPass2'].forEach(function (id) {
+      document.getElementById(id)?.addEventListener('keydown', onAuthEnter);
+    });
 
     // nickname uniqueness
     let nickTimer = null;
@@ -479,10 +636,10 @@
                 terms_accepted_at: new Date().toISOString(),
                 privacy_accepted_at: new Date().toISOString(),
               },
+              emailRedirectTo: (location.origin || '') + (location.pathname || '/').replace(/[^/]+$/, '') + 'index.html',
             },
           });
           if (error) throw error;
-          // profile row often created by trigger; try soft upsert fields
           if (data?.user) {
             try {
               await db.from('profiles').upsert({
@@ -493,13 +650,34 @@
               }, { onConflict: 'auth_id' });
             } catch (e) { console.warn(e); }
           }
+          openShellAuth(false);
+          // Нет сессии → нужно подтвердить почту
+          if (!data?.session) {
+            openEmailVerifyWait(email);
+            return;
+          }
+          try { await refreshShellUser(); } catch (re) { console.warn(re); }
+          return;
         }
+        // login success
         openShellAuth(false);
-        await refreshShellUser();
-        location.reload();
+        try { await refreshShellUser(); } catch (re) { console.warn(re); }
+        try { location.reload(); } catch (re2) { console.warn(re2); }
       } catch (e) {
-        err().textContent = e.message || 'Ошибка';
+        console.error('[auth]', e);
+        var msg = (e && e.message) ? e.message : 'Ошибка';
+        if (/appendChild|null/i.test(msg)) msg = 'Вход выполнен, обновляем страницу…';
+        err().textContent = msg;
         err().classList.remove('is-hidden');
+        // if login actually worked, still reload
+        try {
+          var db2 = getDb();
+          if (db2) {
+            db2.auth.getSession().then(function (r) {
+              if (r?.data?.session) setTimeout(function () { location.reload(); }, 400);
+            });
+          }
+        } catch (x) {}
       }
     };
   }
@@ -536,7 +714,6 @@
       || (user?.email || '').split('@')[0]
       || 'Гость';
     const popProfile = document.getElementById('shellPopProfile');
-    const popLogout = document.getElementById('shellPopLogout');
 
     function showAvatar(elImg, elFb, url) {
       if (url && elImg) {
@@ -585,10 +762,6 @@
         popProfile.classList.remove('is-hidden');
         popProfile.style.display = 'flex';
       }
-      if (popLogout) {
-        popLogout.classList.remove('is-hidden');
-        popLogout.style.display = 'flex';
-      }
     } else {
       showAvatar(img, fb, null);
       showAvatar(popImg, popFb, null);
@@ -605,19 +778,14 @@
         popProfile.classList.add('is-hidden');
         popProfile.style.display = 'none';
       }
-      if (popLogout) {
-        popLogout.classList.add('is-hidden');
-        popLogout.style.display = 'none';
-      }
     }
   }
 
   function wireProfilePop() {
     const btn = document.getElementById('shellAuthBtn');
-    const pop = document.getElementById('shellProfilePop');
-    const bd = document.getElementById('shellProfileBackdrop');
+    let pop = document.getElementById('shellProfilePop');
     if (!btn || !pop) {
-      console.warn('[shell] profile btn/pop missing', !!btn, !!pop);
+      console.warn('[shell] profile btn/pop missing');
       return;
     }
     if (btn.__shellPopBound) return;
@@ -625,156 +793,125 @@
 
     const root = rootPrefix();
 
+    // Backdrop for mobile — sibling under body, always BELOW the pop
+    let bd = document.getElementById('shellProfileBackdrop');
+    if (!bd) {
+      bd = document.createElement('div');
+      bd.id = 'shellProfileBackdrop';
+      bd.className = 'shell-profile-backdrop is-hidden';
+      bd.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(bd);
+    } else if (bd.parentElement !== document.body) {
+      document.body.appendChild(bd);
+    }
+    // Pop must be after backdrop in DOM for paint order when fixed
+    if (pop.parentElement) {
+      // keep pop where it is for desktop absolute; on mobile CSS makes it fixed
+    }
+
     function isMobile() {
       return window.matchMedia('(max-width: 800px)').matches;
     }
 
-    function placePop() {
-      if (isMobile()) {
-        pop.style.position = 'fixed';
-        pop.style.left = '50%';
-        pop.style.top = '50%';
-        pop.style.right = 'auto';
-        pop.style.transform = 'translate(-50%, -50%)';
-        return;
-      }
-      const r = btn.getBoundingClientRect();
-      pop.style.position = 'fixed';
-      pop.style.top = Math.round(r.bottom + 12) + 'px';
-      pop.style.right = Math.max(12, Math.round(window.innerWidth - r.right)) + 'px';
-      pop.style.left = 'auto';
-      pop.style.transform = 'none';
-      pop.style.zIndex = '5000';
-    }
-
     function openPop() {
-      placePop();
-      pop.classList.remove('is-hidden');
-      pop.classList.add('is-open');
-      // inline force — побеждает любой CSS
-      pop.style.display = 'block';
-      pop.style.visibility = 'visible';
-      pop.style.opacity = '1';
-      pop.style.pointerEvents = 'auto';
-      pop.style.zIndex = '5000';
-      if (bd) {
+      if (isMobile()) {
+        // move to body: fixed inside nav with backdrop-filter is relative to nav
+        if (pop.parentElement !== document.body) {
+          pop.__shellHomeParent = pop.parentElement;
+          document.body.appendChild(pop);
+        }
+        if (bd.parentElement !== document.body) {
+          document.body.appendChild(bd);
+        }
+        document.body.insertBefore(bd, pop);
+        pop.style.cssText = 'position:fixed;left:50%;top:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);z-index:4100;';
+        bd.style.cssText = 'position:fixed;inset:0;z-index:4000;display:block;';
         bd.classList.remove('is-hidden');
-        bd.classList.add('is-open');
-        bd.style.display = isMobile() ? 'block' : 'none';
-        bd.setAttribute('aria-hidden', isMobile() ? 'false' : 'true');
+        requestAnimationFrame(function () { bd.classList.add('is-open'); });
+        bd.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+      } else {
+        if (pop.__shellHomeParent && pop.parentElement === document.body) {
+          pop.__shellHomeParent.appendChild(pop);
+        }
+        pop.style.cssText = '';
+        bd.classList.add('is-hidden');
+        bd.classList.remove('is-open');
+        bd.style.display = 'none';
       }
+      pop.classList.remove('is-hidden');
+      requestAnimationFrame(function () { pop.classList.add('is-open'); });
       try { refreshShellUser(); } catch (e) {}
     }
 
     function closePop() {
       pop.classList.remove('is-open');
-      pop.style.opacity = '0';
-      pop.style.visibility = 'hidden';
-      pop.style.pointerEvents = 'none';
-      if (bd) {
-        bd.classList.remove('is-open');
-        bd.style.display = 'none';
-        bd.setAttribute('aria-hidden', 'true');
-      }
-      setTimeout(() => {
+      bd.classList.remove('is-open');
+      document.body.style.overflow = '';
+      setTimeout(function () {
         if (!pop.classList.contains('is-open')) {
           pop.classList.add('is-hidden');
+          bd.classList.add('is-hidden');
+          bd.setAttribute('aria-hidden', 'true');
+          bd.style.display = 'none';
+          if (pop.__shellHomeParent && pop.parentElement === document.body) {
+            pop.style.cssText = '';
+            pop.__shellHomeParent.appendChild(pop);
+          }
         }
-      }, 180);
+      }, 220);
     }
 
-    window.__shellCloseProfilePop = closePop;
     window.__shellOpenProfilePop = openPop;
+    window.__shellCloseProfilePop = closePop;
 
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (pop.classList.contains('is-open')) closePop();
       else openPop();
-    }, true); // capture — раньше document listener
-
-    bd?.addEventListener('click', (e) => {
-      e.preventDefault();
-      closePop();
     });
 
-    // Настройки — явный переход
-    const settingsLink = pop.querySelector('a.shell-pop-link[href*="settings"]');
-    if (settingsLink) {
-      settingsLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        closePop();
-        location.assign(root + 'settings/settings.html');
-      });
-    }
+    bd.addEventListener('click', () => closePop());
 
-    // Профиль
+    // Settings
+    const settingsLink = pop.querySelector('a.shell-pop-link[href*="settings"]');
+    settingsLink?.addEventListener('click', (e) => {
+      e.preventDefault();
+      closePop();
+      location.assign(root + 'settings/settings.html');
+    });
+
+    // Profile
     document.getElementById('shellPopProfile')?.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       closePop();
-      const goProfilePage = () => location.assign(root + 'profile/profile.html');
-      if (typeof window.openProfileWindow === 'function') {
-        try {
-          window.openProfileWindow();
-          return;
-        } catch (err) {
-          console.warn(err);
+      function tryOpen(n) {
+        if (typeof window.openProfileWindow === 'function') {
+          try { window.openProfileWindow(); return true; } catch (err) {
+            console.warn('[shell] openProfileWindow error', err);
+          }
         }
+        if (n > 0) { setTimeout(function () { tryOpen(n - 1); }, 100); return false; }
+        console.warn('[shell] openProfileWindow missing after retries');
+        return false;
       }
-      // попробовать подгрузить script.js
-      if (!window.__ideanestScriptLoading) {
-        window.__ideanestScriptLoading = true;
-        const sc = document.createElement('script');
-        sc.src = root + 'script.js';
-        sc.onload = () => {
-          setTimeout(() => {
-            if (typeof window.openProfileWindow === 'function') {
-              try { window.openProfileWindow(); } catch (e) { goProfilePage(); }
-            } else goProfilePage();
-          }, 120);
-        };
-        sc.onerror = goProfilePage;
-        document.body.appendChild(sc);
-      } else {
-        setTimeout(() => {
-          if (typeof window.openProfileWindow === 'function') {
-            try { window.openProfileWindow(); } catch (e) { goProfilePage(); }
-          } else goProfilePage();
-        }, 200);
-      }
+      tryOpen(20);
     });
 
     document.getElementById('shellPopLogin')?.addEventListener('click', (e) => {
       e.preventDefault();
-      e.stopPropagation();
       closePop();
       openShellAuth(true);
     });
 
-    document.getElementById('shellPopLogout')?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      try {
-        const db = getDb();
-        if (db) await db.auth.signOut();
-      } catch (err) {}
+    /* logout moved to profile window */
+
+    document.addEventListener('click', (e) => {
+      if (!pop.classList.contains('is-open')) return;
+      if (btn.contains(e.target) || pop.contains(e.target)) return;
       closePop();
-      location.reload();
-    });
-
-    // закрытие по клику снаружи — с задержкой после открытия
-    setTimeout(() => {
-      document.addEventListener('click', (e) => {
-        if (!pop.classList.contains('is-open')) return;
-        if (btn.contains(e.target) || pop.contains(e.target)) return;
-        closePop();
-      });
-    }, 0);
-
-    window.addEventListener('resize', () => {
-      if (pop.classList.contains('is-open')) placePop();
     });
   }
 
@@ -844,10 +981,32 @@
 
       if (goingDark) {
         document.documentElement.setAttribute('data-theme', 'dark');
-        try { localStorage.setItem('ideanest-theme', 'dark'); } catch (e) {}
+        try {
+          localStorage.setItem('ideanest-theme', 'dark');
+          var darkColors = {
+            'accent-primary': '#1a9f4b', 'accent-hover': '#22c55e', 'accent-light': '#143528',
+            'bg-color': '#0c1411', 'bg-muted': '#101a16', 'surface-color': '#15201b',
+            'text-main': '#e8f0ec', 'text-muted': '#8aa399', 'border-color': 'rgba(255,255,255,0.1)'
+          };
+          localStorage.setItem('ideanest_theme', JSON.stringify({ key: 'dark', colors: darkColors }));
+          var rs = document.documentElement.style;
+          Object.keys(darkColors).forEach(function (k) { rs.setProperty('--' + k, darkColors[k]); });
+          rs.setProperty('--accent', '#1a9f4b');
+        } catch (e) {}
       } else {
         document.documentElement.removeAttribute('data-theme');
-        try { localStorage.setItem('ideanest-theme', 'light'); } catch (e) {}
+        try {
+          localStorage.setItem('ideanest-theme', 'light');
+          var lightColors = {
+            'accent-primary': '#1a9f4b', 'accent-hover': '#15803d', 'accent-light': '#e8f8ef',
+            'bg-color': '#f3f6f5', 'bg-muted': '#e8eeeb', 'surface-color': '#ffffff',
+            'text-main': '#0c1411', 'text-muted': '#5a6f66', 'border-color': '#d5e0db'
+          };
+          localStorage.setItem('ideanest_theme', JSON.stringify({ key: 'light', colors: lightColors }));
+          var rs2 = document.documentElement.style;
+          Object.keys(lightColors).forEach(function (k) { rs2.setProperty('--' + k, lightColors[k]); });
+          rs2.setProperty('--accent', '#1a9f4b');
+        } catch (e) {}
       }
       syncIco();
 

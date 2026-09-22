@@ -684,18 +684,36 @@
       const dark = document.documentElement.getAttribute('data-theme') === 'dark';
       if (dark) {
         document.documentElement.removeAttribute('data-theme');
-        try { localStorage.setItem('ideanest-theme', 'light'); } catch (e) {}
+        try {
+          localStorage.setItem('ideanest-theme', 'light');
+          var lightColors = {
+            'accent-primary': '#1a9f4b', 'accent-hover': '#15803d', 'accent-light': '#e8f8ef',
+            'bg-color': '#f3f6f5', 'bg-muted': '#e8eeeb', 'surface-color': '#ffffff',
+            'text-main': '#0c1411', 'text-muted': '#5a6f66', 'border-color': '#d5e0db'
+          };
+          localStorage.setItem('ideanest_theme', JSON.stringify({ key: 'light', colors: lightColors }));
+          var rs = document.documentElement.style;
+          Object.keys(lightColors).forEach(function (k) { rs.setProperty('--' + k, lightColors[k]); });
+        } catch (e) {}
       } else {
         document.documentElement.setAttribute('data-theme', 'dark');
-        try { localStorage.setItem('ideanest-theme', 'dark'); } catch (e) {}
+        try {
+          localStorage.setItem('ideanest-theme', 'dark');
+          var darkColors = {
+            'accent-primary': '#1a9f4b', 'accent-hover': '#22c55e', 'accent-light': '#143528',
+            'bg-color': '#0c1411', 'bg-muted': '#101a16', 'surface-color': '#15201b',
+            'text-main': '#e8f0ec', 'text-muted': '#8aa399', 'border-color': 'rgba(255,255,255,0.1)'
+          };
+          localStorage.setItem('ideanest_theme', JSON.stringify({ key: 'dark', colors: darkColors }));
+          var rs2 = document.documentElement.style;
+          Object.keys(darkColors).forEach(function (k) { rs2.setProperty('--' + k, darkColors[k]); });
+        } catch (e) {}
       }
       setTimeout(() => document.documentElement.classList.remove('theme-animating'), 400);
     };
   }
   bindTheme($('btnTheme'));
-  bindTheme($('shellThemeBtn'));
-  // chrome может вставить кнопку позже
-  setTimeout(() => bindTheme($('shellThemeBtn')), 0);
+  // shellThemeBtn handles theme in shell-chrome.js — do not rebind
 
   // dark theme vars
   const darkCss = document.createElement('style');
