@@ -67,14 +67,35 @@ module.exports = async function handler(req, res) {
 
     const jsonLd = JSON.stringify({
       '@context': 'https://schema.org',
-      '@type': 'Article',
-      headline: article.title || '',
-      description: desc,
-      datePublished: article.created_at || undefined,
-      image: image,
-      author: authorName ? { '@type': 'Person', name: authorName } : undefined,
-      publisher: { '@type': 'Organization', name: 'IdeaNest', url: 'https://ideanest.ru' },
-      mainEntityOfPage: canonical
+      '@graph': [
+        {
+          '@type': 'Article',
+          '@id': canonical + '#article',
+          headline: article.title || '',
+          description: desc,
+          datePublished: article.created_at || undefined,
+          dateModified: article.created_at || undefined,
+          image: image ? [image] : undefined,
+          inLanguage: 'ru-RU',
+          isAccessibleForFree: true,
+          author: authorName ? { '@type': 'Person', name: authorName } : { '@type': 'Organization', name: 'IdeaNest' },
+          publisher: {
+            '@type': 'Organization',
+            name: 'IdeaNest',
+            url: 'https://ideanest.ru',
+            logo: { '@type': 'ImageObject', url: 'https://ideanest.ru/assets/icon-512.png' }
+          },
+          mainEntityOfPage: { '@type': 'WebPage', '@id': canonical }
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://ideanest.ru/' },
+            { '@type': 'ListItem', position: 2, name: 'Статьи', item: 'https://ideanest.ru/articles/' },
+            { '@type': 'ListItem', position: 3, name: article.title || 'Статья', item: canonical }
+          ]
+        }
+      ]
     });
 
     const html = layout({ title, description: desc, canonical, image, bodyHtml, jsonLd });

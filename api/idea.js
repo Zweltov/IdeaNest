@@ -86,11 +86,25 @@ module.exports = async function handler(req, res) {
 
     const jsonLd = JSON.stringify({
       '@context': 'https://schema.org',
-      '@type': 'CreativeWork',
-      name,
-      description: desc,
-      url: canonical,
-      image
+      '@graph': [
+        {
+          '@type': 'WebPage',
+          '@id': canonical,
+          name: idea.title || 'Бизнес-идея',
+          description: desc,
+          url: canonical,
+          inLanguage: 'ru-RU',
+          isPartOf: { '@type': 'WebSite', name: 'IdeaNest', url: 'https://ideanest.ru' }
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Главная', item: 'https://ideanest.ru/' },
+            { '@type': 'ListItem', position: 2, name: 'Идеи', item: 'https://ideanest.ru/ideas/all.html' },
+            { '@type': 'ListItem', position: 3, name: idea.title || 'Идея', item: canonical }
+          ]
+        }
+      ]
     });
 
     const html = layout({ title, description: desc, canonical, image, bodyHtml, jsonLd })
