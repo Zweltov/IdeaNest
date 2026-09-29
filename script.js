@@ -130,12 +130,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const src = img.getAttribute('src') || '';
         if (!img.dataset.orig && (src.includes('logo-dark') || src.includes('logo-light'))) {
           img.dataset.orig = src.includes('logo-light')
-            ? src.replace('logo-light.svg', 'logo-dark.png').replace('logo-light.png', 'logo-dark.png')
+            ? src.replace('logo-dark.png', 'logo-dark.png').replace('logo-dark.png', 'logo-dark.png')
             : src;
         }
         const orig = img.dataset.orig || src;
         if (dark) {
-          const light = orig.replace('logo-dark.png', 'logo-light.svg').replace('logo-dark.svg', 'logo-light.svg');
+          const light = orig.replace('logo-dark.png', 'logo-dark.png').replace('logo-dark.svg', 'logo-dark.png');
           if (img.getAttribute('src') !== light) img.setAttribute('src', light);
           img.style.filter = '';
           img.style.opacity = '';
