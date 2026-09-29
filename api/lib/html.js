@@ -28,11 +28,27 @@ function simpleMarkdown(md) {
     return `\n\n<ul class="proscons-list ${isPros ? 'pros' : 'cons'}">${items}</ul>\n\n`;
   });
 
+  text = text.replace(/:::steps(?:\[([^\]]*)\])?\s*\n([\s\S]*?)\n\s*:::/gi, (_, title, body) => {
+    const parts = String(body).split(/\n(?=###\s)/);
+    let n = 0;
+    const rows = parts.map(part => {
+      const lines = part.trim().split('\n');
+      if (!lines.length) return '';
+      let head = lines[0].replace(/^###\s*/, '').trim();
+      if (!head) return '';
+      n += 1;
+      const rest = lines.slice(1).join(' ').trim();
+      const bodyTxt = rest ? `<div class="md-step-body-text"><span class="md-step-title-inline">${escapeHtml(head)}</span><p>${escapeHtml(rest)}</p></div>` : `<div class="md-step-body-text">${escapeHtml(head)}</div>`;
+      return `<div class="md-step-row"><span class="md-step-num">${n}</span>${bodyTxt}</div>`;
+    }).filter(Boolean).join('');
+    return `\n\n<div class="md-steps-list">${rows}</div>\n\n`;
+  });
+
   text = text.replace(/:::checklist\s*\n([\s\S]*?)\n\s*:::/gi, (_, body) => {
     const items = body.split('\n').map(l => l.trim()).filter(Boolean).map(l => {
       const checked = /^\[x\]/i.test(l);
       const t = l.replace(/^\[[ xX]\]\s*/, '');
-      return `<li class="checklist-item${checked ? ' is-checked' : ''}" data-check><span class="checklist-box" aria-hidden="true"></span><span class="checklist-text">${escapeHtml(t)}</span></li>`;
+      return `<li class="checklist-item" data-check><span class="checklist-box" aria-hidden="true"></span><span class="checklist-text">${escapeHtml(t)}</span></li>`;
     }).join('');
     return `\n\n<ul class="checklist-list is-interactive">${items}</ul>\n\n`;
   });
@@ -163,80 +179,66 @@ function excerpt(text, max = 160) {
   return plain.slice(0, max);
 }
 
-function layout({ title, description, canonical, image, bodyHtml, jsonLd }) {
+function layout({ title, description, canonical, image, bodyHtml, jsonLd, ogType }) {
   const t = escapeHtml(title);
   const d = escapeAttr(description);
   const c = escapeAttr(canonical);
-  const img = escapeAttr(image || 'https://ideanest.ru/assets/logo-dark.png');
-  return `<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${t}</title>
-  <meta name="description" content="${d}" />
-  <link rel="canonical" href="${c}" />
-  <link rel="icon" href="/favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
-  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
-  <link rel="manifest" href="/site.webmanifest" />
-  <meta name="theme-color" content="#1a9f4b" />
-  <meta property="og:type" content="article" />
-  <meta property="og:site_name" content="IdeaNest" />
-  <meta property="og:locale" content="ru_RU" />
-  <meta property="og:title" content="${t}" />
-  <meta property="og:description" content="${d}" />
-  <meta property="og:url" content="${c}" />
-  <meta property="og:image" content="${img}" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${t}" />
-  <meta name="twitter:description" content="${d}" />
-  ${jsonLd ? `<script type="application/ld+json">${jsonLd}</script>` : ''}
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/style.css" />
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-</head>
-<body>
-  <div class="profile-blur-overlay" id="profileBlurOverlay"></div>
-  <header class="navbar">
-    <div class="navbar-container">
-      <a class="brand" href="/">
-        <img src="/assets/logo-dark.png" class="brand-logo" alt="IdeaNest" /> IdeaNest
-      </a>
-      <nav class="nav-links">
-        <a href="/ideas/all.html" class="nav-link">Идеи</a>
-        <a href="/articles/" class="nav-link">Статьи</a>
-      </nav>
-      <div class="navbar-actions">
-        <button class="btn btn-secondary" id="loginBtn" style="display:none;">Войти</button>
-        <div class="profile-wrapper" id="profileWrapper" style="display:none;">
-          <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="topAvatar" class="avatar-img" alt="Профиль">
-          <div class="profile-dropdown" id="profileDropdown">
-            <div class="dropdown-header">
-              <img src="https://ui-avatars.com/api/?name=User&background=000&color=fff" id="dropdownAvatar" class="dropdown-avatar" alt="">
-              <div class="user-info">
-                <span class="user-name" id="userName">Пользователь</span>
-                <span class="user-email" id="userEmail"></span>
-              </div>
-            </div>
-            <div class="dropdown-divider"></div>
-            <a href="#" class="dropdown-item" id="profilePageLink">Профиль</a>
-            <a href="/settings/settings.html" class="dropdown-item">Настройки</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
-  <main class="detail-main detail-main--article" id="articlePage" data-ssr="1">
-${bodyHtml}
-  </main>
-  <script src="/script.js"></script>
-</body>
-</html>`;
+  const img = escapeAttr(image || 'https://ideanest.ru/assets/icon-512.png');
+  const type = ogType || 'article';
+  const ld = jsonLd ? ('<script type="application/ld+json">' + jsonLd + '</script>') : '';
+  return '<!DOCTYPE html>\n'
+    + '<html lang="ru">\n'
+    + '<head>\n'
+    + '<meta charset="UTF-8" />\n'
+    + '<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n'
+    + '<title>' + t + '</title>\n'
+    + '<meta name="description" content="' + d + '" />\n'
+    + '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />\n'
+    + '<meta name="googlebot" content="index, follow, max-image-preview:large" />\n'
+    + '<link rel="canonical" href="' + c + '" />\n'
+    + '<link rel="icon" href="/favicon.ico" sizes="any" />\n'
+    + '<link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png" />\n'
+    + '<link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />\n'
+    + '<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />\n'
+    + '<link rel="manifest" href="/site.webmanifest" />\n'
+    + '<meta name="theme-color" content="#1a9f4b" />\n'
+    + '<meta name="author" content="IdeaNest" />\n'
+    + '<meta property="og:type" content="' + type + '" />\n'
+    + '<meta property="og:site_name" content="IdeaNest" />\n'
+    + '<meta property="og:locale" content="ru_RU" />\n'
+    + '<meta property="og:title" content="' + t + '" />\n'
+    + '<meta property="og:description" content="' + d + '" />\n'
+    + '<meta property="og:url" content="' + c + '" />\n'
+    + '<meta property="og:image" content="' + img + '" />\n'
+    + '<meta name="twitter:card" content="summary_large_image" />\n'
+    + '<meta name="twitter:title" content="' + t + '" />\n'
+    + '<meta name="twitter:description" content="' + d + '" />\n'
+    + '<meta name="twitter:image" content="' + img + '" />\n'
+    + ld + '\n'
+    + '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />\n'
+    + '<link rel="stylesheet" href="/style.css" />\n'
+    + '<link rel="stylesheet" href="/shell.css" />\n'
+    + '<script src="https://unpkg.com/lucide@latest"></script>\n'
+    + '<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n'
+    + '<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>\n'
+    + '<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>\n'
+    + '</head>\n<body>\n'
+    + '<div class="profile-blur-overlay" id="profileBlurOverlay"></div>\n'
+    + '<header class="navbar"><div class="navbar-container">'
+    + '<a class="brand" href="/"><img src="/assets/logo-dark.png" class="brand-logo" alt="IdeaNest" width="32" height="32" /> IdeaNest</a>'
+    + '<nav class="nav-links" aria-label="Main">'
+    + '<a href="/ideas/all.html" class="nav-link">\u0418\u0434\u0435\u0438</a>'
+    + '<a href="/articles/" class="nav-link">\u0421\u0442\u0430\u0442\u044c\u0438</a>'
+    + '<a href="/about" class="nav-link">\u041e \u043f\u0440\u043e\u0435\u043a\u0442\u0435</a></nav>'
+    + '<div class="navbar-actions"></div></div></header>\n'
+    + '<main class="detail-main detail-main--article" id="articlePage" data-ssr="1">\n'
+    + bodyHtml + '\n</main>\n'
+    + '<footer style="max-width:1040px;margin:40px auto 24px;padding:16px;font-size:0.85rem;color:#5a6f66;text-align:center">'
+    + '<a href="/about">\u041e \u043f\u0440\u043e\u0435\u043a\u0442\u0435</a> \u00b7 <a href="/privacy">\u041a\u043e\u043d\u0444\u0438\u0434\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0441\u0442\u044c</a> \u00b7 '
+    + '<a href="/terms">\u0421\u043e\u0433\u043b\u0430\u0448\u0435\u043d\u0438\u0435</a> \u00b7 <a href="/disclaimer">\u0414\u0438\u0441\u043a\u043b\u0435\u0439\u043c\u0435\u0440</a></footer>\n'
+    + '<script src="/script.js"></script>\n'
+    + '<script src="/shell-chrome.js"></script>\n'
+    + '</body></html>';
 }
 
 module.exports = { escapeHtml, escapeAttr, simpleMarkdown, excerpt, layout };
