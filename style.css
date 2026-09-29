@@ -707,7 +707,7 @@ button.dropdown-item {
 
 .infobox-tip { background: rgba(59,130,246,0.08); border-color: #3b82f6; }
 .infobox-tip .infobox-title { color: #3b82f6; }
-.infobox-warning { background: rgba(245,158,11,0.1); border-color: #1a9f4b; }
+.infobox-warning { background: rgba(245,158,11,0.1); border-color: #f59e0b; border-left-color: #f59e0b; }
 .infobox-warning .infobox-title { color: #b45309; }
 .infobox-note { background: rgba(139,92,246,0.08); border-color: #8b5cf6; }
 .infobox-note .infobox-title { color: #7c3aed; }
@@ -5211,7 +5211,8 @@ input:focus, textarea:focus, select:focus {
 
 /* detail heroes softer */
 .article-hero, .idea-hero {
-  border-radius: 0 0 24px 24px;
+  border-radius: 20px !important;
+  overflow: hidden !important;
 }
 
 .site-footer {
@@ -5504,4 +5505,145 @@ input[type="range"] { accent-color: #1a9f4b !important; }
 .theme-card-add,
 .theme-card-delete {
   display: none !important;
+}
+
+
+/* ===== UI fixes: hero corners, warning color, checklist default, steps list ===== */
+.article-hero,
+.idea-hero,
+.article-page-body .article-hero,
+#articleDetailContainer .article-hero,
+#ideaDetailContainer .idea-hero {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+.article-hero-overlay,
+.idea-hero-overlay {
+  border-radius: 20px !important;
+}
+
+.infobox-warning {
+  background: rgba(245, 158, 11, 0.1) !important;
+  border-color: #f59e0b !important;
+  border-left-color: #f59e0b !important;
+}
+.infobox-warning .infobox-title {
+  color: #b45309 !important;
+}
+[data-theme="dark"] .infobox-warning {
+  background: rgba(245, 158, 11, 0.14) !important;
+  border-color: #f59e0b !important;
+}
+[data-theme="dark"] .infobox-warning .infobox-title {
+  color: #fbbf24 !important;
+}
+
+/* Checklist: empty by default (no green fill until user clicks) */
+.checklist-item:not(.is-checked) .checklist-box {
+  background: var(--bg-color, #fff) !important;
+  border-color: color-mix(in srgb, var(--text-muted) 55%, var(--border-color)) !important;
+}
+.checklist-item:not(.is-checked) .checklist-box::after {
+  content: none !important;
+  display: none !important;
+}
+.checklist-item:not(.is-checked) {
+  background: var(--surface-color) !important;
+}
+.checklist-item:not(.is-checked) .checklist-text {
+  text-decoration: none !important;
+  color: var(--text-main) !important;
+}
+
+/* Steps: light card + pill rows inside */
+.md-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 18px 0 22px;
+  max-width: 100%;
+  padding: 18px 16px;
+  border-radius: 20px;
+  background: #f7faf8;
+  border: 1px solid color-mix(in srgb, var(--border-color, #d5e0db) 85%, transparent);
+  box-shadow: 0 1px 3px rgba(12, 20, 17, 0.04);
+}
+[data-theme="dark"] .md-steps-list {
+  background: color-mix(in srgb, var(--surface-color, #15201b) 92%, #000);
+  border-color: rgba(255,255,255,0.08);
+}
+.md-steps-list-label {
+  margin: 0 4px 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted, #5a6f66);
+}
+.md-step-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--border-color, #d5e0db) 70%, transparent);
+  box-shadow: 0 1px 2px rgba(12, 20, 17, 0.03);
+  transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  cursor: default;
+}
+.md-step-row:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent-primary, #1a9f4b) 45%, var(--border-color));
+  box-shadow: 0 8px 20px rgba(12, 20, 17, 0.08);
+  background: color-mix(in srgb, var(--accent-primary, #1a9f4b) 4%, #fff);
+}
+.md-step-num {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #fff;
+  background: var(--accent-primary, #1a9f4b);
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+.md-step-body-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--text-main);
+}
+.md-step-body-text p {
+  margin: 0 0 6px;
+}
+.md-step-body-text p:last-child {
+  margin-bottom: 0;
+}
+.md-step-body-text strong,
+.md-step-title-inline {
+  font-weight: 650;
+  display: block;
+  margin-bottom: 2px;
+}
+[data-theme="dark"] .md-step-row {
+  background: color-mix(in srgb, var(--surface-color, #1a2621) 100%, #fff 4%);
+  border-color: rgba(255,255,255,0.1);
+}
+[data-theme="dark"] .md-step-row:hover {
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-color));
+}
+
+/* hide old wizard chrome if any leftover */
+.md-steps:not(.md-steps-list) .md-steps-header,
+.md-steps:not(.md-steps-list) .md-steps-dots,
+.md-steps:not(.md-steps-list) .md-steps-actions {
+  /* kept for safety if class reused */
 }

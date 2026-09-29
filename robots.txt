@@ -1,4 +1,11 @@
 User-agent: *
 Allow: /
 
+Disallow: /settings/
+Disallow: /profile/
+Disallow: /api/
+
+Disallow: /*?*utm_
+Disallow: /*?*fbclid=
+
 Sitemap: https://ideanest.ru/sitemap.xml

@@ -133,6 +133,10 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="9" r="3.5"/><path d="M5 19.5c1.8-3.2 4.2-4.5 7-4.5s5.2 1.3 7 4.5"/></svg>
                     Профиль
                   </a>
+                  <a class="shell-pop-link is-hidden" id="shellPopFavs" href="${root}index.html#favs">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                    Избранное
+                  </a>
                   <a class="shell-pop-link" href="${root}settings/settings.html">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
                     Настройки
@@ -762,6 +766,11 @@
         popProfile.classList.remove('is-hidden');
         popProfile.style.display = 'flex';
       }
+      const popFavsOn = document.getElementById('shellPopFavs');
+      if (popFavsOn) {
+        popFavsOn.classList.remove('is-hidden');
+        popFavsOn.style.display = 'flex';
+      }
     } else {
       showAvatar(img, fb, null);
       showAvatar(popImg, popFb, null);
@@ -777,6 +786,11 @@
       if (popProfile) {
         popProfile.classList.add('is-hidden');
         popProfile.style.display = 'none';
+      }
+      const popFavsOff = document.getElementById('shellPopFavs');
+      if (popFavsOff) {
+        popFavsOff.classList.add('is-hidden');
+        popFavsOff.style.display = 'none';
       }
     }
   }
@@ -815,7 +829,6 @@
 
     function openPop() {
       if (isMobile()) {
-        // move to body: fixed inside nav with backdrop-filter is relative to nav
         if (pop.parentElement !== document.body) {
           pop.__shellHomeParent = pop.parentElement;
           document.body.appendChild(pop);
@@ -824,23 +837,36 @@
           document.body.appendChild(bd);
         }
         document.body.insertBefore(bd, pop);
-        pop.style.cssText = 'position:fixed;left:50%;top:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);z-index:4100;';
+        pop.style.cssText = 'position:fixed;left:50%;top:50%;right:auto;bottom:auto;transform:translate(-50%,-50%);z-index:4100;width:min(360px,calc(100vw - 40px));max-height:75vh;overflow:auto;';
         bd.style.cssText = 'position:fixed;inset:0;z-index:4000;display:block;';
         bd.classList.remove('is-hidden');
         requestAnimationFrame(function () { bd.classList.add('is-open'); });
         bd.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
       } else {
+        // Desktop: position under avatar (CSS fixed without coords broke this)
         if (pop.__shellHomeParent && pop.parentElement === document.body) {
           pop.__shellHomeParent.appendChild(pop);
         }
-        pop.style.cssText = '';
         bd.classList.add('is-hidden');
         bd.classList.remove('is-open');
         bd.style.display = 'none';
+        var r = btn.getBoundingClientRect();
+        var w = 240;
+        var left = Math.min(window.innerWidth - w - 12, Math.max(12, r.right - w));
+        var top = r.bottom + 8;
+        pop.style.cssText = 'position:fixed;left:' + left + 'px;top:' + top + 'px;right:auto;bottom:auto;z-index:4200;width:' + w + 'px;margin:0;transform:none;';
       }
       pop.classList.remove('is-hidden');
-      requestAnimationFrame(function () { pop.classList.add('is-open'); });
+      pop.style.visibility = 'visible';
+      pop.style.opacity = '1';
+      pop.style.pointerEvents = 'auto';
+      requestAnimationFrame(function () {
+        pop.classList.add('is-open');
+        pop.style.opacity = '1';
+        pop.style.visibility = 'visible';
+        pop.style.pointerEvents = 'auto';
+      });
       try { refreshShellUser(); } catch (e) {}
     }
 
@@ -880,6 +906,13 @@
       e.preventDefault();
       closePop();
       location.assign(root + 'settings/settings.html');
+    });
+
+    // Favorites
+    document.getElementById('shellPopFavs')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      closePop();
+      location.assign(root + 'index.html#favs');
     });
 
     // Profile

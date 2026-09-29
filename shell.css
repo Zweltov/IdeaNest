@@ -5092,3 +5092,99 @@ body.shell-site .page {
   color: #e8f0ec !important;
 }
 [data-theme="dark"] .email-verify-modal h2 { color: #e8f0ec !important; }
+
+
+/* Profile pop — compact rows like Grok menu */
+#shellProfilePop.shell-profile-pop,
+.shell-profile-pop {
+  min-width: 220px !important;
+  padding: 8px !important;
+  border-radius: 14px !important;
+}
+#shellProfilePop .shell-profile-pop-head {
+  padding: 8px 8px 10px !important;
+  gap: 10px !important;
+  margin-bottom: 2px !important;
+}
+#shellProfilePop .shell-pop-ava-wrap,
+#shellProfilePop #shellPopAva {
+  width: 36px !important;
+  height: 36px !important;
+}
+#shellProfilePop .shell-avatar-img,
+#shellProfilePop #shellPopAvaImg {
+  width: 36px !important;
+  height: 36px !important;
+}
+#shellProfilePop .shell-avatar-fallback {
+  width: 36px !important;
+  height: 36px !important;
+}
+#shellProfilePop .shell-avatar-fallback svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+#shellProfilePop .shell-profile-pop-text strong {
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+}
+#shellProfilePop .shell-pop-login-btn {
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 12px !important;
+  font-size: 0.82rem !important;
+}
+#shellProfilePop .shell-profile-pop-body {
+  padding: 4px 0 2px !important;
+  margin-top: 0 !important;
+  border-top: 1px solid rgba(0,0,0,0.06) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px !important;
+}
+[data-theme="dark"] #shellProfilePop .shell-profile-pop-body {
+  border-top-color: rgba(255,255,255,0.08) !important;
+}
+#shellProfilePop .shell-pop-link {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 7px 10px !important;
+  min-height: 0 !important;
+  border-radius: 8px !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  color: inherit !important;
+  text-decoration: none !important;
+}
+#shellProfilePop .shell-pop-link svg {
+  width: 15px !important;
+  height: 15px !important;
+  opacity: 0.7 !important;
+  flex-shrink: 0 !important;
+}
+#shellProfilePop .shell-pop-link:hover {
+  background: rgba(0,0,0,0.05) !important;
+}
+[data-theme="dark"] #shellProfilePop .shell-pop-link:hover {
+  background: rgba(255,255,255,0.07) !important;
+}
+
+
+/* Ensure profile pop opens when is-open */
+#shellProfilePop.shell-profile-pop.is-open,
+.shell-profile-pop.is-open {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+#shellProfilePop.shell-profile-pop.is-hidden:not(.is-open) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.article-hero, .idea-hero { border-radius: 20px !important; overflow: hidden !important; }
+.infobox-warning { border-color: #f59e0b !important; border-left-color: #f59e0b !important; }

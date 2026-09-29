@@ -620,6 +620,11 @@
       await db.auth.signOut();
       openProfile(false);
       await refreshSession();
+  // deep-link to favorites
+  if (location.hash === '#favs' || location.hash === '#favorites') {
+    try { go('favs'); } catch (e) {}
+  }
+
     };
   }
   if ($('btnFavs')) {

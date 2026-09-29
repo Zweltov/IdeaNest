@@ -2867,29 +2867,22 @@ function wireAuthorTagClicks(root) {
           let head = lines[0].replace(/^###\s*/, '').trim();
           if (!head) return;
           const rest = lines.slice(1).join('\n').trim();
-          const bodyHtml = window.marked ? marked.parse(rest, { breaks: true }) : `<p>${rest}</p>`;
+          const bodyHtml = rest
+            ? (window.marked ? marked.parse(rest, { breaks: true }) : '<p>' + rest + '</p>')
+            : '';
           steps.push({ head, bodyHtml });
         });
         if (!steps.length) {
           blocks.push('');
         } else {
-          const nav = steps.map((s, i) =>
-            `<button type="button" class="md-step-dot${i === 0 ? ' active' : ''}" data-step="${i}" aria-label="Шаг ${i + 1}">${i + 1}</button>`
-          ).join('');
-          const panes = steps.map((s, i) =>
-            `<div class="md-step-pane${i === 0 ? ' active' : ''}" data-step-pane="${i}"><h4 class="md-step-title">${s.head}</h4><div class="md-step-body">${s.bodyHtml}</div></div>`
-          ).join('');
-          blocks.push(
-            `<div class="md-steps" data-step-total="${steps.length}">` +
-            `<div class="md-steps-header"><span class="md-steps-label">${title || 'Пошагово'}</span>` +
-            `<span class="md-steps-counter"><span data-step-current>1</span> / ${steps.length}</span></div>` +
-            `<div class="md-steps-dots">${nav}</div>` +
-            `<div class="md-steps-panes">${panes}</div>` +
-            `<div class="md-steps-actions">` +
-            `<button type="button" class="btn btn-secondary md-step-prev" disabled>Назад</button>` +
-            `<button type="button" class="btn btn-primary md-step-next">Далее</button>` +
-            `</div></div>`
-          );
+          const rows = steps.map((s, i) => {
+            const body = s.bodyHtml
+              ? '<div class="md-step-body-text"><span class="md-step-title-inline">' + s.head + '</span>' + s.bodyHtml + '</div>'
+              : '<div class="md-step-body-text">' + s.head + '</div>';
+            return '<div class="md-step-row"><span class="md-step-num" aria-hidden="true">' + (i + 1) + '</span>' + body + '</div>';
+          }).join('');
+          const label = title ? '<p class="md-steps-list-label">' + title + '</p>' : '';
+          blocks.push('<div class="md-steps-list" role="list">' + label + rows + '</div>');
         }
       } else {
         const meta = INFO_BLOCK_TYPES[type];
