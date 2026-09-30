@@ -642,18 +642,77 @@ button.dropdown-item {
 }
 .filter-btn.active:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 
-/* ================= Типографика статьи (Markdown-рендер) ================= */
-.article-body { font-size: 1.05rem; line-height: 1.75; color: var(--text-main); }
-.article-body h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; margin: 32px 0 16px; line-height: 1.25; }
-.article-body h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; margin: 28px 0 14px; line-height: 1.3; }
-.article-body h3 { font-size: 1.2rem; font-weight: 700; margin: 22px 0 10px; }
-.article-body h1:first-child, .article-body h2:first-child, .article-body h3:first-child { margin-top: 0; }
-.article-body p { margin: 0 0 16px; }
-.article-body strong { font-weight: 700; }
+/* ================= Типографика статьи (Sber-like reading) ================= */
+.article-body {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 1.125rem; /* 18px */
+  line-height: 1.7;
+  color: var(--text-main);
+  letter-spacing: -0.011em;
+  max-width: 42rem; /* ~672px comfortable measure */
+}
+.article-page-body .article-body,
+#articleDetailContainer .article-body {
+  max-width: 42rem;
+}
+.article-body h1 {
+  font-size: clamp(1.75rem, 2.2vw + 1rem, 2.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 2.25rem 0 1rem;
+  line-height: 1.2;
+  color: var(--text-main);
+}
+.article-body h2 {
+  font-size: clamp(1.35rem, 1.2vw + 1rem, 1.625rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 2.1rem 0 0.85rem;
+  line-height: 1.28;
+  color: var(--text-main);
+}
+.article-body h3 {
+  font-size: 1.2rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin: 1.6rem 0 0.65rem;
+  line-height: 1.35;
+  color: var(--text-main);
+}
+.article-body h4 {
+  font-size: 1.05rem;
+  font-weight: 650;
+  margin: 1.35rem 0 0.5rem;
+  letter-spacing: -0.015em;
+}
+.article-body h1:first-child,
+.article-body h2:first-child,
+.article-body h3:first-child { margin-top: 0; }
+.article-body p {
+  margin: 0 0 1.15rem;
+  font-size: inherit;
+  line-height: inherit;
+}
+.article-body strong { font-weight: 650; }
 .article-body em { font-style: italic; }
-.article-body ul, .article-body ol { margin: 0 0 16px; padding-left: 24px; }
-.article-body li { margin-bottom: 6px; }
-.article-body a { color: var(--accent-primary); text-decoration: underline; text-underline-offset: 2px; }
+.article-body ul, .article-body ol {
+  margin: 0 0 1.15rem;
+  padding-left: 1.35rem;
+}
+.article-body li {
+  margin-bottom: 0.45rem;
+  line-height: 1.65;
+  padding-left: 0.15rem;
+}
+.article-body li::marker { color: var(--text-muted); }
+.article-body a {
+  color: var(--accent-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  transition: color 0.15s ease;
+}
+.article-body a:hover { color: var(--accent-hover); }
 .article-body blockquote {
   margin: 0 0 16px;
   padding: 4px 18px;
@@ -1749,48 +1808,88 @@ button.dropdown-item {
 }
 
 /* ==========================================================================
-   FAQ — единая "плашка"-аккордеон
+   FAQ — цельный аккордеон (Sber-like)
    ========================================================================== */
 .faq-card {
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  margin-top: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  margin: 2.5rem 0 1.5rem;
+  max-width: 42rem;
 }
 .faq-card-title {
-  font-size: 1.05rem;
+  font-size: 1.625rem;
   font-weight: 700;
-  padding: 18px 20px;
+  letter-spacing: -0.025em;
+  padding: 0 0 1rem;
+  margin: 0;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+.faq-item {
   border-bottom: 1px solid var(--border-color);
 }
-.faq-item { border-bottom: 1px solid var(--border-color); }
-.faq-item:last-child { border-bottom: none; }
+.faq-item:last-child { border-bottom: 1px solid var(--border-color); }
 .faq-question {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 20px;
+  gap: 16px;
+  padding: 1.15rem 0;
   background: none;
   border: none;
   cursor: pointer;
   text-align: left;
-  font-size: 0.92rem;
+  font-family: inherit;
+  font-size: 1.05rem;
   font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.4;
   color: var(--text-main);
+  transition: color 0.2s ease;
 }
-.faq-question i { width: 18px; height: 18px; color: var(--text-muted); flex-shrink: 0; transition: transform 0.25s var(--ease-smooth); }
-.faq-item.open .faq-question i { transform: rotate(180deg); }
+.faq-question:hover { color: var(--accent-primary); }
+.faq-question span { flex: 1; min-width: 0; }
+.faq-question i,
+.faq-question .faq-chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.faq-item.open .faq-question i,
+.faq-item.open .faq-question .faq-chevron {
+  transform: rotate(180deg);
+  color: var(--accent-primary);
+}
 .faq-answer {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s var(--ease-smooth), padding 0.3s var(--ease-smooth);
-  padding: 0 20px;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.faq-item.open .faq-answer { max-height: 400px; padding: 0 20px 18px; }
-.faq-answer p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.65; }
+.faq-answer-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+.faq-item.open .faq-answer {
+  grid-template-rows: 1fr;
+}
+.faq-answer p,
+.faq-answer-inner p {
+  margin: 0 0 1.15rem;
+  padding: 0;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  letter-spacing: -0.011em;
+  color: var(--text-muted);
+}
+.faq-answer-inner > :last-child { margin-bottom: 1.15rem; }
+
+/* Markdown :::faq block uses same classes */
+.article-body .faq-card { max-width: 100%; }
 
 /* ==========================================================================
    Похожие статьи — карточки в конце страницы статьи
@@ -5646,4 +5745,36 @@ input[type="range"] { accent-color: #1a9f4b !important; }
 .md-steps:not(.md-steps-list) .md-steps-dots,
 .md-steps:not(.md-steps-list) .md-steps-actions {
   /* kept for safety if class reused */
+}
+
+
+/* Article meta / lead under hero — readable like body */
+.article-page-body > p,
+#articleDetailContainer > p,
+.article-lead,
+.article-meta-block {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  letter-spacing: -0.01em;
+  color: var(--text-muted);
+  max-width: 42rem;
+}
+.article-page-body .idea-pill-row {
+  margin-bottom: 1.25rem;
+}
+.article-body .infobox-body,
+.article-body .infobox-body p {
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+.article-body table {
+  font-size: 1rem;
+}
+@media (max-width: 640px) {
+  .article-body {
+    font-size: 1.0625rem;
+    line-height: 1.68;
+  }
+  .faq-question { font-size: 1rem; padding: 1rem 0; }
+  .faq-answer p, .faq-answer-inner p { font-size: 1rem; }
 }

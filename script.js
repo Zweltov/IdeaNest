@@ -2803,7 +2803,7 @@ function wireAuthorTagClicks(root) {
   function extractInfoBlocks(text) {
     const blocks = [];
     // Интерактив: spoiler / accordion / tabs + старые типы
-    const cleaned = text.replace(/:::(tip|warning|note|success|danger|pros|cons|checklist|spoiler|accordion|tabs|steps)\s*(?:\[([^\]]*)\])?\s*\r?\n([\s\S]*?)\r?\n?[ \t]*:::/g, (m, type, titleArg, body) => {
+    const cleaned = text.replace(/:::(tip|warning|note|success|danger|pros|cons|checklist|spoiler|accordion|tabs|steps|faq)\s*(?:\[([^\]]*)\])?\s*\r?\n([\s\S]*?)\r?\n?[ \t]*:::/g, (m, type, titleArg, body) => {
       const idx = blocks.length;
       const title = (titleArg || '').trim();
       if (type === 'pros' || type === 'cons') {
@@ -2823,7 +2823,31 @@ function wireAuthorTagClicks(root) {
         const label = title || 'Показать подробности';
         const bodyHtml = window.marked ? marked.parse(body.trim(), { breaks: true }) : `<p>${body.trim()}</p>`;
         blocks.push(`<details class="md-spoiler"><summary class="md-spoiler-summary"><i data-lucide="chevron-right"></i><span>${label}</span></summary><div class="md-spoiler-body">${bodyHtml}</div></details>`);
+      } else if (type === 'faq') {
+        // :::faq — вопросы ### Вопрос \n ответ
+        const parts = body.split(/\n(?=###\s)/);
+        let itemsHtml = '';
+        let idx = 0;
+        parts.forEach(part => {
+          const lines = part.trim().split('\n');
+          if (!lines.length) return;
+          let head = lines[0].replace(/^###\s*/, '').trim();
+          if (!head) return;
+          const rest = lines.slice(1).join('\n').trim();
+          const bodyHtml = rest
+            ? (window.marked ? marked.parse(rest, { breaks: true }) : '<p>' + rest + '</p>')
+            : '';
+          itemsHtml += '<div class="faq-item" data-faq-index="' + (idx++) + '">'
+            + '<button type="button" class="faq-question" aria-expanded="false"><span>' + head + '</span>'
+            + '<i data-lucide="chevron-down" class="faq-chevron" aria-hidden="true"></i></button>'
+            + '<div class="faq-answer" role="region"><div class="faq-answer-inner">' + (bodyHtml || '<p></p>') + '</div></div></div>';
+        });
+        if (itemsHtml) {
+          const title = (titleArg && String(titleArg).trim()) || 'FAQ';
+          blocks.push('<div class="faq-card"><h2 class="faq-card-title">' + title + '</h2>' + itemsHtml + '</div>');
+        }
       } else if (type === 'accordion') {
+
         // секции: ### Заголовок\nтекст
         const parts = body.split(/\n(?=###\s)/);
         let itemsHtml = '';
@@ -3249,6 +3273,7 @@ function wireAuthorTagClicks(root) {
     });
 
     // Accordion
+    root.querySelectorAll('.faq-card').forEach(card => wireFaqCard(card));
     root.querySelectorAll('.md-acc-head').forEach(btn => {
       btn.addEventListener('click', () => {
         const item = btn.closest('.md-acc-item');
@@ -3474,24 +3499,37 @@ function wireAuthorTagClicks(root) {
     if (!Array.isArray(faqItems) || !faqItems.length) return '';
     const rows = faqItems.map((item, idx) => `
       <div class="faq-item" data-faq-index="${idx}">
-        <button type="button" class="faq-question">
+        <button type="button" class="faq-question" aria-expanded="false">
           <span>${item.question || ''}</span>
-          <i data-lucide="chevron-down"></i>
+          <i data-lucide="chevron-down" class="faq-chevron" aria-hidden="true"></i>
         </button>
-        <div class="faq-answer"><p>${item.answer || ''}</p></div>
+        <div class="faq-answer" role="region">
+          <div class="faq-answer-inner"><p>${item.answer || ''}</p></div>
+        </div>
       </div>`).join('');
-    return `<div class="faq-card"><div class="faq-card-title">Частые вопросы</div>${rows}</div>`;
+    return `<div class="faq-card"><h2 class="faq-card-title">FAQ</h2>${rows}</div>`;
   }
 
   function wireFaqCard(container) {
     if (!container) return;
     container.querySelectorAll('.faq-item').forEach(item => {
-      item.querySelector('.faq-question').addEventListener('click', () => {
+      const btn = item.querySelector('.faq-question');
+      if (!btn || btn.dataset.faqWired === '1') return;
+      btn.dataset.faqWired = '1';
+      btn.addEventListener('click', () => {
         const isOpen = item.classList.contains('open');
-        container.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
-        if (!isOpen) item.classList.add('open');
+        container.querySelectorAll('.faq-item.open').forEach(i => {
+          i.classList.remove('open');
+          const b = i.querySelector('.faq-question');
+          if (b) b.setAttribute('aria-expanded', 'false');
+        });
+        if (!isOpen) {
+          item.classList.add('open');
+          btn.setAttribute('aria-expanded', 'true');
+        }
       });
     });
+    if (window.lucide) try { lucide.createIcons({ nodes: [container] }); } catch (e) {}
   }
 
   // ---------- Похожие статьи: карточки в конце страницы ----------
