@@ -5948,3 +5948,100 @@ body.shell-site > .detail-main,
   width: 100%;
   max-width: 100%;
 }
+
+
+/* ========== Article TOC (auto from H2/H3, Sber-like) ========== */
+.article-with-toc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  align-items: start;
+}
+main.has-article-toc.detail-main,
+main.has-article-toc.detail-main--article,
+.shell-site main.has-article-toc.detail-main,
+.shell-site main.has-article-toc.detail-main--article,
+#articlePage.has-article-toc,
+#articleDetailContainer.has-article-toc {
+  max-width: 1100px !important;
+}
+@media (min-width: 960px) {
+  .article-with-toc {
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 40px;
+  }
+  .article-toc-aside:not([hidden]) {
+    display: block;
+  }
+}
+.article-toc-aside[hidden] {
+  display: none !important;
+}
+.article-toc {
+  position: sticky;
+  top: 96px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--border-color, #e4ebe7);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  scrollbar-width: thin;
+}
+.article-toc-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #5a6b64);
+  margin-bottom: 10px;
+}
+.article-toc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.article-toc-link {
+  display: block;
+  color: var(--text-muted, #5a6b64);
+  text-decoration: none;
+  padding: 6px 0 6px 0;
+  border-radius: 0;
+  transition: color 0.15s ease, opacity 0.15s ease;
+  word-break: break-word;
+}
+.article-toc-link--h3 {
+  padding-left: 12px;
+  font-size: 0.82rem;
+  opacity: 0.92;
+}
+.article-toc-link:hover {
+  color: var(--text-main, #0f1714);
+}
+.article-toc-link.is-active {
+  color: var(--accent-primary, #1a9f4b);
+  font-weight: 600;
+}
+[data-theme="dark"] .article-toc {
+  border-left-color: rgba(255,255,255,0.12);
+}
+[data-theme="dark"] .article-toc-link:hover {
+  color: #e8f0ec;
+}
+[data-theme="dark"] .article-toc-link.is-active {
+  color: var(--accent-primary, #22c55e);
+}
+@media (max-width: 959px) {
+  .article-toc-aside {
+    display: none !important;
+  }
+  .article-with-toc {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* scroll offset under sticky navbar */
+.article-body h2,
+.article-body h3 {
+  scroll-margin-top: 100px;
+}
