@@ -1,3 +1,60 @@
+
+/* ===== SB Sans (как developers.sber.ru) + fallback ===== */
+@font-face {
+  font-family: "SB Sans Text";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansText/SBSansText-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Text";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansText/SBSansText-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Text";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansText/SBSansText-Semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Text";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansText/SBSansText-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Display";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansDisplay/SBSansDisplay-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Display";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansDisplay/SBSansDisplay-Semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Display";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansDisplay/SBSansDisplay-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-sans: "SB Sans Text", Roboto, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "SB Sans Display", "SB Sans Text", Roboto, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
 :root {
   /* Палитра «финтех / Сбер-like» — спокойный зелёный */
   --bg-color: #f3f6f5;
@@ -37,7 +94,7 @@ html {
   height: 100%;
 }
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--bg-color);
   color: var(--text-main);
   line-height: 1.5;
@@ -644,7 +701,7 @@ button.dropdown-item {
 
 /* ================= Типографика статьи (Sber-like reading) ================= */
 .article-body {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
   font-size: 1.125rem; /* 18px */
   line-height: 1.7;
   color: var(--text-main);
@@ -6357,4 +6414,128 @@ main.has-article-toc.detail-main--article {
 .article-toc-chevron {
   display: inline-block;
   transition: transform 0.25s ease;
+}
+
+
+/* sb-font-force */
+html, body, button, input, select, textarea {
+  font-family: var(--font-sans) !important;
+}
+h1, h2, h3, h4, h5, h6,
+.idea-hero-title,
+.article-body h1,
+.article-body h2,
+.article-body h3,
+.shell-nav,
+.brand-name {
+  font-family: var(--font-display) !important;
+}
+.article-body {
+  font-family: var(--font-sans) !important;
+}
+
+
+/* ===== TOC Sber polish ===== */
+.article-toc-list { position: relative; }
+.article-toc-indicator {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 44px;
+  border-radius: 0 10px 10px 0;
+  background: #f0f1f3;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  will-change: transform, height;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+              height 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.2s ease;
+}
+.article-toc-indicator::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 10px; bottom: 10px;
+  width: 3px;
+  border-radius: 3px;
+  background: #9ca3af;
+}
+[data-theme="dark"] .article-toc-indicator {
+  background: rgba(255,255,255,0.08);
+}
+.article-toc-link {
+  position: relative;
+  z-index: 1;
+  font-size: 0.95rem !important;
+  padding: 12px 16px 12px 14px !important;
+  border-radius: 0 10px 10px 0;
+  transition: background 0.12s ease, color 0.12s ease !important;
+  background: transparent !important;
+}
+.article-toc-link:hover {
+  background: #f5f5f6 !important;
+  color: #111827 !important;
+}
+.article-toc-link.is-active {
+  background: transparent !important;
+  color: #111827 !important;
+  font-weight: 600 !important;
+}
+.article-toc-link.is-active::after { display: none !important; }
+.article-toc-label { font-size: 0.95rem !important; }
+.article-toc-preview { font-size: 0.78rem !important; }
+.article-toc-link--h3 {
+  font-size: 0.9rem !important;
+  padding-left: 22px !important;
+}
+.article-toc-link.toc-extra {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition:
+    max-height 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s ease,
+    padding 0.3s ease,
+    transform 0.3s ease !important;
+}
+.article-toc:not(.is-collapsed) .article-toc-link.toc-extra {
+  max-height: 140px;
+  opacity: 1;
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+[data-theme="dark"] .article-toc-link:hover {
+  background: rgba(255,255,255,0.06) !important;
+  color: #f3f4f6 !important;
+}
+[data-theme="dark"] .article-toc-link.is-active { color: #f9fafb !important; }
+
+html {
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+.article-main-col {
+  max-width: min(760px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.article-toc-fixed {
+  width: min(280px, 22vw);
+  right: max(8px, env(safe-area-inset-right, 0px));
+}
+@media (max-width: 1100px) {
+  .article-toc-fixed { display: none !important; }
+}
+@media (min-width: 1101px) and (max-width: 1280px) {
+  .article-toc-fixed { width: 220px; right: 6px; }
+  .article-toc-label { font-size: 0.88rem !important; }
 }

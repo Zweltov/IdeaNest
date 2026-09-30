@@ -4058,7 +4058,7 @@ function wireAuthorTagClicks(root) {
       });
     });
     if (items.length < 2) return { html: '', count: items.length };
-    const COLLAPSE_AFTER = 7;
+    const COLLAPSE_AFTER = 4;
     const links = items.map((it, idx) => {
       const extra = idx >= COLLAPSE_AFTER ? ' toc-extra' : '';
       const prev = it.preview
@@ -4080,9 +4080,20 @@ function wireAuthorTagClicks(root) {
 
   function wireArticleToc(root) {
     if (!root) return;
-    const toc = root.querySelector('.article-toc') || document.querySelector('.article-toc');
+    const toc = document.querySelector('.article-toc-fixed .article-toc') || root.querySelector('.article-toc') || document.querySelector('.article-toc');
     const body = root.querySelector('.article-body');
     if (!toc || !body) return;
+
+    const list = toc.querySelector('.article-toc-list');
+    if (list && !list.querySelector('.article-toc-indicator')) {
+      const ind = document.createElement('div');
+      ind.className = 'article-toc-indicator';
+      ind.setAttribute('aria-hidden', 'true');
+      list.style.position = 'relative';
+      list.insertBefore(ind, list.firstChild);
+    }
+    const indicator = toc.querySelector('.article-toc-indicator');
+
     const links = Array.from(toc.querySelectorAll('.article-toc-link'));
     const map = links.map((a) => {
       const id = a.getAttribute('data-toc-id');
@@ -4090,8 +4101,22 @@ function wireAuthorTagClicks(root) {
       return { a, el };
     }).filter((x) => x.el);
 
+    const moveIndicator = (activeLink) => {
+      if (!indicator || !list || !activeLink) {
+        if (indicator) indicator.style.opacity = '0';
+        return;
+      }
+      const lr = activeLink.getBoundingClientRect();
+      const pr = list.getBoundingClientRect();
+      const top = lr.top - pr.top + list.scrollTop;
+      indicator.style.opacity = '1';
+      indicator.style.transform = 'translateY(' + top + 'px)';
+      indicator.style.height = lr.height + 'px';
+    };
+
     const more = toc.querySelector('[data-toc-more]');
-    if (more) {
+    if (more && !more.dataset.wired) {
+      more.dataset.wired = '1';
       more.addEventListener('click', () => {
         const willOpen = toc.classList.contains('is-collapsed');
         toc.classList.toggle('is-collapsed', !willOpen);
@@ -4099,10 +4124,13 @@ function wireAuthorTagClicks(root) {
         more.innerHTML = willOpen
           ? 'Свернуть <span class="article-toc-chevron">▴</span>'
           : 'Развернуть <span class="article-toc-chevron">▾</span>';
+        requestAnimationFrame(() => moveIndicator(toc.querySelector('.article-toc-link.is-active')));
       });
     }
 
     links.forEach((a) => {
+      if (a.dataset.tocClick) return;
+      a.dataset.tocClick = '1';
       a.addEventListener('click', (e) => {
         const id = a.getAttribute('data-toc-id');
         const el = id && document.getElementById(id);
@@ -4110,12 +4138,15 @@ function wireAuthorTagClicks(root) {
         e.preventDefault();
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         history.replaceState(null, '', '#' + id);
+        links.forEach((x) => x.classList.remove('is-active'));
+        a.classList.add('is-active');
+        moveIndicator(a);
       });
     });
 
     let ticking = false;
     const setActive = () => {
-      const y = window.scrollY + 140;
+      const y = window.scrollY + Math.min(160, window.innerHeight * 0.22);
       let current = map[0];
       for (const item of map) {
         const top = item.el.getBoundingClientRect().top + window.scrollY;
@@ -4131,6 +4162,7 @@ function wireAuthorTagClicks(root) {
             more.innerHTML = 'Свернуть <span class="article-toc-chevron">▴</span>';
           }
         }
+        moveIndicator(current.a);
       }
       ticking = false;
     };
@@ -4142,8 +4174,10 @@ function wireAuthorTagClicks(root) {
     };
     setActive();
     window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', () => {
+      moveIndicator(toc.querySelector('.article-toc-link.is-active'));
+    }, { passive: true });
   }
-
 
   async function initArticleDetailPage(container) {
     const params = new URLSearchParams(window.location.search);

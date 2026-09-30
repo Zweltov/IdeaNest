@@ -14,7 +14,7 @@
   --radius: 24px;
   --radius-sm: 16px;
   --shadow: 0 12px 40px rgba(13, 41, 31, 0.06);
-  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --font: var(--font-sans), system-ui, -apple-system, sans-serif;
   --max: 1040px;
 }
 
