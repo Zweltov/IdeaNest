@@ -4016,17 +4016,20 @@ function wireAuthorTagClicks(root) {
   }
 
   /** Авто-оглавление из H2/H3 внутри .article-body (как sidebar на developers.sber.ru) */
-  function buildArticleToc(articleBody) {
+  function buildArticleToc(articleBody, pageTitle) {
     if (!articleBody) return { html: '', count: 0 };
     const heads = articleBody.querySelectorAll('h2, h3');
     const used = new Set();
     const items = [];
+    const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const titleN = norm(pageTitle);
     heads.forEach((h) => {
       const text = (h.textContent || '').trim();
       if (!text || text.length < 2) return;
-      // не тащим служебные заголовки
-      const low = text.toLowerCase();
-      if (low === 'faq' || low === 'частые вопросы') return;
+      const low = norm(text);
+      if (low === 'faq' || low === 'частые вопросы' || low === 'содержание') return;
+      // не дублируем H1/title страницы в TOC
+      if (titleN && (low === titleN || titleN.startsWith(low.slice(0, 40)) || low.startsWith(titleN.slice(0, 40)))) return;
       if (!h.id) h.id = slugifyHeading(text, used);
       else used.add(h.id);
       items.push({
@@ -4036,13 +4039,19 @@ function wireAuthorTagClicks(root) {
       });
     });
     if (items.length < 2) return { html: '', count: items.length };
-    const links = items.map((it) =>
-      `<a class="article-toc-link article-toc-link--h${it.level}" href="#${it.id}" data-toc-id="${it.id}">${it.text}</a>`
-    ).join('');
+    const COLLAPSE_AFTER = 8;
+    const links = items.map((it, idx) => {
+      const extra = idx >= COLLAPSE_AFTER ? ' toc-extra' : '';
+      return `<a class="article-toc-link article-toc-link--h${it.level}${extra}" href="#${it.id}" data-toc-id="${it.id}">${it.text}</a>`;
+    }).join('');
+    const moreBtn = items.length > COLLAPSE_AFTER
+      ? `<button type="button" class="article-toc-more" data-toc-more>Развернуть ▾</button>`
+      : '';
+    const collapsed = items.length > COLLAPSE_AFTER ? ' is-collapsed' : '';
     const html =
-      `<nav class="article-toc" aria-label="Содержание статьи">` +
-      `<div class="article-toc-title">Содержание</div>` +
+      `<nav class="article-toc${collapsed}" aria-label="Содержание статьи">` +
       `<div class="article-toc-list">${links}</div>` +
+      moreBtn +
       `</nav>`;
     return { html, count: items.length };
   }
@@ -4059,6 +4068,20 @@ function wireAuthorTagClicks(root) {
       return { a, el };
     }).filter((x) => x.el);
 
+    const more = toc.querySelector('[data-toc-more]');
+    if (more) {
+      more.addEventListener('click', () => {
+        const open = !toc.classList.contains('is-collapsed');
+        if (open) {
+          toc.classList.add('is-collapsed');
+          more.textContent = 'Развернуть ▾';
+        } else {
+          toc.classList.remove('is-collapsed');
+          more.textContent = 'Свернуть ▴';
+        }
+      });
+    }
+
     links.forEach((a) => {
       a.addEventListener('click', (e) => {
         const id = a.getAttribute('data-toc-id');
@@ -4070,17 +4093,33 @@ function wireAuthorTagClicks(root) {
       });
     });
 
+    let ticking = false;
     const setActive = () => {
-      const y = window.scrollY + 120;
+      const y = window.scrollY + 140;
       let current = map[0];
       for (const item of map) {
-        if (item.el.offsetTop <= y) current = item;
+        const top = item.el.getBoundingClientRect().top + window.scrollY;
+        if (top <= y) current = item;
       }
       links.forEach((a) => a.classList.remove('is-active'));
-      if (current) current.a.classList.add('is-active');
+      if (current) {
+        current.a.classList.add('is-active');
+        // если активный пункт скрыт в collapsed — раскрыть
+        if (current.a.classList.contains('toc-extra') && toc.classList.contains('is-collapsed')) {
+          toc.classList.remove('is-collapsed');
+          if (more) more.textContent = 'Свернуть ▴';
+        }
+      }
+      ticking = false;
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(setActive);
+      }
     };
     setActive();
-    window.addEventListener('scroll', setActive, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
   }
 
   async function initArticleDetailPage(container) {
@@ -4188,7 +4227,19 @@ function wireAuthorTagClicks(root) {
     const articleBodyEl = container.querySelector('.article-body');
     if (articleBodyEl) {
       wireArticleBodyInteractivity(articleBodyEl);
-      const tocBuilt = buildArticleToc(articleBodyEl);
+
+    // Обернуть таблицы для горизонтального скролла без обрезки
+    if (articleBodyEl) {
+      articleBodyEl.querySelectorAll('table').forEach((table) => {
+        if (table.parentElement && table.parentElement.classList.contains('md-table-wrap')) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'md-table-wrap';
+        table.parentNode.insertBefore(wrap, table);
+        wrap.appendChild(table);
+      });
+    }
+
+      const tocBuilt = buildArticleToc(articleBodyEl, article.title || "");
       const aside = document.getElementById('articleTocAside');
       if (aside && tocBuilt.count >= 2) {
         aside.innerHTML = tocBuilt.html;

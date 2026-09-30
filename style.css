@@ -6045,3 +6045,189 @@ main.has-article-toc.detail-main--article,
 .article-body h3 {
   scroll-margin-top: 100px;
 }
+
+
+/* ===== TOC Sber-like + table fix (final) ===== */
+.shell-site main.detail-main--article.has-article-toc,
+.shell-site #articleDetailContainer.has-article-toc,
+main.has-article-toc.detail-main--article {
+  max-width: 1120px !important;
+  overflow: visible !important;
+}
+.article-with-toc {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
+  align-items: start !important;
+  overflow: visible !important;
+}
+@media (min-width: 1000px) {
+  .article-with-toc {
+    grid-template-columns: minmax(0, 1fr) 260px !important;
+    gap: 32px !important;
+  }
+}
+.article-main-col {
+  min-width: 0;
+  overflow: visible;
+}
+.article-toc-aside {
+  position: relative;
+  overflow: visible !important;
+}
+.article-toc-aside[hidden] { display: none !important; }
+@media (min-width: 1000px) {
+  .article-toc-aside:not([hidden]) {
+    display: block !important;
+  }
+}
+@media (max-width: 999px) {
+  .article-toc-aside { display: none !important; }
+}
+
+.article-toc {
+  position: sticky !important;
+  top: 88px !important;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 !important;
+  border-left: 1px solid #e5e7eb !important;
+  background: transparent !important;
+  scrollbar-width: thin;
+}
+.article-toc-title {
+  display: none !important; /* у Сбера часто без заголовка "Содержание" над списком, только пункты */
+}
+.article-toc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+.article-toc-link {
+  position: relative;
+  display: block;
+  margin: 0;
+  padding: 10px 16px 10px 14px !important;
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+  line-height: 1.35 !important;
+  color: #6b7280 !important;
+  text-decoration: none !important;
+  border-radius: 0 8px 8px 0;
+  border: none !important;
+  background: transparent !important;
+  transition: background 0.2s ease, color 0.2s ease;
+  word-break: break-word;
+}
+.article-toc-link--h3 {
+  padding-left: 26px !important;
+  font-size: 0.8125rem !important;
+}
+.article-toc-link:hover {
+  color: #111827 !important;
+  background: transparent !important;
+}
+/* Active: серая плашка + серая полоска справа (как Сбер) */
+.article-toc-link.is-active {
+  color: #111827 !important;
+  font-weight: 500 !important;
+  background: #f3f4f6 !important;
+}
+.article-toc-link.is-active::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 3px;
+  background: #9ca3af;
+}
+[data-theme="dark"] .article-toc {
+  border-left-color: rgba(255,255,255,0.12) !important;
+}
+[data-theme="dark"] .article-toc-link {
+  color: #9ca3af !important;
+}
+[data-theme="dark"] .article-toc-link:hover {
+  color: #f3f4f6 !important;
+}
+[data-theme="dark"] .article-toc-link.is-active {
+  color: #f9fafb !important;
+  background: rgba(255,255,255,0.08) !important;
+}
+[data-theme="dark"] .article-toc-link.is-active::after {
+  background: #6b7280;
+}
+
+.article-toc-more {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  color: #6b7280;
+  text-align: left;
+}
+.article-toc-more:hover { color: #111827; }
+.article-toc.is-collapsed .article-toc-link.toc-extra {
+  display: none;
+}
+
+/* Tables: no crop, horizontal scroll inside wrap */
+.article-body .md-table-wrap {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 16px 0 24px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border-color, #e5e7eb) 90%, transparent);
+  background: color-mix(in srgb, var(--accent-primary, #1a9f4b) 6%, #fff);
+}
+[data-theme="dark"] .article-body .md-table-wrap {
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--surface-color, #1a1a1a));
+}
+.article-body table,
+.article-body .md-table {
+  display: table !important;
+  width: 100% !important;
+  min-width: 640px;
+  margin: 0 !important;
+  border-collapse: collapse !important;
+  border: none !important;
+  background: transparent !important;
+  font-size: 0.95rem !important;
+  white-space: normal !important;
+  table-layout: auto;
+}
+.article-body th,
+.article-body td,
+.article-body .md-table th,
+.article-body .md-table td {
+  padding: 12px 14px !important;
+  white-space: normal !important;
+  vertical-align: top !important;
+  text-align: left !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  color: #111827 !important;
+  font-size: 0.95rem !important;
+  line-height: 1.4 !important;
+}
+[data-theme="dark"] .article-body th,
+[data-theme="dark"] .article-body td {
+  color: #e8f0ec !important;
+  border-bottom-color: rgba(255,255,255,0.1) !important;
+}
+.article-body th {
+  font-weight: 700 !important;
+  background: rgba(0,0,0,0.03) !important;
+}
