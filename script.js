@@ -4015,7 +4015,26 @@ function wireAuthorTagClicks(root) {
     return id;
   }
 
-  /** Авто-оглавление из H2/H3 внутри .article-body (как sidebar на developers.sber.ru) */
+  function tocSectionPreview(headingEl) {
+    let node = headingEl.nextElementSibling;
+    let text = '';
+    while (node && !/^H[1-3]$/.test(node.tagName || '')) {
+      if (node.matches && (node.matches('p, li, div') || node.tagName === 'P')) {
+        text += ' ' + (node.textContent || '');
+      } else if (node.textContent && !node.querySelector?.('table, .faq-card, .biz-calc')) {
+        const t = (node.textContent || '').trim();
+        if (t) text += ' ' + t;
+      }
+      if (text.trim().length > 90) break;
+      node = node.nextElementSibling;
+    }
+    text = text.replace(/\s+/g, ' ').trim();
+    if (text.length < 12) return '';
+    if (text.length > 72) text = text.slice(0, 70).replace(/\s+\S*$/, '') + '…';
+    return text;
+  }
+
+  /** Авто-оглавление из H2/H3 — fixed справа у скроллбара (как developers.sber.ru) */
   function buildArticleToc(articleBody, pageTitle) {
     if (!articleBody) return { html: '', count: 0 };
     const heads = articleBody.querySelectorAll('h2, h3');
@@ -4028,24 +4047,27 @@ function wireAuthorTagClicks(root) {
       if (!text || text.length < 2) return;
       const low = norm(text);
       if (low === 'faq' || low === 'частые вопросы' || low === 'содержание') return;
-      // не дублируем H1/title страницы в TOC
       if (titleN && (low === titleN || titleN.startsWith(low.slice(0, 40)) || low.startsWith(titleN.slice(0, 40)))) return;
       if (!h.id) h.id = slugifyHeading(text, used);
       else used.add(h.id);
       items.push({
         id: h.id,
         text,
+        preview: tocSectionPreview(h),
         level: h.tagName === 'H3' ? 3 : 2
       });
     });
     if (items.length < 2) return { html: '', count: items.length };
-    const COLLAPSE_AFTER = 8;
+    const COLLAPSE_AFTER = 7;
     const links = items.map((it, idx) => {
       const extra = idx >= COLLAPSE_AFTER ? ' toc-extra' : '';
-      return `<a class="article-toc-link article-toc-link--h${it.level}${extra}" href="#${it.id}" data-toc-id="${it.id}">${it.text}</a>`;
+      const prev = it.preview
+        ? `<span class="article-toc-preview">${it.preview}</span>`
+        : '';
+      return `<a class="article-toc-link article-toc-link--h${it.level}${extra}" href="#${it.id}" data-toc-id="${it.id}"><span class="article-toc-label">${it.text}</span>${prev}</a>`;
     }).join('');
     const moreBtn = items.length > COLLAPSE_AFTER
-      ? `<button type="button" class="article-toc-more" data-toc-more>Развернуть ▾</button>`
+      ? `<button type="button" class="article-toc-more" data-toc-more aria-expanded="false">Развернуть <span class="article-toc-chevron">▾</span></button>`
       : '';
     const collapsed = items.length > COLLAPSE_AFTER ? ' is-collapsed' : '';
     const html =
@@ -4058,7 +4080,7 @@ function wireAuthorTagClicks(root) {
 
   function wireArticleToc(root) {
     if (!root) return;
-    const toc = root.querySelector('.article-toc');
+    const toc = root.querySelector('.article-toc') || document.querySelector('.article-toc');
     const body = root.querySelector('.article-body');
     if (!toc || !body) return;
     const links = Array.from(toc.querySelectorAll('.article-toc-link'));
@@ -4071,14 +4093,12 @@ function wireAuthorTagClicks(root) {
     const more = toc.querySelector('[data-toc-more]');
     if (more) {
       more.addEventListener('click', () => {
-        const open = !toc.classList.contains('is-collapsed');
-        if (open) {
-          toc.classList.add('is-collapsed');
-          more.textContent = 'Развернуть ▾';
-        } else {
-          toc.classList.remove('is-collapsed');
-          more.textContent = 'Свернуть ▴';
-        }
+        const willOpen = toc.classList.contains('is-collapsed');
+        toc.classList.toggle('is-collapsed', !willOpen);
+        more.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        more.innerHTML = willOpen
+          ? 'Свернуть <span class="article-toc-chevron">▴</span>'
+          : 'Развернуть <span class="article-toc-chevron">▾</span>';
       });
     }
 
@@ -4104,10 +4124,12 @@ function wireAuthorTagClicks(root) {
       links.forEach((a) => a.classList.remove('is-active'));
       if (current) {
         current.a.classList.add('is-active');
-        // если активный пункт скрыт в collapsed — раскрыть
         if (current.a.classList.contains('toc-extra') && toc.classList.contains('is-collapsed')) {
           toc.classList.remove('is-collapsed');
-          if (more) more.textContent = 'Свернуть ▴';
+          if (more) {
+            more.setAttribute('aria-expanded', 'true');
+            more.innerHTML = 'Свернуть <span class="article-toc-chevron">▴</span>';
+          }
         }
       }
       ticking = false;
@@ -4121,6 +4143,7 @@ function wireAuthorTagClicks(root) {
     setActive();
     window.addEventListener('scroll', onScroll, { passive: true });
   }
+
 
   async function initArticleDetailPage(container) {
     const params = new URLSearchParams(window.location.search);
@@ -4201,25 +4224,23 @@ function wireAuthorTagClicks(root) {
       <div class="idea-pill-row">
         <span class="idea-pill"><i data-lucide="calendar"></i> ${formatDate(article.created_at) || 'дата не указана'}</span>
       </div>
-      <div class="article-with-toc">
-        <div class="article-main-col">
-          <div class="idea-field-block">
-            <div class="article-body">${bodyHtml}</div>
-          </div>
-          <div class="hero-actions" style="justify-content:flex-start; margin-top: 24px;">
-            <button class="btn ${isUpvoted ? 'btn-primary' : 'btn-secondary'}" id="articleUpvoteBtn">
-              <i data-lucide="arrow-up"></i> ${isUpvoted ? 'Апвоут поставлен' : 'Апвоут'}
-            </button>
-            <button class="btn ${isFav ? 'btn-primary' : 'btn-secondary'}" id="articleFavBtn">
-              <i data-lucide="bookmark"></i> ${isFav ? 'В избранном' : 'В избранное'}
-            </button>
-          </div>
-          <div id="articleFaqContainer">${renderFaqCard(article.faq)}</div>
-          <div id="articleRelatedIdeasContainer"></div>
-          <div id="articleRelatedContainer"></div>
+      <div class="article-main-col">
+        <div class="idea-field-block">
+          <div class="article-body">${bodyHtml}</div>
         </div>
-        <aside class="article-toc-aside" id="articleTocAside" hidden></aside>
+        <div class="hero-actions" style="justify-content:flex-start; margin-top: 24px;">
+          <button class="btn ${isUpvoted ? 'btn-primary' : 'btn-secondary'}" id="articleUpvoteBtn">
+            <i data-lucide="arrow-up"></i> ${isUpvoted ? 'Апвоут поставлен' : 'Апвоут'}
+          </button>
+          <button class="btn ${isFav ? 'btn-primary' : 'btn-secondary'}" id="articleFavBtn">
+            <i data-lucide="bookmark"></i> ${isFav ? 'В избранном' : 'В избранное'}
+          </button>
+        </div>
+        <div id="articleFaqContainer">${renderFaqCard(article.faq)}</div>
+        <div id="articleRelatedIdeasContainer"></div>
+        <div id="articleRelatedContainer"></div>
       </div>
+      <aside class="article-toc-fixed" id="articleTocAside" hidden aria-label="Содержание"></aside>
     `;
     if (window.lucide) lucide.createIcons();
     wireAuthorTagClicks(container);
@@ -4240,14 +4261,24 @@ function wireAuthorTagClicks(root) {
     }
 
       const tocBuilt = buildArticleToc(articleBodyEl, article.title || "");
-      const aside = document.getElementById('articleTocAside');
+      let aside = document.getElementById('articleTocAside');
+      // убрать старый fixed-TOC при перезагрузке статьи
+      document.querySelectorAll('.article-toc-fixed').forEach((el) => {
+        if (el !== aside) el.remove();
+      });
       if (aside && tocBuilt.count >= 2) {
         aside.innerHTML = tocBuilt.html;
         aside.hidden = false;
-        container.classList.add('has-article-toc');
-        const page = document.getElementById('articlePage') || container.closest('main') || container;
-        if (page) page.classList.add('has-article-toc');
+        // fixed к экрану: выносим из потока статьи, текст не смещается
+        if (aside.parentElement !== document.body) {
+          document.body.appendChild(aside);
+        }
+        document.body.classList.add('has-article-toc-fixed');
         wireArticleToc(container);
+      } else if (aside) {
+        aside.hidden = true;
+        aside.innerHTML = '';
+        document.body.classList.remove('has-article-toc-fixed');
       }
     }
     wirePaybackCalcs(document.getElementById('articleBody') || container || document);
