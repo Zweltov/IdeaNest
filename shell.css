@@ -1,3 +1,40 @@
+/* SB Sans — как developers.sber.ru (нужен на главной/расчёте без style.css) */
+@font-face {
+  font-family: "SB Sans Text";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansText/SBSansText-Regular.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Text";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansText/SBSansText-Medium.woff2") format("woff2");
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Text";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansText/SBSansText-Semibold.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Text";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansText/SBSansText-Bold.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Display";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansDisplay/SBSansDisplay-Regular.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Display";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansDisplay/SBSansDisplay-Semibold.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "SB Sans Display";
+  src: url("https://cdn-app.sberdevices.ru/shared-static/0.0.0/fonts/SBSansDisplay/SBSansDisplay-Bold.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
 :root {
   /* Спокойный «банковский» зелёный, без оранжевого */
   --bg: #f3f6f5;
@@ -14,7 +51,9 @@
   --radius: 24px;
   --radius-sm: 16px;
   --shadow: 0 12px 40px rgba(13, 41, 31, 0.06);
-  --font: var(--font-sans), system-ui, -apple-system, sans-serif;
+  --font-sans: "SB Sans Text", Roboto, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "SB Sans Display", "SB Sans Text", Roboto, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font: var(--font-sans);
   --max: 1040px;
 }
 
@@ -5188,3 +5227,12 @@ body.shell-site .page {
 
 .article-hero, .idea-hero { border-radius: 20px !important; overflow: hidden !important; }
 .infobox-warning { border-color: #f59e0b !important; border-left-color: #f59e0b !important; }
+
+
+/* shell font force */
+html, body, button, input, select, textarea {
+  font-family: var(--font-sans) !important;
+}
+h1, h2, h3, h4, .brand-name, .hero-title, .section-title {
+  font-family: var(--font-display) !important;
+}

@@ -6690,3 +6690,31 @@ html {
 .article-toc-link.is-active::after {
   display: none !important;
 }
+
+
+/* TOC indicator: full item, gray not pink */
+.article-toc-indicator {
+  background: #f0f1f3 !important;
+  box-shadow: none !important;
+  border: none !important;
+  min-height: 44px;
+}
+.article-toc-link.is-active {
+  color: #111827 !important;
+  background: transparent !important;
+}
+.article-toc-link:hover {
+  background: rgba(0,0,0,0.04) !important;
+  color: #111827 !important;
+}
+[data-theme="dark"] .article-toc-indicator {
+  background: rgba(255,255,255,0.1) !important;
+}
+[data-theme="dark"] body .article-toc-indicator {
+  background: rgba(255,255,255,0.1) !important;
+}
+/* убрать любой розовый/accent фон у индикатора */
+.article-toc-indicator {
+  background-color: #f0f1f3 !important;
+  background-image: none !important;
+}

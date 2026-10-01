@@ -4099,21 +4099,18 @@ function wireAuthorTagClicks(root) {
       const el = id ? document.getElementById(id) : null;
       return { a, el };
     }).filter((x) => x.el);
+    if (!map.length) return;
 
-    /**
-     * Режим рулетки (is-collapsed): список едет, активный по центру,
-     * но без пустоты сверху/снизу (clamp offset).
-     * Режим развёрнут: без transform, индикатор по позиции пункта.
-     */
     const syncToc = (activeLink) => {
       if (!activeLink || !viewport || !list) return;
       const roulette = toc.classList.contains('is-collapsed');
-      const linkH = Math.max(activeLink.offsetHeight, 36);
+      // полная высота пункта: название + превью
+      const linkH = Math.ceil(activeLink.getBoundingClientRect().height) || activeLink.offsetHeight || 48;
+      const linkTop = activeLink.offsetTop;
 
       if (roulette) {
-        const vh = viewport.clientHeight || 260;
+        const vh = viewport.clientHeight || 280;
         const listH = list.scrollHeight;
-        const linkTop = activeLink.offsetTop;
         const linkCenter = linkTop + linkH / 2;
         let offset = linkCenter - vh / 2;
         const maxOffset = Math.max(0, listH - vh);
@@ -4121,9 +4118,7 @@ function wireAuthorTagClicks(root) {
         if (offset > maxOffset) offset = maxOffset;
         list.style.transform = 'translateY(' + (-offset) + 'px)';
 
-        // индикатор: центр окна, но если упёрлись в край — совпадает с пунктом
         let indTop = linkTop - offset;
-        // clamp indicator inside viewport
         if (indTop < 0) indTop = 0;
         if (indTop + linkH > vh) indTop = Math.max(0, vh - linkH);
         if (indicator) {
@@ -4131,15 +4126,16 @@ function wireAuthorTagClicks(root) {
           indicator.style.height = linkH + 'px';
           indicator.style.top = indTop + 'px';
           indicator.style.transform = 'none';
+          indicator.style.background = '#f0f1f3';
         }
       } else {
         list.style.transform = 'none';
-        const linkTop = activeLink.offsetTop;
         if (indicator) {
           indicator.style.opacity = '1';
           indicator.style.height = linkH + 'px';
           indicator.style.top = linkTop + 'px';
           indicator.style.transform = 'none';
+          indicator.style.background = '#f0f1f3';
         }
       }
     };
@@ -4155,7 +4151,10 @@ function wireAuthorTagClicks(root) {
           ? 'Свернуть <span class="article-toc-chevron">▴</span>'
           : 'Развернуть <span class="article-toc-chevron">▾</span>';
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => syncToc(toc.querySelector('.article-toc-link.is-active')));
+          requestAnimationFrame(() => {
+            const active = toc.querySelector('.article-toc-link.is-active') || links[0];
+            syncToc(active);
+          });
         });
       });
     }
@@ -4171,7 +4170,7 @@ function wireAuthorTagClicks(root) {
         links.forEach((x) => x.classList.remove('is-active'));
         a.classList.add('is-active');
         syncToc(a);
-        // прежняя плавная прокрутка страницы
+        // анимация прокрутки как раньше (до ускорения)
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         history.replaceState(null, '', '#' + id);
       });
@@ -4179,6 +4178,14 @@ function wireAuthorTagClicks(root) {
 
     let ticking = false;
     const setActive = () => {
+      // у самого верха страницы — всегда первая категория
+      if (window.scrollY < 80) {
+        links.forEach((a) => a.classList.remove('is-active'));
+        map[0].a.classList.add('is-active');
+        syncToc(map[0].a);
+        ticking = false;
+        return;
+      }
       const y = window.scrollY + Math.min(150, window.innerHeight * 0.2);
       let current = map[0];
       for (const item of map) {
@@ -4186,10 +4193,8 @@ function wireAuthorTagClicks(root) {
         if (top <= y) current = item;
       }
       links.forEach((a) => a.classList.remove('is-active'));
-      if (current) {
-        current.a.classList.add('is-active');
-        syncToc(current.a);
-      }
+      current.a.classList.add('is-active');
+      syncToc(current.a);
       ticking = false;
     };
     const onScroll = () => {
@@ -4198,9 +4203,12 @@ function wireAuthorTagClicks(root) {
         requestAnimationFrame(setActive);
       }
     };
+    // старт: первая категория + рамка на весь пункт
+    links.forEach((a) => a.classList.remove('is-active'));
+    map[0].a.classList.add('is-active');
     requestAnimationFrame(() => {
       setActive();
-      syncToc(toc.querySelector('.article-toc-link.is-active') || links[0]);
+      syncToc(toc.querySelector('.article-toc-link.is-active') || map[0].a);
     });
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', () => {
