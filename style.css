@@ -6539,3 +6539,77 @@ html {
   .article-toc-fixed { width: 220px; right: 6px; }
   .article-toc-label { font-size: 0.88rem !important; }
 }
+
+
+/* ===== TOC roulette (active always centered) ===== */
+.article-toc-viewport {
+  position: relative;
+  height: 236px; /* ~4 пункта */
+  overflow: hidden;
+  border-left: 1px solid #e5e7eb;
+}
+[data-theme="dark"] .article-toc-viewport {
+  border-left-color: rgba(255,255,255,0.12);
+}
+.article-toc-list {
+  position: relative;
+  z-index: 1;
+  will-change: transform;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  border-left: none !important;
+}
+/* индикатор закреплён по центру «окна» — список едет как рулетка */
+.article-toc-indicator {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  height: 52px !important;
+  border-radius: 0 10px 10px 0 !important;
+  background: #f0f1f3 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  opacity: 1 !important;
+  transition: height 0.22s ease, opacity 0.15s ease !important;
+}
+.article-toc-indicator::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 3px;
+  background: #9ca3af;
+}
+[data-theme="dark"] .article-toc-indicator {
+  background: rgba(255,255,255,0.08) !important;
+}
+.article-toc {
+  border-left: none !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+.article-toc-fixed .article-toc {
+  border-left: none !important;
+}
+.article-toc-link {
+  transition: color 0.12s ease, background 0.12s ease, opacity 0.2s ease !important;
+}
+.article-toc-link:not(.is-active) {
+  opacity: 0.72;
+}
+.article-toc-link.is-active {
+  opacity: 1 !important;
+}
+.article-toc-link:hover {
+  opacity: 1 !important;
+}
+/* при раскрытии — выше окно, чтобы влезали все */
+.article-toc:not(.is-collapsed) .article-toc-viewport {
+  height: min(420px, calc(100vh - 180px));
+}
+.article-toc-more {
+  margin-top: 6px;
+}
