@@ -4058,18 +4058,17 @@ function wireAuthorTagClicks(root) {
       });
     });
     if (items.length < 2) return { html: '', count: items.length };
-    const COLLAPSE_AFTER = 4;
-    const links = items.map((it, idx) => {
-      const extra = idx >= COLLAPSE_AFTER ? ' toc-extra' : '';
+    const links = items.map((it) => {
       const prev = it.preview
         ? `<span class="article-toc-preview">${it.preview}</span>`
         : '';
-      return `<a class="article-toc-link article-toc-link--h${it.level}${extra}" href="#${it.id}" data-toc-id="${it.id}"><span class="article-toc-label">${it.text}</span>${prev}</a>`;
+      return `<a class="article-toc-link article-toc-link--h${it.level}" href="#${it.id}" data-toc-id="${it.id}"><span class="article-toc-label">${it.text}</span>${prev}</a>`;
     }).join('');
-    const moreBtn = items.length > COLLAPSE_AFTER
+    const moreBtn = items.length > 4
       ? `<button type="button" class="article-toc-more" data-toc-more aria-expanded="false">Развернуть <span class="article-toc-chevron">▾</span></button>`
       : '';
-    const collapsed = items.length > COLLAPSE_AFTER ? ' is-collapsed' : '';
+    // is-collapsed = режим рулетки (по умолчанию, если пунктов > 4)
+    const collapsed = items.length > 4 ? ' is-collapsed' : '';
     const html =
       `<nav class="article-toc${collapsed}" aria-label="Содержание статьи">` +
       `<div class="article-toc-viewport">` +
@@ -4101,51 +4100,62 @@ function wireAuthorTagClicks(root) {
       return { a, el };
     }).filter((x) => x.el);
 
-    /** Рулетка: активный пункт всегда по центру viewport */
-    const centerActive = (activeLink) => {
-      if (!viewport || !list || !activeLink) return;
-      // force layout after expand
-      const vh = viewport.clientHeight || 220;
-      const linkTop = activeLink.offsetTop;
-      const linkH = activeLink.offsetHeight || 48;
-      const linkCenter = linkTop + linkH / 2;
-      const offset = linkCenter - vh / 2;
-      list.style.transform = 'translateY(' + (-offset) + 'px)';
-      if (indicator) {
-        indicator.style.opacity = '1';
-        indicator.style.height = linkH + 'px';
-      }
-    };
+    /**
+     * Режим рулетки (is-collapsed): список едет, активный по центру,
+     * но без пустоты сверху/снизу (clamp offset).
+     * Режим развёрнут: без transform, индикатор по позиции пункта.
+     */
+    const syncToc = (activeLink) => {
+      if (!activeLink || !viewport || !list) return;
+      const roulette = toc.classList.contains('is-collapsed');
+      const linkH = Math.max(activeLink.offsetHeight, 36);
 
-    /** Быстрый скролл страницы к секции (~280ms) */
-    const quickScrollTo = (el) => {
-      const target = el.getBoundingClientRect().top + window.scrollY - 96;
-      const startY = window.scrollY;
-      const dist = target - startY;
-      if (Math.abs(dist) < 2) return;
-      const duration = 280;
-      const t0 = performance.now();
-      const ease = (t) => 1 - Math.pow(1 - t, 2.2);
-      const step = (now) => {
-        const p = Math.min(1, (now - t0) / duration);
-        window.scrollTo(0, startY + dist * ease(p));
-        if (p < 1) requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
+      if (roulette) {
+        const vh = viewport.clientHeight || 260;
+        const listH = list.scrollHeight;
+        const linkTop = activeLink.offsetTop;
+        const linkCenter = linkTop + linkH / 2;
+        let offset = linkCenter - vh / 2;
+        const maxOffset = Math.max(0, listH - vh);
+        if (offset < 0) offset = 0;
+        if (offset > maxOffset) offset = maxOffset;
+        list.style.transform = 'translateY(' + (-offset) + 'px)';
+
+        // индикатор: центр окна, но если упёрлись в край — совпадает с пунктом
+        let indTop = linkTop - offset;
+        // clamp indicator inside viewport
+        if (indTop < 0) indTop = 0;
+        if (indTop + linkH > vh) indTop = Math.max(0, vh - linkH);
+        if (indicator) {
+          indicator.style.opacity = '1';
+          indicator.style.height = linkH + 'px';
+          indicator.style.top = indTop + 'px';
+          indicator.style.transform = 'none';
+        }
+      } else {
+        list.style.transform = 'none';
+        const linkTop = activeLink.offsetTop;
+        if (indicator) {
+          indicator.style.opacity = '1';
+          indicator.style.height = linkH + 'px';
+          indicator.style.top = linkTop + 'px';
+          indicator.style.transform = 'none';
+        }
+      }
     };
 
     const more = toc.querySelector('[data-toc-more]');
     if (more && !more.dataset.wired) {
       more.dataset.wired = '1';
       more.addEventListener('click', () => {
-        const willOpen = toc.classList.contains('is-collapsed');
-        toc.classList.toggle('is-collapsed', !willOpen);
-        more.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-        more.innerHTML = willOpen
+        const willExpand = toc.classList.contains('is-collapsed');
+        toc.classList.toggle('is-collapsed', !willExpand);
+        more.setAttribute('aria-expanded', willExpand ? 'true' : 'false');
+        more.innerHTML = willExpand
           ? 'Свернуть <span class="article-toc-chevron">▴</span>'
           : 'Развернуть <span class="article-toc-chevron">▾</span>';
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => centerActive(toc.querySelector('.article-toc-link.is-active')));
+          requestAnimationFrame(() => syncToc(toc.querySelector('.article-toc-link.is-active')));
         });
       });
     }
@@ -4160,14 +4170,14 @@ function wireAuthorTagClicks(root) {
         e.preventDefault();
         links.forEach((x) => x.classList.remove('is-active'));
         a.classList.add('is-active');
-        centerActive(a);
-        quickScrollTo(el);
+        syncToc(a);
+        // прежняя плавная прокрутка страницы
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         history.replaceState(null, '', '#' + id);
       });
     });
 
     let ticking = false;
-    let lastId = '';
     const setActive = () => {
       const y = window.scrollY + Math.min(150, window.innerHeight * 0.2);
       let current = map[0];
@@ -4178,20 +4188,7 @@ function wireAuthorTagClicks(root) {
       links.forEach((a) => a.classList.remove('is-active'));
       if (current) {
         current.a.classList.add('is-active');
-        if (current.a.classList.contains('toc-extra') && toc.classList.contains('is-collapsed')) {
-          toc.classList.remove('is-collapsed');
-          if (more) {
-            more.setAttribute('aria-expanded', 'true');
-            more.innerHTML = 'Свернуть <span class="article-toc-chevron">▴</span>';
-          }
-        }
-        const id = current.a.getAttribute('data-toc-id') || '';
-        if (id !== lastId) {
-          lastId = id;
-          centerActive(current.a);
-        } else {
-          centerActive(current.a);
-        }
+        syncToc(current.a);
       }
       ticking = false;
     };
@@ -4201,14 +4198,13 @@ function wireAuthorTagClicks(root) {
         requestAnimationFrame(setActive);
       }
     };
-    // initial center after layout
     requestAnimationFrame(() => {
       setActive();
-      centerActive(toc.querySelector('.article-toc-link.is-active') || links[0]);
+      syncToc(toc.querySelector('.article-toc-link.is-active') || links[0]);
     });
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', () => {
-      centerActive(toc.querySelector('.article-toc-link.is-active'));
+      syncToc(toc.querySelector('.article-toc-link.is-active'));
     }, { passive: true });
   }
 

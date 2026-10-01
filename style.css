@@ -6613,3 +6613,80 @@ html {
 .article-toc-more {
   margin-top: 6px;
 }
+
+
+/* ===== TOC fix: roulette + expand + no empty top ===== */
+.article-toc-viewport {
+  position: relative !important;
+  overflow: hidden !important;
+  border-left: 1px solid #e5e7eb !important;
+  /* чуть выше чем 4 коротких пункта */
+  height: 280px !important;
+}
+.article-toc.is-collapsed .article-toc-viewport {
+  height: 280px !important;
+}
+/* развёрнуто: без рулетки, виден весь список */
+.article-toc:not(.is-collapsed) .article-toc-viewport {
+  height: auto !important;
+  max-height: min(70vh, 560px) !important;
+  overflow-y: auto !important;
+}
+.article-toc-list {
+  position: relative !important;
+  z-index: 1 !important;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  will-change: transform;
+}
+.article-toc:not(.is-collapsed) .article-toc-list {
+  transform: none !important;
+  transition: none !important;
+}
+.article-toc-indicator {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  border-radius: 0 10px 10px 0 !important;
+  background: #f0f1f3 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  opacity: 1 !important;
+  transition: top 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              height 0.22s ease !important;
+  transform: none !important;
+}
+.article-toc-indicator::after {
+  content: '' !important;
+  position: absolute !important;
+  right: 0 !important;
+  top: 20% !important;
+  bottom: 20% !important;
+  width: 3px !important;
+  border-radius: 3px !important;
+  background: #9ca3af !important;
+}
+[data-theme="dark"] .article-toc-indicator {
+  background: rgba(255,255,255,0.08) !important;
+}
+[data-theme="dark"] .article-toc-viewport {
+  border-left-color: rgba(255,255,255,0.12) !important;
+}
+/* больше не прячем пункты — все участвуют в рулетке */
+.article-toc-link.toc-extra {
+  max-height: none !important;
+  opacity: inherit !important;
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+  pointer-events: auto !important;
+  transform: none !important;
+  overflow: visible !important;
+}
+.article-toc-link {
+  background: transparent !important;
+}
+.article-toc-link.is-active {
+  background: transparent !important;
+}
+.article-toc-link.is-active::after {
+  display: none !important;
+}
